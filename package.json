@@ -13,7 +13,8 @@
     "test": "node scripts/agent_test.mjs",
     "check:live": "node --env-file=.env.local scripts/check_live.mjs",
     "record": "node --env-file=.env.local scripts/record_odds.mjs",
-    "import:replays": "node scripts/import_replays.mjs"
+    "import:replays": "node scripts/import_replays.mjs",
+    "example:desk": "node examples/desk_quickstart.mjs"
   },
   "dependencies": {
     "next": "16.2.9",
