@@ -11,7 +11,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const snap = getRunner().snapshot();
+  const runner = getRunner();
+  // On a cold serverless instance the runner has just booted with no trades yet.
+  // The replay starts firing within a second or two, so wait briefly for some
+  // executions so the CSV's tally is populated (frame rows are always complete).
+  let snap = runner.snapshot();
+  for (let i = 0; i < 16 && (snap.tradeCount ?? 0) < 8; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    snap = runner.snapshot();
+  }
   const trades = (snap.trades as unknown as VerifyTrade[]) ?? [];
   const { csv, frameCount, tradedFrameCount, matchCount } = buildVerificationCsv(trades);
 
