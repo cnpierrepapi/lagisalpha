@@ -68,6 +68,10 @@ interface SynthFixture {
   goals2: number;
   reds1: number;
   reds2: number;
+  momDir: number; // steam continuation: +1/-1 for a few ticks after a jump
+  momTicks: number;
+  revPer: number; // event reversion: per-tick drift back after an overshoot
+  revTicks: number;
 }
 
 function emitOdds(engine: EngineLike, f: SynthFixture) {
@@ -100,38 +104,60 @@ function emitScores(engine: EngineLike, f: SynthFixture, action: string) {
 function startSynth(engine: EngineLike, labels: Map<string, string>): void {
   const rng = mulberry32(0x9e3779b9);
   const fx: SynthFixture[] = [
-    { id: "SYN-1", p1: "Brazil", p2: "Serbia", pOver: 0.52, seconds: 0, goals1: 0, goals2: 0, reds1: 0, reds2: 0 },
-    { id: "SYN-2", p1: "Spain", p2: "Japan", pOver: 0.48, seconds: 0, goals1: 0, goals2: 0, reds1: 0, reds2: 0 },
+    { id: "SYN-1", p1: "Brazil", p2: "Serbia", pOver: 0.52, seconds: 0, goals1: 0, goals2: 0, reds1: 0, reds2: 0, momDir: 0, momTicks: 0, revPer: 0, revTicks: 0 },
+    { id: "SYN-2", p1: "Spain", p2: "Japan", pOver: 0.48, seconds: 0, goals1: 0, goals2: 0, reds1: 0, reds2: 0, momDir: 0, momTicks: 0, revPer: 0, revTicks: 0 },
   ];
   for (const f of fx) {
     labels.set(f.id, `${f.p1} v ${f.p2}`);
     emitScores(engine, f, "kickoff"); // seed prevTotals so deltas are detectable
   }
 
+  // Each fixture demonstrates ONE thesis cleanly so the edges have real,
+  // legible expectancy (continuation/reversion span the full 8-tick hold):
+  //   • SYN-1 = STEAM — periodic sharp jumps that KEEP GOING → following pays.
+  //   • SYN-2 = OVERREACTION — goals/red cards overshoot then REVERT → fading pays.
+  const [steamFx, overFx] = fx;
   let tick = 0;
   const iv = setInterval(() => {
     tick++;
     for (const f of fx) {
       f.seconds += 45;
-      f.pOver += (rng() - 0.5) * 0.01; // base random walk
+      f.pOver += (rng() - 0.5) * 0.004; // tiny base noise
+    }
 
-      // periodic steam jumps (sharp, > threshold) on a stagger
-      if (f.id === "SYN-1" && tick % 7 === 0) f.pOver += (rng() < 0.5 ? -1 : 1) * 0.06;
-      if (f.id === "SYN-2" && tick % 9 === 0) f.pOver += (rng() < 0.5 ? -1 : 1) * 0.055;
+    // --- SYN-1: steam every 9 ticks (> the 8-tick cooldown), then continue ---
+    if (tick % 9 === 0) {
+      const dir = rng() < 0.5 ? -1 : 1;
+      steamFx.pOver += dir * 0.06; // the jump fires the steam edge
+      steamFx.momDir = dir;
+      steamFx.momTicks = 8; // continuation spans the whole hold window
+    }
+    if (steamFx.momTicks > 0) {
+      steamFx.pOver += steamFx.momDir * 0.009;
+      steamFx.momTicks -= 1;
+    }
 
-      // a scripted goal on SYN-1 → big over-swing → overreaction edge
-      if (f.id === "SYN-1" && tick === 14) {
-        f.goals1 += 1;
-        f.pOver = Math.min(0.9, f.pOver + 0.13);
-        emitScores(engine, f, "goal");
-      }
-      // a scripted red card on SYN-2 later (feeds red-card papers)
-      if (f.id === "SYN-2" && tick === 22) {
-        f.reds2 += 1;
-        f.pOver = Math.max(0.1, f.pOver - 0.12);
-        emitScores(engine, f, "red_card");
-      }
+    // --- SYN-2: recurring goals / red cards, each overshoot then reverts ---
+    if (tick >= 8 && (tick - 8) % 16 === 0) {
+      overFx.goals1 += 1;
+      overFx.pOver = Math.min(0.9, overFx.pOver + 0.13);
+      overFx.revPer = -0.013; // revert down → fading the over-spike pays
+      overFx.revTicks = 8;
+      emitScores(engine, overFx, "goal");
+    }
+    if (tick >= 16 && (tick - 16) % 16 === 0) {
+      overFx.reds2 += 1;
+      overFx.pOver = Math.max(0.1, overFx.pOver - 0.12);
+      overFx.revPer = 0.012; // revert up → fading the under-spike pays
+      overFx.revTicks = 8;
+      emitScores(engine, overFx, "red_card");
+    }
+    if (overFx.revTicks > 0) {
+      overFx.pOver += overFx.revPer;
+      overFx.revTicks -= 1;
+    }
 
+    for (const f of fx) {
       f.pOver = Math.min(0.92, Math.max(0.08, f.pOver));
       emitOdds(engine, f);
       emitScores(engine, f, "tick");
