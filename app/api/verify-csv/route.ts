@@ -9,14 +9,17 @@ import { buildVerificationCsv, type VerifyTrade } from "@/lib/verify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 25;
 
 export async function GET() {
   const runner = getRunner();
   // On a cold serverless instance the runner has just booted with no trades yet.
-  // The replay starts firing within a second or two, so wait briefly for some
-  // executions so the CSV's tally is populated (frame rows are always complete).
+  // The replay starts firing within a second or two, so wait for a meaningful
+  // batch of executions before exporting (frame rows are always complete; this
+  // only fills the execution tally). A warm instance — e.g. one already serving
+  // the /proof live feed — returns immediately with its full history.
   let snap = runner.snapshot();
-  for (let i = 0; i < 16 && (snap.tradeCount ?? 0) < 8; i++) {
+  for (let i = 0; i < 40 && (snap.tradeCount ?? 0) < 25; i++) {
     await new Promise((r) => setTimeout(r, 400));
     snap = runner.snapshot();
   }
