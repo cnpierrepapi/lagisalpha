@@ -143,7 +143,7 @@ export default function Litepaper() {
         <p>
           The feed is anchored on Solana, and access to it is minted by a real on-chain subscribe
           transaction. The same captured streams the live product replays — two complete matches,
-          Brazil v Japan (13,335 odds frames) and Germany v Paris (8,230) — ship inside the
+          Brazil v Japan (13,319 odds frames) and Germany v Paraguay (8,230) — ship inside the
           repository, so the system is self-contained and every result is reproducible.
         </p>
       </Section>

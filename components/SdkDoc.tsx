@@ -139,7 +139,7 @@ engine.ingestScores(txlineScoreRecord);`}</Code>
           A complete, runnable end-to-end backtest on real captured TxLINE frames:
         </p>
         <Code>{`node examples/desk_quickstart.mjs
-# Feeding Brazil v Japan — 13335 odds + 989 score frames…
+# Feeding Brazil v Japan — 13319 odds + 971 score frames…
 # 12936 edges -> 27 calls · hit-rate 74% · avg CLV +3.05%`}</Code>
       </section>
 

@@ -5,6 +5,8 @@
 // Hobby usage). If the env vars are absent, every function no-ops and the desk
 // falls back to the in-app SSE replay — so this is safe to ship without keys.
 
+import { labelForFid, relabelMatch } from "./fixture-names";
+
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SESSION = process.env.NEXT_PUBLIC_DESK_SESSION || "live";
@@ -48,13 +50,22 @@ export interface RemoteTrade {
   pnl: number;
 }
 
+export interface RemoteProvenance {
+  fid: string;
+  label: string;
+  oddsFrames: number;
+  scoreFrames: number;
+  ingested: number;
+}
+
 export interface RemoteSnapshot {
   fresh: boolean;
   mode: string;
   status: string;
   totalIngested: number;
+  tradeCount: number;
   proof?: unknown;
-  provenance?: unknown;
+  provenance: RemoteProvenance[];
   agents: RemoteAgent[];
   trades: RemoteTrade[];
 }
@@ -73,7 +84,7 @@ export async function fetchRemoteSnapshot(): Promise<RemoteSnapshot | null> {
     const [metaRows, agentRows, tradeRows] = await Promise.all([
       get(`desk_meta?id=eq.${SESSION}&select=*`),
       get(`desk_agents?session=eq.${SESSION}&select=*&order=name.asc`),
-      get(`desk_trades?session=eq.${SESSION}&select=*&order=ts.desc&limit=100`),
+      get(`desk_trades?session=eq.${SESSION}&select=*&order=ts.desc&limit=300`),
     ]);
     const meta = (metaRows as Record<string, unknown>[])[0];
     if (!meta) return null;
@@ -100,7 +111,7 @@ export async function fetchRemoteSnapshot(): Promise<RemoteSnapshot | null> {
       agentId: String(t.agent_id),
       agent: String(t.agent),
       kind: String(t.kind),
-      match: String(t.match),
+      match: relabelMatch(String(t.match)), // "#fid · market" -> "Team v Team · market"
       side: String(t.side),
       direction: String(t.direction),
       odds: Number(t.odds),
@@ -111,13 +122,25 @@ export async function fetchRemoteSnapshot(): Promise<RemoteSnapshot | null> {
       pnl: Number(t.pnl),
     }));
 
+    // The live feed stored bare "#fid" labels — resolve them to team names here.
+    const provenance: RemoteProvenance[] = (Array.isArray(meta.provenance) ? meta.provenance : []).map(
+      (p: Record<string, unknown>) => ({
+        fid: String(p.fid),
+        label: labelForFid(String(p.fid)),
+        oddsFrames: Number(p.oddsFrames ?? 0),
+        scoreFrames: Number(p.scoreFrames ?? 0),
+        ingested: Number(p.ingested ?? 0),
+      }),
+    );
+
     return {
       fresh,
       mode: String(meta.mode ?? "live"),
       status: String(meta.status ?? ""),
       totalIngested: Number(meta.total_ingested ?? 0),
+      tradeCount: Number(meta.trade_count ?? trades.length),
       proof: meta.proof,
-      provenance: meta.provenance,
+      provenance,
       agents,
       trades,
     };

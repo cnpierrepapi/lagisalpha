@@ -98,6 +98,7 @@ function tradeToActivity(t: Trade): Activity {
 
 function sourceLabel(mode?: string): string {
   if (mode === "ec2-live") return "EC2 live worker — TxLINE live feed";
+  if (mode === "ec2-recorded") return "EC2 recorded session — last live TxLINE World Cup matches";
   if (mode === "replay") return "TxLINE captured matches (replay)";
   if (mode === "live") return "TxLINE live feed";
   return "synth (deterministic demo)";
@@ -206,18 +207,22 @@ export default function Desk() {
     }
   }
 
-  // Source selection: the EC2 mirror when it's pushing fresh data, else the
-  // in-app SSE replay. Everything below renders from these derived values.
+  // Source selection. Prefer the EC2/Supabase mirror whenever it has data:
+  // `fresh` (worker pushing now) renders as LIVE; a stale mirror is the last
+  // recorded session (the June 30 World Cup matches the live worker ingested)
+  // and renders as RECORDED. Fall back to the in-app SSE replay only when no
+  // mirror exists at all.
   const remoteLive = !!remote?.fresh;
-  remoteLiveRef.current = remoteLive;
+  const useRemote = !!remote && (remote.agents.length > 0 || remote.trades.length > 0);
+  remoteLiveRef.current = remoteLive; // control() only reaches the worker when truly live
 
-  const agents: AgentView[] = remoteLive ? remote!.agents : snap?.agents ?? [];
-  const baseFeed: Activity[] = remoteLive ? remote!.trades.map(tradeToActivity) : feed;
-  const sourceMode = remoteLive ? "ec2-live" : snap?.mode;
-  const totalIngested = remoteLive ? remote!.totalIngested : snap?.totalIngested;
-  const proof = (remoteLive ? remote!.proof : snap?.proof) as Snapshot["proof"];
-  const provenance = (remoteLive ? remote!.provenance : snap?.provenance) as Snapshot["provenance"];
-  const isLive = remoteLive || connected;
+  const agents: AgentView[] = useRemote ? remote!.agents : snap?.agents ?? [];
+  const baseFeed: Activity[] = useRemote ? remote!.trades.map(tradeToActivity) : feed;
+  const sourceMode = useRemote ? (remoteLive ? "ec2-live" : "ec2-recorded") : snap?.mode;
+  const totalIngested = useRemote ? remote!.totalIngested : snap?.totalIngested;
+  const proof = (useRemote ? remote!.proof : snap?.proof) as Snapshot["proof"];
+  const provenance = (useRemote ? remote!.provenance : snap?.provenance) as Snapshot["provenance"];
+  const isLive = remoteLive || (!useRemote && connected);
 
   const selectedName = selected ? agents.find((a) => a.id === selected)?.name ?? null : null;
   // When an agent is selected, show only its calls/grades — plus match events,
@@ -255,7 +260,7 @@ export default function Desk() {
           <span className="label">feed</span>
           <span className="flex items-center gap-2 text-sm">
             <span className={`inline-block h-2 w-2 rounded-full ${isLive ? "bg-amber" : "bg-ink-500"}`} />
-            {remoteLive ? "ec2 live" : sourceMode ?? "…"}
+            {remoteLive ? "ec2 live" : useRemote ? "ec2 recorded" : sourceMode ?? "…"}
           </span>
         </div>
       </div>
@@ -317,6 +322,8 @@ export default function Desk() {
                       show all
                     </button>
                   </>
+                ) : useRemote && !remoteLive ? (
+                  "last live session — World Cup matches the EC2 worker ingested"
                 ) : (
                   "agents forecasting autonomously — no human in the loop"
                 )}
@@ -324,7 +331,7 @@ export default function Desk() {
             </div>
             <span className="flex items-center gap-2 text-xs">
               <span className={`inline-block h-2 w-2 rounded-full ${isLive ? "bg-amber blink" : "bg-ink-500"}`} />
-              {remoteLive ? "LIVE · EC2" : isLive ? "LIVE" : "connecting"}
+              {remoteLive ? "LIVE · EC2" : useRemote ? "RECORDED · EC2" : isLive ? "LIVE" : "connecting"}
             </span>
           </header>
 

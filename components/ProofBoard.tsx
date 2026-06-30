@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import LiveFrames from "@/components/LiveFrames";
+import { fetchRemoteSnapshot, remoteConfigured, type RemoteSnapshot } from "@/lib/desk-remote";
 
 interface Proof {
   signedOnSolana: boolean;
@@ -50,6 +51,8 @@ function clock(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour12: false });
 }
 function sourceLabel(mode?: string): string {
+  if (mode === "ec2-live") return "EC2 live worker — TxLINE live feed";
+  if (mode === "ec2-recorded") return "EC2 recorded session — last live TxLINE matches";
   if (mode === "replay") return "TxLINE captured matches (replayed)";
   if (mode === "live") return "TxLINE live feed";
   return "synth (deterministic demo)";
@@ -57,6 +60,7 @@ function sourceLabel(mode?: string): string {
 
 export default function ProofBoard() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [remote, setRemote] = useState<RemoteSnapshot | null>(null);
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
@@ -75,13 +79,57 @@ export default function ProofBoard() {
     return () => es.close();
   }, []);
 
-  const proof = snap?.proof;
-  const trades = snap?.trades ?? [];
-  const prov = snap?.provenance ?? [];
+  // The EC2/Supabase mirror — the real live session the worker ingested (the
+  // June 30 World Cup matches). Preferred over the in-app replay when present,
+  // so /proof shows the real ingested matches and the agents' real calls.
+  useEffect(() => {
+    if (!remoteConfigured) return;
+    let alive = true;
+    const poll = async () => {
+      const r = await fetchRemoteSnapshot();
+      if (alive) setRemote(r);
+    };
+    poll();
+    const iv = setInterval(poll, 10_000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
+
+  const useRemote = !!remote && (remote.trades.length > 0 || remote.provenance.length > 0);
+  const recorded = useRemote && !remote!.fresh;
+
+  const proof = (useRemote ? remote!.proof : snap?.proof) as Proof | undefined;
+  const prov = (useRemote ? remote!.provenance : snap?.provenance ?? []) as MatchProv[];
+  const totalIngested = useRemote ? remote!.totalIngested : snap?.totalIngested ?? 0;
+  const tradeCount = useRemote ? remote!.tradeCount : snap?.tradeCount ?? 0;
+  const sourceMode = useRemote ? (remote!.fresh ? "ec2-live" : "ec2-recorded") : snap?.mode;
+
+  // Live-captured trades have no exit leg (the worker streams; it doesn't bundle
+  // a closing frame), so map them into the ledger shape with empty exit fields.
+  const trades: Trade[] = useRemote
+    ? remote!.trades.map((t) => ({
+        ts: t.ts,
+        agentId: t.agentId,
+        agent: t.agent,
+        source: "ec2-live",
+        kind: t.kind,
+        match: t.match,
+        side: t.side,
+        direction: t.direction,
+        odds: t.odds,
+        stake: t.stake,
+        proofHash: t.proofHash,
+        exitOdds: null,
+        exitProofHash: null,
+        status: t.status,
+        clvReturn: t.clvReturn,
+        pnl: t.pnl,
+      }))
+    : snap?.trades ?? [];
   const settled = trades.filter((t) => t.status === "settled");
   const avgClv = settled.length ? settled.reduce((s, t) => s + t.clvReturn, 0) / settled.length : 0;
-  // The total real TxLINE data we have on hand (captured + bundled), as opposed
-  // to `totalIngested` which is the live running count this session.
   const capturedFrames = prov.reduce((s, m) => s + m.oddsFrames + m.scoreFrames, 0);
 
   return (
@@ -96,18 +144,26 @@ export default function ProofBoard() {
           </p>
         </div>
         <span className="flex items-center gap-2 text-xs text-faint">
-          <span className={`inline-block h-2 w-2 rounded-full ${connected ? "bg-amber blink" : "bg-ink-500"}`} />
-          {connected ? "LIVE" : "connecting"}
+          <span className={`inline-block h-2 w-2 rounded-full ${(useRemote ? remote!.fresh : connected) ? "bg-amber blink" : "bg-ink-500"}`} />
+          {useRemote ? (remote!.fresh ? "LIVE · EC2" : "RECORDED · EC2") : connected ? "LIVE" : "connecting"}
         </span>
       </header>
 
+      {recorded && (
+        <p className="mb-6 rounded border border-ink-600 bg-ink-850 px-4 py-2.5 text-sm text-muted">
+          Showing the <span className="text-fg">last live World Cup session</span> — {prov.length} real matches the EC2
+          worker ingested off the TxLINE live feed ({totalIngested.toLocaleString()} frames), with{" "}
+          {tradeCount.toLocaleString()} autonomous calls, each fingerprinted to the frame it fired on.
+        </p>
+      )}
+
       {/* headline evidence stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="data source" value={sourceLabel(snap?.mode)} small />
-        <Stat label="matches captured" value={prov.length.toLocaleString()} />
-        <Stat label="real frames pulled" value={capturedFrames.toLocaleString()} />
-        <Stat label="frames ingested" value={(snap?.totalIngested ?? 0).toLocaleString()} />
-        <Stat label="total calls" value={(snap?.tradeCount ?? 0).toLocaleString()} />
+        <Stat label="data source" value={sourceLabel(sourceMode)} small />
+        <Stat label="matches" value={prov.length.toLocaleString()} />
+        <Stat label="frames on record" value={capturedFrames.toLocaleString()} />
+        <Stat label="frames ingested" value={totalIngested.toLocaleString()} />
+        <Stat label="total calls" value={tradeCount.toLocaleString()} />
         <Stat label="avg settled clv" value={`${(avgClv * 100).toFixed(1)}%`} tone={avgClv >= 0 ? "gain" : "loss"} />
       </div>
 
@@ -126,9 +182,15 @@ export default function ProofBoard() {
             <code className="rounded border border-ink-600 bg-ink-800 px-1 text-xs text-fg">clv_recomputed_pct</code>).
           </p>
           <p className="mt-1 text-xs text-faint">
-            {capturedFrames.toLocaleString()} frames · {prov.length} matches · {(snap?.tradeCount ?? 0).toLocaleString()}{" "}
+            {capturedFrames.toLocaleString()} frames · {prov.length} matches · {tradeCount.toLocaleString()}{" "}
             forecaster calls fingerprinted to their source frame.
           </p>
+          {recorded && (
+            <p className="mt-1 text-xs text-faint">
+              The CSV reconciles the bundled replay captures (Brazil v Japan, Germany v Paraguay). The live World Cup
+              session above streamed through TxLINE in real time and isn&apos;t re-bundled as raw frames.
+            </p>
+          )}
         </div>
         <a
           href="/api/verify-csv"
