@@ -191,6 +191,99 @@ engine.ingestScores(txlineScoreRecord);`}</Code>
         </p>
       </section>
 
+      {/* ─── Operator API ─────────────────────────────────────────────── */}
+      <section className="mb-10 border-t border-ink-600 pt-10">
+        <p className="label">market operators</p>
+        <h2 className="serif mt-1 text-3xl text-paper">Operator API</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
+          The desk embeds the SDK; a market operator or B2B intermediary consumes the{" "}
+          <span className="text-fg">HTTP API</span> instead. It is a clean, versioned, authenticated
+          poll endpoint returning typed, scored edges per fixture — every edge carries the{" "}
+          <code className="text-info">proofHash</code> that reconciles it against the frame ledger,
+          so you can verify each signal came from real, on-chain-authorized TxLINE data.
+        </p>
+
+        <div className="mt-5 card p-4">
+          <p className="label mb-1">endpoint</p>
+          <p className="font-mono text-sm text-amber">GET /api/v1/edges</p>
+          <p className="mt-2 text-xs text-faint">
+            Auth: <code className="text-info">Authorization: Bearer &lt;key&gt;</code> or{" "}
+            <code className="text-info">X-Api-Key: &lt;key&gt;</code>. Public demo key:{" "}
+            <code className="text-amber">ag_demo_2026</code> (production deployments set
+            OPERATOR_API_KEYS and rotate per consumer).
+          </p>
+        </div>
+
+        <p className="label mb-2 mt-6">try it</p>
+        <Code>{`curl -s https://agenthesis-eta.vercel.app/api/v1/edges \\
+  -H "Authorization: Bearer ag_demo_2026"
+
+# filter to one fixture, only high-conviction steam, cap per fixture
+curl -s "https://agenthesis-eta.vercel.app/api/v1/edges?kind=steam&conviction=High&limit=10" \\
+  -H "X-Api-Key: ag_demo_2026"`}</Code>
+
+        <p className="label mb-2 mt-6">query params</p>
+        <div className="panel divide-y divide-ink-600">
+          {[
+            ["fixtureId", "restrict to a single fixture"],
+            ["kind", "steam | overreaction | quote"],
+            ["conviction", "minimum tier: High | Medium | Low"],
+            ["limit", "max edges per fixture (1–200, default 25)"],
+          ].map(([k, d]) => (
+            <div key={k} className="flex gap-3 p-3">
+              <span className="font-mono text-xs text-amber">{k}</span>
+              <span className="text-xs text-muted">{d}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="label mb-2 mt-6">response (abridged)</p>
+        <Code>{`{
+  "version": "1",
+  "source": "txline-capture-replay",
+  "proof": { "signedOnSolana": true, "explorerUrl": "https://explorer.solana.com/tx/…" },
+  "edgeCount": 247,
+  "fixtures": [
+    {
+      "fixtureId": "18172469",
+      "label": "Brazil v Japan",
+      "edges": [
+        {
+          "kind": "overreaction",
+          "direction": "lay",
+          "conviction": "High",
+          "market": { "superOddsType": "OVERUNDER_PARTICIPANT_GOALS",
+                      "marketParameters": "3.5", "side": "over", "sideIndex": 0 },
+          "fairProb": 0.2959,
+          "impliedOdds": 3.379,
+          "edgeMeasure": 0.162,
+          "note": "GOAL (Participant2): 13.4%→29.6% — fade the overreaction",
+          "frameTsISO": "2026-06-…T…Z",
+          "proofHash": "3e740a2f"
+        }
+      ]
+    }
+  ]
+}`}</Code>
+
+        <p className="label mb-2 mt-6">webhook contract (push)</p>
+        <p className="max-w-2xl text-sm leading-relaxed text-muted">
+          In production the same Edge object is delivered by push instead of poll. Register a URL and
+          a persistent worker watching the live TxLINE stream POSTs each new edge to it:
+        </p>
+        <Code>{`POST https://your-endpoint.example/agenthesis-edges
+X-Agenthesis-Signature: sha256=<hmac of body with your secret>
+Content-Type: application/json
+
+{ "event": "edge.opened", "edge": { /* identical shape to the poll response */ } }`}</Code>
+        <p className="mt-2 max-w-2xl text-xs text-faint">
+          The poll endpoint above is the deterministic, always-available implementation (it replays
+          the bundled real captures, since serverless throttles a live engine). The webhook is the
+          production deployment of the identical contract over a persistent worker — same Edge, same
+          proofHash, push instead of pull.
+        </p>
+      </section>
+
       <footer className="mt-10 border-t border-ink-600 pt-5 text-xs text-faint">
         Read the full thesis in the{" "}
         <Link href="/litepaper" className="prompt text-amber hover:text-fg">

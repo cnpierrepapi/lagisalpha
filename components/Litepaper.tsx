@@ -50,6 +50,18 @@ export default function Litepaper() {
           agent runs that strategy with no human in the loop, and every decision is graded on
           closing-line value over a verifiable, on-chain-anchored data feed.
         </p>
+        <div className="mt-5 flex flex-wrap gap-3 text-sm">
+          <a
+            href="/agenthesis-litepaper.pdf"
+            download
+            className="rounded border border-amber-dim bg-amber/10 px-4 py-2 text-amber hover:bg-amber/20"
+          >
+            ↓ Download PDF
+          </a>
+          <Link href="/sdk" className="card px-4 py-2 text-muted hover:text-fg">
+            Integrate (SDK + API) →
+          </Link>
+        </div>
       </header>
 
       {/* TOC */}

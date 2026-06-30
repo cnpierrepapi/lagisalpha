@@ -11,6 +11,7 @@ import { decide, markPosition, type Agent, type Position } from "./agent";
 import { getPaper, buildStrategies, DEFAULT_BASE_LEVERS, type AgentLevers } from "./papers";
 import type { EdgeKind } from "./edge/types";
 import { getProof } from "./proof";
+import { edgeProofHash } from "./frame-proof.mjs";
 import type { Edge } from "./edge/types";
 
 const START_BANKROLL = 350; // universal — every agent starts equal
@@ -56,15 +57,10 @@ class AgentRunner extends EventEmitter {
   }
 
   // Deterministic fingerprint of the real TxLINE frame a trade was taken on, so
-  // a position is verifiably tied to ingested data (FNV-1a, 8 hex chars).
+  // a position is verifiably tied to ingested data. Shared with the operator API
+  // (lib/frame-proof) so a trade and a published edge hash identically.
   private proofHash(edge: Edge): string {
-    const s = `${edge.market.fixtureId}|${edge.market.superOddsType}|${edge.market.marketParameters}|${edge.market.side}|${edge.fairProb.toFixed(4)}|${edge.kind}`;
-    let h = 0x811c9dc5;
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
-    }
-    return (h >>> 0).toString(16).padStart(8, "0");
+    return edgeProofHash(edge);
   }
 
   private push(a: RunnerActivity) {
