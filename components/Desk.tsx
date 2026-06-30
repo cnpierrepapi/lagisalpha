@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  fetchRemoteSnapshot,
+  sendRemoteControl,
+  remoteConfigured,
+  type RemoteSnapshot,
+} from "@/lib/desk-remote";
 
 interface Activity {
   type: "trade" | "settle" | "matchEvent";
@@ -91,6 +97,7 @@ function tradeToActivity(t: Trade): Activity {
 }
 
 function sourceLabel(mode?: string): string {
+  if (mode === "ec2-live") return "EC2 live worker — TxLINE live feed";
   if (mode === "replay") return "TxLINE captured matches (replay)";
   if (mode === "live") return "TxLINE live feed";
   return "synth (deterministic demo)";
@@ -121,7 +128,27 @@ export default function Desk() {
   const [feed, setFeed] = useState<Activity[]>([]);
   const [connected, setConnected] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [remote, setRemote] = useState<RemoteSnapshot | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  // Read in control() without re-creating the callback each render.
+  const remoteLiveRef = useRef(false);
+
+  // EC2 worker mirror (foil Supabase, read direct). When it's pushing fresh
+  // data we render from it; otherwise we fall back to the in-app SSE replay.
+  useEffect(() => {
+    if (!remoteConfigured) return;
+    let alive = true;
+    const poll = async () => {
+      const r = await fetchRemoteSnapshot();
+      if (alive) setRemote(r);
+    };
+    poll();
+    const iv = setInterval(poll, 5000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
 
   useEffect(() => {
     const es = new EventSource("/api/feed");
@@ -154,30 +181,52 @@ export default function Desk() {
   }, []);
 
   async function control(id: string, op: "pause" | "resume" | "stop") {
-    // Optimistically reflect the new status immediately; the 3s snapshot
-    // reconciles. Without this the button feels dead until the next snapshot.
+    // Optimistically reflect the new status immediately; the next snapshot/poll
+    // reconciles. Without this the button feels dead until the next refresh.
     const next = op === "pause" ? "paused" : op === "resume" ? "running" : "stopped";
     setSnap((prev) =>
       prev
         ? { ...prev, agents: prev.agents.map((a) => (a.id === id ? { ...a, status: next as AgentView["status"] } : a)) }
         : prev,
     );
+    setRemote((prev) =>
+      prev
+        ? { ...prev, agents: prev.agents.map((a) => (a.id === id ? { ...a, status: next as AgentView["status"] } : a)) }
+        : prev,
+    );
     try {
-      await fetch("/api/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "control", id, op }),
-      });
+      if (remoteLiveRef.current) {
+        // Runner lives on EC2 → queue the intent; the worker applies it.
+        await sendRemoteControl(id, op);
+      } else {
+        await fetch("/api/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "control", id, op }),
+        });
+      }
     } catch {
-      /* the next snapshot will restore the true state */
+      /* the next snapshot/poll will restore the true state */
     }
   }
 
-  const agents = snap?.agents ?? [];
+  // Source selection: the EC2 mirror when it's pushing fresh data, else the
+  // in-app SSE replay. Everything below renders from these derived values.
+  const remoteLive = !!remote?.fresh;
+  remoteLiveRef.current = remoteLive;
+
+  const agents: AgentView[] = remoteLive ? remote!.agents : snap?.agents ?? [];
+  const baseFeed: Activity[] = remoteLive ? remote!.trades.map(tradeToActivity) : feed;
+  const sourceMode = remoteLive ? "ec2-live" : snap?.mode;
+  const totalIngested = remoteLive ? remote!.totalIngested : snap?.totalIngested;
+  const proof = (remoteLive ? remote!.proof : snap?.proof) as Snapshot["proof"];
+  const provenance = (remoteLive ? remote!.provenance : snap?.provenance) as Snapshot["provenance"];
+  const isLive = remoteLive || connected;
+
   const selectedName = selected ? agents.find((a) => a.id === selected)?.name ?? null : null;
   // When an agent is selected, show only its trades/settles — plus match events,
   // which are shared context (a goal is why an overreaction trade fired).
-  const shownFeed = selected ? feed.filter((a) => a.agentId === selected || a.type === "matchEvent") : feed;
+  const shownFeed = selected ? baseFeed.filter((a) => a.agentId === selected || a.type === "matchEvent") : baseFeed;
   const realized = agents.reduce((s, a) => s + a.bankroll, 0);
   const dayPnl = agents.reduce((s, a) => s + a.dayPnl, 0);
   const running = agents.filter((a) => a.status === "running").length;
@@ -194,8 +243,8 @@ export default function Desk() {
         <div className="card flex items-center justify-between px-4 py-3">
           <span className="label">feed</span>
           <span className="flex items-center gap-2 text-sm">
-            <span className={`inline-block h-2 w-2 rounded-full ${connected ? "bg-amber" : "bg-ink-500"}`} />
-            {snap?.mode ?? "…"}
+            <span className={`inline-block h-2 w-2 rounded-full ${isLive ? "bg-amber" : "bg-ink-500"}`} />
+            {remoteLive ? "ec2 live" : sourceMode ?? "…"}
           </span>
         </div>
       </div>
@@ -203,33 +252,33 @@ export default function Desk() {
       {/* provenance — proof of ingestion + on-chain proof of access */}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-faint">
         <span className="label">data source</span>
-        <span className="text-muted">{sourceLabel(snap?.mode)}</span>
-        {typeof snap?.totalIngested === "number" && snap.totalIngested > 0 && (
+        <span className="text-muted">{sourceLabel(sourceMode)}</span>
+        {typeof totalIngested === "number" && totalIngested > 0 && (
           <>
             <span className="text-ink-500">·</span>
-            <span className="text-muted tabular-nums">{snap.totalIngested.toLocaleString()} frames ingested</span>
+            <span className="text-muted tabular-nums">{totalIngested.toLocaleString()} frames ingested</span>
           </>
         )}
-        {snap?.proof?.signedOnSolana && (
+        {proof?.signedOnSolana && (
           <>
             <span className="text-ink-500">·</span>
             <span className="amber">✓ access signed on Solana</span>
             <a
-              href={snap.proof.explorerUrl ?? "#"}
+              href={proof.explorerUrl ?? "#"}
               target="_blank"
               rel="noreferrer"
               className="underline decoration-ink-500 underline-offset-2 hover:text-fg"
             >
-              tx {snap.proof.signupTx?.slice(0, 6)}…{snap.proof.signupTx?.slice(-4)} ({snap.proof.cluster})
+              tx {proof.signupTx?.slice(0, 6)}…{proof.signupTx?.slice(-4)} ({proof.cluster})
             </a>
           </>
         )}
       </div>
 
       {/* per-match ingestion tallies — the "we ingested this real data" proof */}
-      {!!snap?.provenance?.length && (
+      {!!provenance?.length && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {snap.provenance.map((m) => (
+          {provenance.map((m) => (
             <span
               key={m.fid}
               className="card flex items-center gap-2 px-3 py-1.5 text-xs"
@@ -263,8 +312,8 @@ export default function Desk() {
               </p>
             </div>
             <span className="flex items-center gap-2 text-xs">
-              <span className={`inline-block h-2 w-2 rounded-full ${connected ? "bg-amber blink" : "bg-ink-500"}`} />
-              {connected ? "LIVE" : "connecting"}
+              <span className={`inline-block h-2 w-2 rounded-full ${isLive ? "bg-amber blink" : "bg-ink-500"}`} />
+              {remoteLive ? "LIVE · EC2" : isLive ? "LIVE" : "connecting"}
             </span>
           </header>
 
