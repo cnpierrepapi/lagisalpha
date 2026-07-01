@@ -164,7 +164,7 @@ export default function ProofBoard() {
         <Stat label="data source" value={sourceLabel(sourceMode)} small />
         <Stat label="matches" value={prov.length.toLocaleString()} />
         <Stat label="frames on record" value={capturedFrames.toLocaleString()} />
-        <Stat label="frames ingested" value={totalIngested.toLocaleString()} />
+        <Stat label={useRemote ? "lifetime frames ingested" : "frames ingested"} value={totalIngested.toLocaleString()} />
         <Stat label="total calls" value={tradeCount.toLocaleString()} />
         <Stat label="avg settled clv" value={`${(avgClv * 100).toFixed(1)}%`} tone={avgClv >= 0 ? "gain" : "loss"} />
       </div>

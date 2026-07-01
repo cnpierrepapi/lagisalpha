@@ -33,6 +33,23 @@ log(`desk_worker up — push=${PUSH_MS}ms control=${CONTROL_MS}ms session=${SESS
 // reconstruct exactly what the worker saw and "what happened after it dropped".
 let lastIngested = -1;
 let stalls = 0;
+// LIFETIME frame counter: the runner's own tally resets to 0 every restart, so we
+// seed a baseline from the last value persisted in desk_meta and report
+// baseline + this-process count. The mirror then shows all-time frames ingested,
+// monotonic across restarts, instead of just the current session.
+let baseIngested = 0;
+
+async function seedBaseline(): Promise<void> {
+  try {
+    const rows = (await select("desk_meta", `id=eq.${SESSION}&select=total_ingested`)) as Array<{
+      total_ingested: number | null;
+    }>;
+    baseIngested = Number(rows?.[0]?.total_ingested) || 0;
+    log(`cumulative ingested baseline seeded = ${baseIngested}`);
+  } catch (e) {
+    log("baseline seed failed — starting lifetime count from 0:", (e as Error).message);
+  }
+}
 
 async function push(): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,7 +100,8 @@ async function push(): Promise<void> {
     exit_proof_hash: t.exitProofHash ?? null,
   }));
 
-  const ingested = snap.totalIngested || 0;
+  // Lifetime = persisted baseline + frames this process has ingested so far.
+  const ingested = baseIngested + (snap.totalIngested || 0);
   if (ingested === lastIngested) {
     stalls += 1;
     log(`STALL #${stalls}: feed quiet — ingested frozen at ${ingested}`);
@@ -139,9 +157,13 @@ async function controls(): Promise<void> {
   }
 }
 
-setInterval(push, PUSH_MS);
-setInterval(controls, CONTROL_MS);
-void push();
+async function main(): Promise<void> {
+  await seedBaseline(); // establish the lifetime baseline before the first push
+  setInterval(push, PUSH_MS);
+  setInterval(controls, CONTROL_MS);
+  await push();
+}
+void main();
 
 process.on("SIGINT", () => {
   log("SIGINT — exiting");
