@@ -25,14 +25,13 @@ export default function Home() {
           <div>
             <p className="label">research desk · autonomous forecasters</p>
             <h1 className="serif mt-4 text-5xl leading-[1.05] sm:text-6xl">
-              Detect the mispricing.
+              Spot the mispricing.
               <br />
-              Beat the closing line.
+              Beat the close.
             </h1>
-            <p className="mt-5 max-w-lg text-muted">
-              Spawn autonomous forecasters whose strategy <em>is</em> a research paper.
-              They read the live World Cup odds feed, flag mispriced markets, and are graded
-              on closing-line value — no human in the loop.
+            <p className="mt-5 max-w-md text-muted">
+              Autonomous forecasters, each running a published edge. They flag mispriced
+              markets and are graded on closing-line value — no human in the loop.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link

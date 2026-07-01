@@ -1,7 +1,7 @@
 // /api/verify-csv — download the verification CSV.
 //
 // One row per real ingested TxLINE frame (original timestamp + prices) with the
-// agent execution tallied inline where a bet fired. TxLINE's team can reconcile
+// forecaster call tallied inline where one fired. TxLINE's team can reconcile
 // (fixture_id, frame_ts_ms, prices) against their own database, and see exactly
 // what the autonomous agents did on each frame.
 //

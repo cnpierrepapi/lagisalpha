@@ -23,8 +23,8 @@
   --color-amber-soft: #c9821c;
   --color-amber-dim: #6b4d18;
 
-  --color-gain: #3fb27f; /* positive PnL */
-  --color-loss: #e0574b; /* negative PnL */
+  --color-gain: #3fb27f; /* positive CLV */
+  --color-loss: #e0574b; /* negative CLV */
   --color-info: #5a9bd4; /* neutral data highlight */
 
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
