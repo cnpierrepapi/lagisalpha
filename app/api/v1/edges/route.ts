@@ -57,7 +57,7 @@ export async function GET(req: Request) {
       {
         error: "unauthorized",
         message:
-          "Provide an API key via 'Authorization: Bearer <key>' or 'X-Api-Token'. See /sdk for the operator demo key.",
+          "Provide an API key via 'Authorization: Bearer <key>' or 'X-Api-Key'. See /sdk for the operator demo key.",
       },
       { status: 401, headers: { "WWW-Authenticate": "Bearer" } },
     );

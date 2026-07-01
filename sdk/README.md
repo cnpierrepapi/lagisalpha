@@ -46,9 +46,15 @@ A complete, runnable end-to-end backtest on real captured TxLINE frames:
 
 ```bash
 node examples/desk_quickstart.mjs
-# Feeding Brazil v Japan — 13335 odds + 989 score frames…
-# 12936 edges -> 27 calls · hit-rate 74% · avg CLV +3.05%
+# Feeding Brazil v Japan — 13319 odds + 971 score frames…
+# 18149 edges -> 11 calls · hit-rate 91% · avg CLV +49.54%
 ```
+
+> This is a single captured match with loose demo levers, so the sample is tiny
+> (11 settled calls) and CLV runs hot — the frames are a pre-match run-up where
+> the book drifts hard into kickoff. Production levers settle far tighter (~3%
+> avg CLV over the full exec ledger); the point of the example is the wiring, not
+> the return.
 
 ## API
 

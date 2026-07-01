@@ -140,7 +140,13 @@ engine.ingestScores(txlineScoreRecord);`}</Code>
         </p>
         <Code>{`node examples/desk_quickstart.mjs
 # Feeding Brazil v Japan — 13319 odds + 971 score frames…
-# 12936 edges -> 27 calls · hit-rate 74% · avg CLV +3.05%`}</Code>
+# 18149 edges -> 11 calls · hit-rate 91% · avg CLV +49.54%`}</Code>
+        <p className="mt-2 text-xs text-faint">
+          One captured match with loose demo levers — a tiny sample (11 settled calls) and CLV runs
+          hot because the frames are a pre-match run-up that drifts hard into kickoff. Production
+          levers settle far tighter (~3% avg CLV over the full exec ledger); the example is here for
+          the wiring, not the return.
+        </p>
       </section>
 
       {/* API */}

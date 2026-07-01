@@ -122,9 +122,10 @@ const net = settled.reduce((s, p) => s + p.pnl, 0);
 const wins = settled.filter((p) => p.pnl >= 0).length;
 const avgClv = settled.length ? settled.reduce((s, p) => s + p.clvReturn, 0) / settled.length : 0;
 console.log(
-  `\n${edgesSeen} edges -> ${settled.length} positions · win-rate ${((wins / (settled.length || 1)) * 100).toFixed(0)}% ` +
-    `· avg CLV ${(avgClv * 100).toFixed(2)}% · net ${pnlStr(net)} on $100k bankroll`,
+  `\n${edgesSeen} edges -> ${settled.length} calls · hit-rate ${((wins / (settled.length || 1)) * 100).toFixed(0)}% ` +
+    `· avg CLV +${(avgClv * 100).toFixed(2)}%`,
 );
+void net; // per-call $ pnl is shown above; the headline metric is CLV, not bankroll
 
 function pnlStr(n) {
   return `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(2)}`;
