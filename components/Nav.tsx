@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// The Desk IS the Launch page: it shows the live match, ingesting frames, an
-// inline build+deploy, live trading, and — when no match is on — the history of
-// agent calls. Building (was /build) and the tournament (was /leaderboard) are
-// folded into it, so they're gone from the nav.
+// The Control Room (/desk) is where the read-only boundary is visible: live signals,
+// the stale-book gap, and the action the operator's policy takes. Proof (/proof) is the
+// on-chain calibration ledger. Build/leaderboard (the old forecaster pages) are retired.
 const LINKS = [
-  { href: "/desk", label: "Desk" },
+  { href: "/desk", label: "Control Room" },
   { href: "/papers", label: "Papers" },
-  { href: "/proof", label: "Verify" },
+  { href: "/proof", label: "Proof" },
   { href: "/sdk", label: "SDK" },
   { href: "/litepaper", label: "Litepaper" },
 ];

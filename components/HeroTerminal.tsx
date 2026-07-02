@@ -1,64 +1,97 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-interface Activity {
-  type: "trade" | "settle" | "matchEvent";
+// The hero tape shows the PRODUCT: real line-integrity signals from the control-room
+// endpoint (deterministic snapshot over real captured TxLINE frames) — each one a
+// signal, the stale-book gap, and the action the operator's policy chose. We reveal
+// them one at a time so a static snapshot reads like a live desk.
+interface CREvent {
   ts: number;
-  text: string;
-  pnl?: number;
+  minute: number | null;
+  market: string;
+  kind: "steam" | "overreaction" | "pregoal_warning";
+  gapBps: number | null;
+  pickoffRisk: string;
+  signalAction: string;
+  operatorAction: string;
 }
 
-function clock(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour12: false });
+const KIND_COLOR: Record<string, string> = {
+  overreaction: "loss",
+  steam: "amber",
+  pregoal_warning: "text-muted",
+};
+function actionColor(a: string): string {
+  if (a === "fade") return "loss";
+  if (a === "follow") return "amber";
+  return "text-muted"; // hold / suspend-suggested
 }
-function glyph(a: Activity): string {
-  if (a.type === "trade") return "⚡";
-  if (a.type === "matchEvent") return "⚽";
-  return (a.pnl ?? 0) >= 0 ? "✓" : "✕";
-}
-function color(a: Activity): string {
-  if (a.type === "trade") return "amber";
-  if (a.type === "matchEvent") return "text-muted";
-  return (a.pnl ?? 0) >= 0 ? "gain" : "loss";
+function shortMarket(m: string): string {
+  return m
+    .replace("OVERUNDER_PARTICIPANT_GOALS", "O/U")
+    .replace("ASIANHANDICAP_PARTICIPANT_GOALS", "AH")
+    .replace("line=", "");
 }
 
 export default function HeroTerminal() {
-  const [feed, setFeed] = useState<Activity[]>([]);
-  const [connected, setConnected] = useState(false);
+  const [events, setEvents] = useState<CREvent[]>([]);
+  const [shown, setShown] = useState<CREvent[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const idx = useRef(0);
 
   useEffect(() => {
-    const es = new EventSource("/api/feed");
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
-    es.addEventListener("activity", (e) => {
-      try {
-        const a = JSON.parse((e as MessageEvent).data) as Activity;
-        setFeed((prev) => [a, ...prev].slice(0, 7));
-      } catch {
-        /* ignore */
-      }
-    });
-    return () => es.close();
+    let alive = true;
+    fetch("/api/v1/control-room", { headers: { "X-Api-Key": "ag_demo_2026" } })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!alive) return;
+        const evs: CREvent[] = (j.events ?? []).filter((e: CREvent) => e.kind === "overreaction" || e.pickoffRisk === "high");
+        setEvents(evs.length ? evs : (j.events ?? []));
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  // reveal one signal at a time, looping
+  useEffect(() => {
+    if (!events.length) return;
+    const iv = setInterval(() => {
+      const e = events[idx.current % events.length];
+      idx.current += 1;
+      setShown((prev) => [e, ...prev].slice(0, 7));
+    }, 1400);
+    return () => clearInterval(iv);
+  }, [events]);
 
   return (
     <div className="panel overflow-hidden">
       <header className="flex items-center justify-between border-b border-ink-600 px-4 py-2.5">
-        <span className="label">desk.log</span>
+        <span className="label">signals.log · Brazil v Japan</span>
         <span className="flex items-center gap-2 text-xs text-faint">
-          <span className={`inline-block h-2 w-2 rounded-full ${connected ? "bg-amber blink" : "bg-ink-500"}`} />
-          {connected ? "LIVE" : "connecting"}
+          <span className={`inline-block h-2 w-2 rounded-full ${loaded ? "bg-amber blink" : "bg-ink-500"}`} />
+          {loaded ? "REPLAY" : "loading"}
         </span>
       </header>
-      <div className="min-h-[220px] px-4 py-3 font-mono text-xs">
-        {feed.length === 0 && <p className="text-faint">booting autonomous runner…</p>}
-        <ul className="space-y-1.5">
-          {feed.map((a, i) => (
-            <li key={`${a.ts}-${i}`} className="flex gap-2">
-              <span className="shrink-0 text-faint tabular-nums">{clock(a.ts)}</span>
-              <span className={`shrink-0 ${color(a)}`}>{glyph(a)}</span>
-              <span className={a.type === "matchEvent" ? "text-muted" : "text-fg"}>{a.text}</span>
+      <div className="min-h-[240px] px-4 py-3 font-mono text-xs">
+        {shown.length === 0 && <p className="text-faint">benchmarking against the demargined consensus…</p>}
+        <ul className="space-y-2">
+          {shown.map((e, i) => (
+            <li key={`${e.ts}-${i}`} className="leading-relaxed">
+              <span className="text-faint tabular-nums">{e.minute != null ? `${e.minute}'` : "—"}</span>{" "}
+              <span className="text-muted">{shortMarket(e.market)}</span>{" "}
+              <span className={KIND_COLOR[e.kind] ?? "text-muted"}>{e.kind}</span>{" "}
+              <span className="text-faint">→</span>{" "}
+              <span className={actionColor(e.signalAction)}>{e.signalAction}</span>
+              {e.gapBps != null && (
+                <span className="text-faint"> · book {e.gapBps > 0 ? "+" : ""}{e.gapBps}bps stale</span>
+              )}
+              <br />
+              <span className="text-faint">└ operator:</span>{" "}
+              <span className="text-fg">{e.operatorAction}</span>
             </li>
           ))}
         </ul>
