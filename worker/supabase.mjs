@@ -29,6 +29,18 @@ export async function upsert(table, rows) {
   if (!res.ok) throw new Error(`upsert ${table} ${res.status}: ${await res.text().catch(() => "")}`);
 }
 
+// Append rows (no merge) — for the event log where each row is a new milestone.
+export async function insert(table, rows) {
+  ensure();
+  if (!rows || !rows.length) return;
+  const res = await fetch(`${URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: writeHeaders("return=minimal"),
+    body: JSON.stringify(rows),
+  });
+  if (!res.ok) throw new Error(`insert ${table} ${res.status}: ${await res.text().catch(() => "")}`);
+}
+
 export async function select(table, query = "") {
   ensure();
   const res = await fetch(`${URL}/rest/v1/${table}?${query}`, {

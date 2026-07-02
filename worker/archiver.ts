@@ -12,6 +12,7 @@
 import { onRawFrame } from "../lib/feed";
 import { txlineCreds } from "../lib/txline/stream";
 import { uploadStorage, upsert } from "./supabase.mjs";
+import { logEvent } from "./events";
 
 const BUCKET = "desk-archives";
 const SESSION = process.env.DESK_SESSION || "live";
@@ -118,6 +119,7 @@ function onFrame(kind: "odds" | "scores", rec: Record<string, unknown>): void {
     if (clock?.Running === true && !b.inPlay) {
       b.inPlay = true;
       log(`IN-PLAY ${fid} ${b.p1} v ${b.p2} — clock running`);
+      void logEvent("match_inplay", { fixtureId: fid, match: `${b.p1} v ${b.p2}` });
     }
   }
 }
@@ -155,6 +157,11 @@ async function finalize(b: Buf): Promise<void> {
   ]);
   b.archived = true;
   log(`ARCHIVED ${b.fid} ${b.p1} v ${b.p2} — ${b.odds.length} odds + ${b.scores.length} scores → ${BUCKET}/${objectPath(b.fid)}`);
+  void logEvent("match_archived", {
+    fixtureId: b.fid,
+    match: `${b.p1} v ${b.p2}`,
+    detail: { oddsFrames: b.odds.length, scoreFrames: b.scores.length, storagePath: objectPath(b.fid) },
+  });
 }
 
 async function sweep(): Promise<void> {

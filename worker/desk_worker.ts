@@ -17,6 +17,12 @@ if (!process.env.FEED_MODE) process.env.FEED_MODE = "live";
 import { getRunner } from "../lib/runner";
 import { upsert, select, del } from "./supabase.mjs";
 import { startArchiver, flushArchiver } from "./archiver";
+import { logEvent } from "./events";
+
+// Dedup sets for the event timeline: announce a fixture ingesting once, and an
+// agent's FIRST call on a given match once (desk_trades holds every call).
+const seenFixtures = new Set<string>();
+const seenAgentFixture = new Set<string>();
 
 const PUSH_MS = Number(process.env.PUSH_MS) || 15_000;
 const CONTROL_MS = Number(process.env.CONTROL_MS) || 4_000;
@@ -135,6 +141,24 @@ async function push(): Promise<void> {
   } catch (e) {
     log("push error:", (e as Error).message);
   }
+
+  // ---- event timeline ----------------------------------------------------
+  // Announce each fixture the moment it starts ingesting, and each agent's FIRST
+  // call on a match (desk_trades holds every subsequent call). Both deduped.
+  for (const m of (snap.provenance || []) as any[]) {
+    const fid = String(m.fid);
+    if (!seenFixtures.has(fid)) {
+      seenFixtures.add(fid);
+      void logEvent("match_ingesting", { fixtureId: fid, match: m.label, detail: { oddsFrames: m.oddsFrames, scoreFrames: m.scoreFrames } });
+    }
+  }
+  for (const t of (snap.trades || []) as any[]) {
+    const key = `${t.agentId}|${t.fixtureId}`;
+    if (!seenAgentFixture.has(key)) {
+      seenAgentFixture.add(key);
+      void logEvent("agent_first_call", { fixtureId: t.fixtureId, match: t.match, agent: t.agent, detail: { side: t.side, kind: t.kind, odds: t.odds } });
+    }
+  }
 }
 
 // ---- control loop: browser → desk_controls → runner --------------------
@@ -180,6 +204,7 @@ async function creates(): Promise<void> {
         baseLevers: r.base_levers ?? undefined,
       });
       log(`create "${r.name}" → ${agent ? agent.id : "rejected"}`);
+      if (agent) void logEvent("agent_created", { agent: agent.name, detail: { id: agent.id, paperIds: r.paper_ids ?? [] } });
       done.push(r.id);
     }
     await del("desk_creates", `id=in.(${done.join(",")})`);
@@ -192,6 +217,9 @@ async function creates(): Promise<void> {
 async function main(): Promise<void> {
   await seedBaseline(); // establish the lifetime baseline before the first push
   startArchiver(); // persist each live match's raw frames for replay
+  void logEvent("worker_up", {
+    detail: { cluster: process.env.TXLINE_CLUSTER ?? "?", feedMode: process.env.FEED_MODE, baselineFrames: baseIngested },
+  });
   setInterval(push, PUSH_MS);
   setInterval(controls, CONTROL_MS);
   setInterval(creates, CONTROL_MS);

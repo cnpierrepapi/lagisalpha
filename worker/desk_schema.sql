@@ -154,3 +154,25 @@ create policy desk_archived_read on public.desk_archived for select to anon, aut
 insert into storage.buckets (id, name, public)
 values ('desk-archives', 'desk-archives', true)
 on conflict (id) do nothing;
+
+-- ---- live-session event log --------------------------------------------
+-- Chronological timeline of worker milestones (feed up, fixture ingesting,
+-- kickoff, agent deployed, first call, match archived) so a later session can
+-- reconstruct a live match. Detail rows live in desk_trades/_agents/_meta.
+create table if not exists public.desk_events (
+  id         bigint generated always as identity primary key,
+  session    text        not null default 'live',
+  ts         timestamptz not null default now(),
+  kind       text        not null,
+  fixture_id text,
+  match      text,
+  agent      text,
+  detail     jsonb
+);
+create index if not exists desk_events_ts_idx on public.desk_events (ts desc);
+create index if not exists desk_events_kind_idx on public.desk_events (session, kind, ts desc);
+alter table public.desk_events enable row level security;
+revoke all on public.desk_events from anon, authenticated;
+grant select on public.desk_events to anon, authenticated;
+drop policy if exists desk_events_read on public.desk_events;
+create policy desk_events_read on public.desk_events for select to anon, authenticated using (true);
