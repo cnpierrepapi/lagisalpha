@@ -198,6 +198,44 @@ export async function fetchDeskHealth(): Promise<DeskHealth | null> {
   }
 }
 
+export interface ArchivedMatch {
+  fixtureId: number;
+  p1: string;
+  p2: string;
+  label: string;
+  oddsFrames: number;
+  scoreFrames: number;
+  firstTs: number | null;
+  lastTs: number | null;
+  storagePath: string;
+  cluster: string;
+  finishedAt: string;
+}
+
+// Finished matches whose raw frames the worker archived to Storage — the corpus
+// behind the "no match live → history of calls" view. Newest-finished first.
+export async function fetchArchived(limit = 50): Promise<ArchivedMatch[]> {
+  if (!remoteConfigured) return [];
+  try {
+    const rows = (await get(`desk_archived?select=*&order=finished_at.desc&limit=${limit}`)) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      fixtureId: Number(r.fixture_id),
+      p1: String(r.p1),
+      p2: String(r.p2),
+      label: r.p2 ? `${r.p1} v ${r.p2}` : String(r.p1),
+      oddsFrames: Number(r.odds_frames ?? 0),
+      scoreFrames: Number(r.score_frames ?? 0),
+      firstTs: r.first_ts != null ? Number(r.first_ts) : null,
+      lastTs: r.last_ts != null ? Number(r.last_ts) : null,
+      storagePath: String(r.storage_path ?? ""),
+      cluster: String(r.cluster ?? ""),
+      finishedAt: String(r.finished_at ?? ""),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 // Queue a pause/stop/resume the EC2 worker will pick up within a few seconds.
 export async function sendRemoteControl(agentId: string, op: "pause" | "resume" | "stop"): Promise<boolean> {
   if (!remoteConfigured) return false;

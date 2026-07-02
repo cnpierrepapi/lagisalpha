@@ -1,20 +1,13 @@
-import Nav from "@/components/Nav";
-import AgentBuilder from "@/components/AgentBuilder";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Build a Forecaster — Agenthesis",
-};
-
-export default async function BuildPage({
+// /build is retired — building a forecaster now happens inline on the Launch
+// page (/desk), against the live match. Preserve a pre-attached ?paper so the
+// "attach to a forecaster" links from /papers still land on the right builder.
+export default async function BuildRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ paper?: string }>;
 }) {
   const sp = await searchParams;
-  return (
-    <main className="min-h-screen">
-      <Nav />
-      <AgentBuilder initialPaper={sp.paper ?? null} />
-    </main>
-  );
+  redirect(sp.paper ? `/desk?paper=${encodeURIComponent(sp.paper)}` : "/desk");
 }

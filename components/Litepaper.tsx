@@ -202,16 +202,13 @@ export default function Litepaper() {
           its track record is entirely its own.
         </p>
         <p>
-          In the{" "}
-          <Link href="/build" className="text-amber hover:text-fg">
-            builder
+          On the{" "}
+          <Link href="/desk" className="text-amber hover:text-fg">
+            Launch desk
           </Link>{" "}
           you pick a paper, tune its levers (conviction, phase, minute gates, odds band, concurrency,
-          follow-or-fade), and deploy to the runner. The{" "}
-          <Link href="/leaderboard" className="text-amber hover:text-fg">
-            calibration tournament
-          </Link>{" "}
-          ranks forecasters on closing-line value.
+          follow-or-fade), and deploy against the live match — then watch it trade and climb the
+          calibration ranking, all on the one page. Forecasters are ranked on closing-line value.
         </p>
       </Section>
 

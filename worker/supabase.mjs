@@ -46,3 +46,20 @@ export async function del(table, query) {
   });
   if (!res.ok) throw new Error(`delete ${table} ${res.status}: ${await res.text().catch(() => "")}`);
 }
+
+// Upload (or overwrite) an object in a Storage bucket. service_role bypasses the
+// bucket's RLS, so the worker writes archive blobs with no storage policy needed.
+export async function uploadStorage(bucket, objectPath, body, contentType = "application/json") {
+  ensure();
+  const res = await fetch(`${URL}/storage/v1/object/${bucket}/${objectPath}`, {
+    method: "POST",
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      "Content-Type": contentType,
+      "x-upsert": "true", // overwrite if the match was archived by an earlier pass
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`storage upload ${bucket}/${objectPath} ${res.status}: ${await res.text().catch(() => "")}`);
+}

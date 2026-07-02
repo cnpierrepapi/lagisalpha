@@ -23,6 +23,29 @@ import replaysData from "./replays.json";
 export type FeedMode = "synth" | "live" | "replay";
 export type FeedStatus = "idle" | "starting" | "live" | "error";
 
+// ---- raw-frame tap ------------------------------------------------------
+// Live mode ingests frames into the engine but persists nothing; the EC2 worker
+// needs the RAW frames to archive a match for replay (TxLINE gates odds history,
+// so an unrecorded live match is gone forever). Observers registered here are
+// called with every real frame the LIVE feed reads, in addition to engine ingest.
+export type RawFrameObserver = (kind: "odds" | "scores", rec: Record<string, unknown>) => void;
+const rawObservers = new Set<RawFrameObserver>();
+export function onRawFrame(cb: RawFrameObserver): () => void {
+  rawObservers.add(cb);
+  return () => {
+    rawObservers.delete(cb);
+  };
+}
+function emitRawFrame(kind: "odds" | "scores", rec: Record<string, unknown>): void {
+  for (const o of rawObservers) {
+    try {
+      o(kind, rec);
+    } catch {
+      /* an observer must never break ingestion */
+    }
+  }
+}
+
 interface ReplayRecord {
   FixtureId: string | number;
   Ts: number;
@@ -233,6 +256,7 @@ function startLive(engine: EngineLike, handle: FeedHandle): void {
             const rec = r as Record<string, unknown>;
             ingest(rec);
             tallyLive(handle, rec, kind); // count REAL ingested frames (replay does this in startReplay)
+            emitRawFrame(kind, rec); // hand the raw frame to any archiver (EC2 worker)
           }
         });
       } catch (err) {

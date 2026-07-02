@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// The Desk IS the Launch page: it shows the live match, ingesting frames, an
+// inline build+deploy, live trading, and — when no match is on — the history of
+// agent calls. Building (was /build) and the tournament (was /leaderboard) are
+// folded into it, so they're gone from the nav.
 const LINKS = [
   { href: "/desk", label: "Desk" },
   { href: "/papers", label: "Papers" },
-  { href: "/build", label: "Build" },
-  { href: "/leaderboard", label: "Tournament" },
   { href: "/proof", label: "Verify" },
   { href: "/sdk", label: "SDK" },
   { href: "/litepaper", label: "Litepaper" },

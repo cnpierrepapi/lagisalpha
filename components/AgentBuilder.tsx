@@ -30,7 +30,15 @@ function previewSentence(name: string, L: AgentLevers, papers: Paper[]): string 
   return `${base} It also runs ${papers.length} research paper${papers.length > 1 ? "s" : ""} alongside that base: ${list}.`;
 }
 
-export default function AgentBuilder({ initialPaper }: { initialPaper: string | null }) {
+export default function AgentBuilder({
+  initialPaper,
+  embedded = false,
+  onDeployed,
+}: {
+  initialPaper: string | null;
+  embedded?: boolean;
+  onDeployed?: (name: string) => void;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [levers, setLevers] = useState<AgentLevers>(() => ({ ...DEFAULT_BASE_LEVERS }));
@@ -82,7 +90,16 @@ export default function AgentBuilder({ initialPaper }: { initialPaper: string | 
         const j = await res.json();
         if (!res.ok || !j.ok) throw new Error(j.error || "deploy failed");
       }
-      router.push("/desk");
+      // Embedded on the Launch desk: the live activity is right below, so stay
+      // put, reset for the next build, and let the desk flag the new forecaster.
+      if (embedded) {
+        const deployed = name.trim();
+        setName("");
+        setDeploying(false);
+        onDeployed?.(deployed);
+      } else {
+        router.push("/desk");
+      }
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
       setDeploying(false);
@@ -90,15 +107,17 @@ export default function AgentBuilder({ initialPaper }: { initialPaper: string | 
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-8">
-      <header className="mb-6">
-        <p className="label">deploy a forecaster</p>
-        <h1 className="serif mt-1 text-3xl">Build a Forecaster</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted">
-          Every forecaster runs an always-on <span className="text-fg">base tuning</span> on the live book, and can run any
-          number of <span className="text-fg">research papers</span> alongside it. Tune the base, then attach papers.
-        </p>
-      </header>
+    <div className={embedded ? "" : "mx-auto max-w-5xl px-5 py-8"}>
+      {!embedded && (
+        <header className="mb-6">
+          <p className="label">deploy a forecaster</p>
+          <h1 className="serif mt-1 text-3xl">Build a Forecaster</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted">
+            Every forecaster runs an always-on <span className="text-fg">base tuning</span> on the live book, and can run any
+            number of <span className="text-fg">research papers</span> alongside it. Tune the base, then attach papers.
+          </p>
+        </header>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* base tuning */}
@@ -196,11 +215,17 @@ export default function AgentBuilder({ initialPaper }: { initialPaper: string | 
         </div>
         {error && <p className="mt-2 text-sm loss">{error}</p>}
         <p className="mt-2 text-xs text-faint">
-          Deploys to the runner and starts forecasting immediately. Watch it on the{" "}
-          <Link href="/desk" className="amber hover:text-fg">
-            Signal Desk
-          </Link>
-          .
+          {embedded ? (
+            "Deploys to the live runner and starts forecasting the current match immediately — watch it in the activity feed below."
+          ) : (
+            <>
+              Deploys to the runner and starts forecasting immediately. Watch it on the{" "}
+              <Link href="/desk" className="amber hover:text-fg">
+                Signal Desk
+              </Link>
+              .
+            </>
+          )}
         </p>
       </div>
     </div>

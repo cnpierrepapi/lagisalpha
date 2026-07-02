@@ -332,13 +332,9 @@ export default function ProofBoard() {
           </table>
         </div>
         <p className="mt-3 text-xs text-faint">
-          Watch them fire in real time on the{" "}
+          Watch them fire in real time — and see the CLV standings — on the{" "}
           <Link href="/desk" className="amber hover:text-fg">
-            Signal Desk
-          </Link>{" "}
-          · standings on the{" "}
-          <Link href="/leaderboard" className="amber hover:text-fg">
-            Calibration Tournament
+            Launch desk
           </Link>
           .
         </p>

@@ -16,6 +16,7 @@ if (!process.env.FEED_MODE) process.env.FEED_MODE = "live";
 
 import { getRunner } from "../lib/runner";
 import { upsert, select, del } from "./supabase.mjs";
+import { startArchiver, flushArchiver } from "./archiver";
 
 const PUSH_MS = Number(process.env.PUSH_MS) || 15_000;
 const CONTROL_MS = Number(process.env.CONTROL_MS) || 4_000;
@@ -190,6 +191,7 @@ async function creates(): Promise<void> {
 
 async function main(): Promise<void> {
   await seedBaseline(); // establish the lifetime baseline before the first push
+  startArchiver(); // persist each live match's raw frames for replay
   setInterval(push, PUSH_MS);
   setInterval(controls, CONTROL_MS);
   setInterval(creates, CONTROL_MS);
@@ -197,7 +199,12 @@ async function main(): Promise<void> {
 }
 void main();
 
-process.on("SIGINT", () => {
-  log("SIGINT — exiting");
+process.on("SIGINT", async () => {
+  log("SIGINT — flushing archives & exiting");
+  try {
+    await flushArchiver();
+  } catch {
+    /* best-effort */
+  }
   process.exit(0);
 });

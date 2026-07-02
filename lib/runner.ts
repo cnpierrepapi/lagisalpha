@@ -64,7 +64,10 @@ class AgentRunner extends EventEmitter {
     const t = setInterval(() => this.markAll(), MARK_MS);
     t.unref?.();
 
-    this.seedDemoAgents();
+    // No agents are seeded. The desk starts empty; the only forecasters that
+    // appear are the ones a user builds + deploys live from the Launch page
+    // (browser → desk_creates queue → worker.createAgent). This is the "no agent
+    // runs by default — deploy ours against the live feed on camera" model.
   }
 
   private label(fixtureId: string | number): string {
@@ -242,20 +245,6 @@ class AgentRunner extends EventEmitter {
         }
       }
     }
-  }
-
-  // ---- demo agents so the desk shows autonomous trading immediately -----
-  // Each carries the always-on base (quote) tuning; the latter three add a paper.
-  // Base tuning is varied per agent so they diverge from the first trade rather
-  // than moving in lockstep on the shared baseline signal.
-  private seedDemoAgents() {
-    if (this.agents.size) return;
-    const base = (over: Partial<AgentLevers>): AgentLevers => ({ ...DEFAULT_BASE_LEVERS, ...over });
-    // base only — trades the live book continuously
-    this.createAgent("Market Pulse", { baseLevers: base({ stakePct: 0.04, maxConcurrent: 4 }) });
-    this.createAgent("The Closer", { paperIds: ["steam-base"], baseLevers: base({ stakePct: 0.05 }) });
-    this.createAgent("Mean Reverter", { paperIds: ["overreaction-base"], baseLevers: base({ stakePct: 0.06, direction: "fade" }) });
-    this.createAgent("The Cynic", { paperIds: ["overreaction-redcard"], baseLevers: base({ stakePct: 0.03, maxConcurrent: 2 }) });
   }
 
   // ---- serializable state for the API -----------------------------------

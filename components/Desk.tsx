@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import AgentBuilder from "@/components/AgentBuilder";
 import {
   fetchRemoteSnapshot,
+  fetchArchived,
   sendRemoteControl,
   remoteConfigured,
   type RemoteSnapshot,
+  type ArchivedMatch,
 } from "@/lib/desk-remote";
 
 interface Activity {
@@ -62,7 +65,7 @@ interface Trade {
   status: string;
   clvReturn: number;
   pnl: number;
-  exitOdds?: number | null; // closing quote, present once settled
+  exitOdds?: number | null;
   exitProofHash?: string | null;
 }
 
@@ -76,12 +79,30 @@ interface Snapshot {
   agents: AgentView[];
 }
 
-// Rebuild a feed line from a persisted trade row, so the log shows recent
-// history on (re)connect instead of starting blank every time you return.
+// ---- live TxLINE frames (current match) --------------------------------
+interface LiveFrame {
+  market: string;
+  line: string;
+  priceNames: string[];
+  fairProbs: number[];
+  ageSec: number;
+}
+interface LiveFixture {
+  fid: number | string;
+  label: string;
+  latestAgeSec: number;
+  frames: LiveFrame[];
+}
+interface LiveData {
+  configured: boolean;
+  liveCount?: number;
+  totalFrames?: number;
+  fixtures?: LiveFixture[];
+  note?: string;
+}
+
 function tradeToActivity(t: Trade): Activity {
   if (t.status === "settled") {
-    // Show the entry-quote → closing-quote move when the closing leg is present,
-    // so the log reads as a true "beat the close" grade rather than a bare number.
     const move = t.exitOdds != null ? ` — ${Number(t.odds).toFixed(2)}→${Number(t.exitOdds).toFixed(2)}` : "";
     return {
       type: "settle",
@@ -101,24 +122,14 @@ function tradeToActivity(t: Trade): Activity {
   };
 }
 
-function sourceLabel(mode?: string): string {
-  if (mode === "ec2-live") return "EC2 live worker — TxLINE live feed";
-  if (mode === "ec2-recorded") return "EC2 recorded session — last live TxLINE World Cup matches";
-  if (mode === "replay") return "TxLINE captured matches (replay)";
-  if (mode === "live") return "TxLINE live feed";
-  return "synth (deterministic demo)";
-}
-
 function clock(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour12: false });
 }
-
 function glyph(a: Activity): string {
   if (a.type === "trade") return "⚡";
   if (a.type === "matchEvent") return "⚽";
   return (a.pnl ?? 0) >= 0 ? "✓" : "✕";
 }
-
 function lineColor(a: Activity): string {
   if (a.type === "trade") return "text-amber";
   if (a.type === "matchEvent") return "text-muted";
@@ -131,12 +142,20 @@ export default function Desk() {
   const [connected, setConnected] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [remote, setRemote] = useState<RemoteSnapshot | null>(null);
+  const [live, setLive] = useState<LiveData | null>(null);
+  const [archived, setArchived] = useState<ArchivedMatch[]>([]);
+  const [paper, setPaper] = useState<string | null>(null);
+  const [justDeployed, setJustDeployed] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
-  // Read in control() without re-creating the callback each render.
   const remoteLiveRef = useRef(false);
 
-  // EC2 worker mirror (foil Supabase, read direct). When it's pushing fresh
-  // data we render from it; otherwise we fall back to the in-app SSE replay.
+  // Pre-attach a paper if arriving from /papers ("Build agent →" → /desk?paper=id).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("paper");
+    if (p) setPaper(p);
+  }, []);
+
+  // EC2 worker mirror (foil Supabase, read direct).
   useEffect(() => {
     if (!remoteConfigured) return;
     let alive = true;
@@ -152,6 +171,41 @@ export default function Desk() {
     };
   }, []);
 
+  // Current match — real-time TxLINE frames, polled server-side (works on Vercel).
+  useEffect(() => {
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = await fetch("/api/live-frames", { cache: "no-store" });
+        const j = (await r.json()) as LiveData;
+        if (alive) setLive(j);
+      } catch {
+        /* keep last */
+      }
+    };
+    poll();
+    const iv = setInterval(poll, 5000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
+
+  // Archived matches — the corpus behind the "no match → history" view.
+  useEffect(() => {
+    let alive = true;
+    const poll = async () => {
+      const a = await fetchArchived(50);
+      if (alive) setArchived(a);
+    };
+    poll();
+    const iv = setInterval(poll, 30000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
+
   useEffect(() => {
     const es = new EventSource("/api/feed");
     esRef.current = es;
@@ -161,8 +215,6 @@ export default function Desk() {
       try {
         const s = JSON.parse((e as MessageEvent).data) as Snapshot;
         setSnap(s);
-        // Seed the log from persisted history the first time only, so returning
-        // to the page shows recent trades instead of an empty "waiting…" screen.
         setFeed((prev) => {
           if (prev.length || !s.trades?.length) return prev;
           return s.trades.slice(0, 100).map(tradeToActivity);
@@ -183,8 +235,6 @@ export default function Desk() {
   }, []);
 
   async function control(id: string, op: "pause" | "resume" | "stop") {
-    // Optimistically reflect the new status immediately; the next snapshot/poll
-    // reconciles. Without this the button feels dead until the next refresh.
     const next = op === "pause" ? "paused" : op === "resume" ? "running" : "stopped";
     setSnap((prev) =>
       prev
@@ -198,7 +248,6 @@ export default function Desk() {
     );
     try {
       if (remoteLiveRef.current) {
-        // Runner lives on EC2 → queue the intent; the worker applies it.
         await sendRemoteControl(id, op);
       } else {
         await fetch("/api/agents", {
@@ -212,31 +261,26 @@ export default function Desk() {
     }
   }
 
-  // Source selection. Prefer the EC2/Supabase mirror whenever it has data:
-  // `fresh` (worker pushing now) renders as LIVE; a stale mirror is the last
-  // recorded session (the June 30 World Cup matches the live worker ingested)
-  // and renders as RECORDED. Fall back to the in-app SSE replay only when no
-  // mirror exists at all.
   const remoteLive = !!remote?.fresh;
   const useRemote = !!remote && (remote.agents.length > 0 || remote.trades.length > 0);
-  remoteLiveRef.current = remoteLive; // control() only reaches the worker when truly live
+  remoteLiveRef.current = remoteLive;
 
   const agents: AgentView[] = useRemote ? remote!.agents : snap?.agents ?? [];
   const baseFeed: Activity[] = useRemote ? remote!.trades.map(tradeToActivity) : feed;
-  const sourceMode = useRemote ? (remoteLive ? "ec2-live" : "ec2-recorded") : snap?.mode;
-  const totalIngested = useRemote ? remote!.totalIngested : snap?.totalIngested;
   const proof = (useRemote ? remote!.proof : snap?.proof) as Snapshot["proof"];
-  const provenance = (useRemote ? remote!.provenance : snap?.provenance) as Snapshot["provenance"];
-  const isLive = remoteLive || (!useRemote && connected);
+
+  // Is a World Cup match actually in-play right now? The live-frames poll hits the
+  // TxLINE snapshot server-side, so this is the authoritative "match on" signal —
+  // it drives the whole page's live-vs-history branch.
+  const liveFixtures = live?.fixtures ?? [];
+  const liveMatchOn = (live?.liveCount ?? 0) > 0;
+  const liveFrameCount = live?.totalFrames ?? 0;
 
   const selectedName = selected ? agents.find((a) => a.id === selected)?.name ?? null : null;
-  // When an agent is selected, show only its calls/grades — plus match events,
-  // which are shared context (a goal is why an overreaction call fired).
   const shownFeed = selected ? baseFeed.filter((a) => a.agentId === selected || a.type === "matchEvent") : baseFeed;
 
-  // CLV is the only scorecard. Per-agent average CLV comes from the settled calls
-  // in the current snapshot window; hit/miss counts come from each agent's complete
-  // tally. No dollars are surfaced anywhere on the desk.
+  // CLV scorecard (absorbs the retired Tournament): rank forecasters by average
+  // CLV over settled calls, hit-rate as tie-break.
   const rawTrades = remoteLive ? remote!.trades : snap?.trades ?? [];
   const settled = rawTrades.filter((t) => t.status === "settled");
   const clvByAgent = new Map<string, { sum: number; n: number }>();
@@ -253,6 +297,18 @@ export default function Desk() {
   const running = agents.filter((a) => a.status === "running").length;
   const open = agents.reduce((s, a) => s + a.openPositions, 0);
 
+  const ranked = useMemo(() => {
+    return [...agents]
+      .map((a) => {
+        const c = clvByAgent.get(a.id);
+        const avgClv = c && c.n ? c.sum / c.n : 0;
+        const n = a.wins + a.losses;
+        return { ...a, avgClv, hitRate: n ? a.wins / n : 0, sampleN: c?.n ?? n };
+      })
+      .sort((x, y) => y.avgClv - x.avgClv || y.hitRate - x.hitRate || y.sampleN - x.sampleN);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agents, settled.length]);
+
   return (
     <div className="mx-auto max-w-7xl px-5 py-6">
       {/* aggregate strip */}
@@ -262,63 +318,120 @@ export default function Desk() {
         <Stat label="agents" value={`${running} running`} />
         <Stat label="open calls" value={`${open}`} />
         <div className="card flex items-center justify-between px-4 py-3">
-          <span className="label">feed</span>
+          <span className="label">match</span>
           <span className="flex items-center gap-2 text-sm">
-            <span className={`inline-block h-2 w-2 rounded-full ${isLive ? "bg-amber" : "bg-ink-500"}`} />
-            {remoteLive ? "ec2 live" : useRemote ? "ec2 recorded" : sourceMode ?? "…"}
+            <span className={`inline-block h-2 w-2 rounded-full ${liveMatchOn ? "bg-amber blink" : "bg-ink-500"}`} />
+            {liveMatchOn ? "live" : "none"}
           </span>
         </div>
       </div>
 
-      {/* provenance — proof of ingestion + on-chain proof of access */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-faint">
-        <span className="label">data source</span>
-        <span className="text-muted">{sourceLabel(sourceMode)}</span>
-        {typeof totalIngested === "number" && totalIngested > 0 && (
-          <>
-            <span className="text-ink-500">·</span>
-            <span className="text-muted tabular-nums">{totalIngested.toLocaleString()} frames ingested</span>
-          </>
-        )}
-        {proof?.signedOnSolana && (
-          <>
-            <span className="text-ink-500">·</span>
-            <span className="amber">✓ access signed on Solana</span>
-            <a
-              href={proof.explorerUrl ?? "#"}
-              target="_blank"
-              rel="noreferrer"
-              className="underline decoration-ink-500 underline-offset-2 hover:text-fg"
-            >
-              tx {proof.signupTx?.slice(0, 6)}…{proof.signupTx?.slice(-4)} ({proof.cluster})
-            </a>
-          </>
-        )}
-      </div>
+      {/* CURRENT MATCH — the live book being ingested in real time */}
+      <section className="panel mt-5">
+        <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3">
+          <div>
+            <p className="label">current match</p>
+            <p className="text-sm text-muted">
+              {liveMatchOn
+                ? `${liveFixtures.length} match${liveFixtures.length > 1 ? "es" : ""} in-play · ${liveFrameCount} live market frame${liveFrameCount === 1 ? "" : "s"} ingesting`
+                : "no World Cup match is in-play right now"}
+            </p>
+          </div>
+          <span className="flex items-center gap-2 text-xs">
+            <span className={`inline-block h-2 w-2 rounded-full ${liveMatchOn ? "bg-amber blink" : "bg-ink-500"}`} />
+            {liveMatchOn ? "INGESTING · TxLINE" : "idle"}
+          </span>
+        </header>
 
-      {/* per-match ingestion tallies — the "we ingested this real data" proof */}
-      {!!provenance?.length && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {provenance.map((m) => (
-            <span
-              key={m.fid}
-              className="card flex items-center gap-2 px-3 py-1.5 text-xs"
-              title={`${m.oddsFrames} odds + ${m.scoreFrames} score frames captured live from TxLINE`}
-            >
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
-              <span className="text-fg">{m.label}</span>
-              <span className="text-faint tabular-nums">{m.ingested.toLocaleString()} frames</span>
-            </span>
-          ))}
+        {live && !live.configured ? (
+          <p className="px-5 py-4 text-sm text-faint">Live frames unavailable — no TxLINE token configured in this environment.</p>
+        ) : liveMatchOn ? (
+          <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
+            {liveFixtures.map((f) => (
+              <div key={f.fid} className="card p-4">
+                <div className="flex items-center justify-between">
+                  <p className="serif text-paper">{f.label}</p>
+                  <span className={`text-xs tabular-nums ${f.latestAgeSec < 10 ? "gain" : "text-faint"}`}>
+                    {f.latestAgeSec < 10 ? "● " : ""}freshest {f.latestAgeSec}s ago
+                  </span>
+                </div>
+                <table className="mt-3 w-full text-left text-xs">
+                  <tbody className="font-mono">
+                    {f.frames.map((fr, i) => (
+                      <tr key={i} className="border-t border-ink-700">
+                        <td className="py-1 pr-2 text-muted">
+                          {fr.market}
+                          {fr.line ? <span className="text-faint"> {fr.line}</span> : null}
+                        </td>
+                        <td className="py-1 pr-2 text-fg">
+                          {fr.priceNames.map((n, j) => (
+                            <span key={j} className="mr-2 whitespace-nowrap">
+                              <span className="text-faint">{n}</span> {fr.fairProbs[j]?.toFixed(3)}
+                            </span>
+                          ))}
+                        </td>
+                        <td className={`py-1 text-right tabular-nums ${fr.ageSec < 10 ? "gain" : "text-faint"}`}>{fr.ageSec}s</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-6">
+            <p className="text-sm text-muted">
+              {live?.note ?? "Odds are live-only, so frames appear the moment a match kicks off."} When a match is on, its
+              book streams here in real time and you can deploy a forecaster to trade it live.
+            </p>
+            {archived.length > 0 && (
+              <div className="mt-4">
+                <p className="label mb-2">recorded matches — archived for replay</p>
+                <div className="flex flex-wrap gap-2">
+                  {archived.map((m) => (
+                    <span
+                      key={m.fixtureId}
+                      className="card flex items-center gap-2 px-3 py-1.5 text-xs"
+                      title={`${m.oddsFrames} odds + ${m.scoreFrames} score frames archived${m.cluster ? ` · ${m.cluster}` : ""}`}
+                    >
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
+                      <span className="text-fg">{m.label}</span>
+                      <span className="text-faint tabular-nums">{m.oddsFrames.toLocaleString()} odds</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* DEPLOY — build a forecaster for the live match, right here */}
+      <section className="panel mt-5">
+        <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3">
+          <div>
+            <p className="label">deploy a forecaster</p>
+            <p className="text-sm text-muted">
+              {liveMatchOn
+                ? "Build one and deploy it against the match on now — watch it call the live book below."
+                : "Build one now; it deploys to the runner and starts forecasting the moment a match kicks off."}
+            </p>
+          </div>
+          {justDeployed && (
+            <span className="text-xs gain">✓ deployed {justDeployed} — appearing below</span>
+          )}
+        </header>
+        <div className="p-5">
+          <AgentBuilder initialPaper={paper} embedded onDeployed={(n) => setJustDeployed(n)} />
         </div>
-      )}
+      </section>
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* HERO — live autonomous activity */}
-        <section className="panel order-2 flex min-h-[60vh] flex-col lg:order-1 lg:col-span-8">
+        {/* HERO — live activity / call history */}
+        <section className="panel order-2 flex min-h-[55vh] flex-col lg:order-1 lg:col-span-8">
           <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3">
             <div>
-              <p className="label">live activity</p>
+              <p className="label">{liveMatchOn ? "live activity" : "call history"}</p>
               <p className="text-sm text-muted">
                 {selectedName ? (
                   <>
@@ -327,16 +440,16 @@ export default function Desk() {
                       show all
                     </button>
                   </>
-                ) : useRemote && !remoteLive ? (
-                  "last live session — World Cup matches the EC2 worker ingested"
+                ) : liveMatchOn ? (
+                  "forecasters calling the live match autonomously — no human in the loop"
                 ) : (
-                  "agents forecasting autonomously — no human in the loop"
+                  "past forecasts from the recorded matches — deploy a forecaster to add to the record"
                 )}
               </p>
             </div>
             <span className="flex items-center gap-2 text-xs">
-              <span className={`inline-block h-2 w-2 rounded-full ${isLive ? "bg-amber blink" : "bg-ink-500"}`} />
-              {remoteLive ? "LIVE · EC2" : useRemote ? "RECORDED · EC2" : isLive ? "LIVE" : "connecting"}
+              <span className={`inline-block h-2 w-2 rounded-full ${liveMatchOn ? "bg-amber blink" : "bg-ink-500"}`} />
+              {liveMatchOn ? "LIVE" : useRemote ? "RECORDED" : connected ? "REPLAY" : "connecting"}
             </span>
           </header>
 
@@ -347,7 +460,11 @@ export default function Desk() {
             </p>
             {shownFeed.length === 0 && (
               <p className="text-faint">
-                {selected ? "no activity for this agent yet…" : "waiting for the first edge to fire…"}
+                {selected
+                  ? "no activity for this agent yet…"
+                  : liveMatchOn
+                    ? "waiting for the first edge to fire…"
+                    : "no calls yet — deploy a forecaster to start the record."}
               </p>
             )}
             <ul className="space-y-1.5">
@@ -355,88 +472,104 @@ export default function Desk() {
                 <li key={`${a.ts}-${i}`} className="flex gap-3">
                   <span className="shrink-0 text-faint tabular-nums">{clock(a.ts)}</span>
                   <span className={`shrink-0 ${lineColor(a)}`}>{glyph(a)}</span>
-                  <span className={a.type === "matchEvent" ? "text-muted" : "text-fg"}>
-                    {a.text}
-                  </span>
+                  <span className={a.type === "matchEvent" ? "text-muted" : "text-fg"}>{a.text}</span>
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        {/* SIDEBAR — agents */}
+        {/* SIDEBAR — forecasters ranked by CLV */}
         <aside className="order-1 space-y-3 lg:order-2 lg:col-span-4">
-          <p className="label px-1">running agents</p>
-          {agents.length === 0 && <p className="card px-4 py-3 text-sm text-faint">no agents yet</p>}
-          {agents.map((a) => {
+          <div className="flex items-center justify-between px-1">
+            <p className="label">forecasters · by clv</p>
+            {proof?.signedOnSolana && (
+              <a
+                href={proof.explorerUrl ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs amber underline decoration-ink-500 underline-offset-2 hover:text-fg"
+                title={`access signed on Solana (${proof.cluster})`}
+              >
+                ✓ on-chain
+              </a>
+            )}
+          </div>
+          {ranked.length === 0 && (
+            <p className="card px-4 py-3 text-sm text-faint">
+              no forecasters yet — deploy one above and it appears here.
+            </p>
+          )}
+          {ranked.map((a, rank) => {
             const cs = clvByAgent.get(a.id);
             const avgClv = cs && cs.n ? cs.sum / cs.n : 0;
             const settledN = a.wins + a.losses;
             const hitRate = settledN ? a.wins / settledN : 0;
             return (
-            <div
-              key={a.id}
-              onClick={() => setSelected((cur) => (cur === a.id ? null : a.id))}
-              className={`card cursor-pointer p-4 transition-colors ${
-                selected === a.id ? "ring-1 ring-amber" : "hover:border-ink-500"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 font-semibold">
-                    <span
-                      className={`inline-block h-2 w-2 rounded-full ${
-                        a.status === "running" ? "bg-amber" : a.status === "paused" ? "bg-ink-500" : "bg-loss"
-                      }`}
-                    />
-                    {a.name}
-                  </p>
-                  <p className="serif mt-0.5 truncate text-sm text-muted">{a.title}</p>
+              <div
+                key={a.id}
+                onClick={() => setSelected((cur) => (cur === a.id ? null : a.id))}
+                className={`card cursor-pointer p-4 transition-colors ${
+                  selected === a.id ? "ring-1 ring-amber" : "hover:border-ink-500"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <span className={`font-mono text-xs ${rank === 0 ? "amber" : "text-faint"}`}>#{rank + 1}</span>
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${
+                          a.status === "running" ? "bg-amber" : a.status === "paused" ? "bg-ink-500" : "bg-loss"
+                        }`}
+                      />
+                      {a.name}
+                    </p>
+                    <p className="serif mt-0.5 truncate text-sm text-muted">{a.title}</p>
+                  </div>
+                  <span className="label shrink-0 rounded border border-ink-600 px-1.5 py-0.5">
+                    {(a.edgeKinds ?? []).join("·")}
+                  </span>
                 </div>
-                <span className="label shrink-0 rounded border border-ink-600 px-1.5 py-0.5">
-                  {(a.edgeKinds ?? []).join("·")}
-                </span>
-              </div>
 
-              <div className="mt-3 flex items-end justify-between">
-                <div>
-                  <p className="label">avg clv</p>
-                  <p className={`text-lg tabular-nums ${avgClv >= 0 ? "gain" : "loss"}`}>
-                    {cs && cs.n ? `${(avgClv * 100).toFixed(1)}%` : "—"}
-                  </p>
+                <div className="mt-3 flex items-end justify-between">
+                  <div>
+                    <p className="label">avg clv</p>
+                    <p className={`text-lg tabular-nums ${avgClv >= 0 ? "gain" : "loss"}`}>
+                      {cs && cs.n ? `${(avgClv * 100).toFixed(1)}%` : "—"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="label">hit-rate</p>
+                    <p className="tabular-nums">{settledN ? `${(hitRate * 100).toFixed(0)}%` : "—"}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="label">hit-rate</p>
-                  <p className="tabular-nums">{settledN ? `${(hitRate * 100).toFixed(0)}%` : "—"}</p>
+
+                <div className="mt-2 flex items-center justify-between text-xs text-faint">
+                  <span>
+                    {a.wins} hit / {a.losses} miss · {a.bets} calls
+                  </span>
+                  <span>open {a.openPositions}</span>
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  {a.status === "running" ? (
+                    <button onClick={(e) => { e.stopPropagation(); control(a.id, "pause"); }} className="flex-1 rounded border border-ink-600 py-1 text-xs text-muted hover:text-fg">
+                      pause
+                    </button>
+                  ) : a.status === "paused" ? (
+                    <button onClick={(e) => { e.stopPropagation(); control(a.id, "resume"); }} className="flex-1 rounded border border-ink-600 py-1 text-xs text-amber hover:text-fg">
+                      resume
+                    </button>
+                  ) : (
+                    <span className="flex-1 py-1 text-center text-xs text-faint">stopped</span>
+                  )}
+                  {a.status !== "stopped" && (
+                    <button onClick={(e) => { e.stopPropagation(); control(a.id, "stop"); }} className="rounded border border-ink-600 px-3 py-1 text-xs text-muted hover:text-loss">
+                      stop
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <div className="mt-2 flex items-center justify-between text-xs text-faint">
-                <span>
-                  {a.wins} hit / {a.losses} miss · {a.bets} calls
-                </span>
-                <span>open {a.openPositions}</span>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                {a.status === "running" ? (
-                  <button onClick={(e) => { e.stopPropagation(); control(a.id, "pause"); }} className="flex-1 rounded border border-ink-600 py-1 text-xs text-muted hover:text-fg">
-                    pause
-                  </button>
-                ) : a.status === "paused" ? (
-                  <button onClick={(e) => { e.stopPropagation(); control(a.id, "resume"); }} className="flex-1 rounded border border-ink-600 py-1 text-xs text-amber hover:text-fg">
-                    resume
-                  </button>
-                ) : (
-                  <span className="flex-1 py-1 text-center text-xs text-faint">stopped</span>
-                )}
-                {a.status !== "stopped" && (
-                  <button onClick={(e) => { e.stopPropagation(); control(a.id, "stop"); }} className="rounded border border-ink-600 px-3 py-1 text-xs text-muted hover:text-loss">
-                    stop
-                  </button>
-                )}
-              </div>
-            </div>
             );
           })}
         </aside>

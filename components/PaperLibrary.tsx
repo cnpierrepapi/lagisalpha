@@ -48,7 +48,7 @@ export default function PaperLibrary() {
 
             <div className="mt-4 flex items-center justify-between border-t border-ink-600 pt-3">
               <span className="text-xs gain">✓ Usable edge</span>
-              <Link href={`/build?paper=${p.id}`} className="prompt text-sm text-amber hover:text-fg">
+              <Link href={`/desk?paper=${p.id}`} className="prompt text-sm text-amber hover:text-fg">
                 Build agent →
               </Link>
             </div>

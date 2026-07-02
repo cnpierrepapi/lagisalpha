@@ -121,3 +121,36 @@ create policy desk_creates_insert on public.desk_creates for insert to anon, aut
 
 -- service_role bypasses RLS entirely → the EC2 worker writes mirrors and
 -- drains desk_controls with no policy needed.
+
+-- ---- frame archive (per-match raw odds/scores) -------------------------
+-- TxLINE gates odds history, so unlike Spikelines (which re-fetches scores by
+-- fixture id) we must persist the RAW frames themselves to replay a match. The
+-- worker writes one captures/{fid}.json-shaped blob per finished match to the
+-- public `desk-archives` Storage bucket and indexes it here. anon reads the
+-- index + the public blob; service_role is the only writer.
+create table if not exists public.desk_archived (
+  fixture_id   bigint primary key,          -- TxLINE FixtureId
+  session      text   not null default 'live',
+  p1           text   not null,
+  p2           text   not null,
+  odds_frames  int    not null default 0,
+  score_frames int    not null default 0,
+  first_ts     bigint,                        -- earliest frame Ts (ms)
+  last_ts      bigint,                        -- latest frame Ts (ms) = market close
+  storage_path text   not null,             -- object path in the desk-archives bucket
+  cluster      text,                          -- mainnet | devnet (data provenance)
+  finished_at  timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index if not exists desk_archived_finished_idx on public.desk_archived (finished_at desc);
+
+alter table public.desk_archived enable row level security;
+revoke all on public.desk_archived from anon, authenticated;
+grant select on public.desk_archived to anon, authenticated;
+drop policy if exists desk_archived_read on public.desk_archived;
+create policy desk_archived_read on public.desk_archived for select to anon, authenticated using (true);
+
+-- Public-read bucket for the raw per-match frame blobs (writes service-role only).
+insert into storage.buckets (id, name, public)
+values ('desk-archives', 'desk-archives', true)
+on conflict (id) do nothing;

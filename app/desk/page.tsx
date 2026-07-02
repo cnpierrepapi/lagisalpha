@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import Desk from "@/components/Desk";
 
 export const metadata = {
-  title: "Signal Desk — Agenthesis",
+  title: "Launch — Agenthesis",
 };
 
 export default function DeskPage() {
