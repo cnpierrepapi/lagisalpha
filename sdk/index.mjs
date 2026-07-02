@@ -33,6 +33,14 @@
 // --- detection: raw book -> typed, scored edges -----------------------------
 export { EdgeEngine } from "../lib/edge/engine.mjs";
 
+// --- line-integrity signals: edge -> read-only operator recommendation -------
+// The LOCKED product surface. classifyEdge maps an engine edge (+ optionally your
+// own watched price) into a read-only signal — kind (steam|overreaction) → action
+// (follow|hold|fade), confidence, pickoffRisk, gapBps. pregoalWarning fires off the
+// momentum tape before the line moves. You act on the signal; Agenthesis never
+// touches your book. Identical to what /api/v1/signals serves (SDK↔API parity).
+export { classifyEdge, pregoalWarning, parseLine } from "../lib/signals/classify.mjs";
+
 // --- decision + scoring: edge -> bet, position -> CLV -----------------------
 export {
   decide,

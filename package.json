@@ -13,6 +13,7 @@
     "sdk",
     "lib/agent-core.mjs",
     "lib/edge",
+    "lib/signals",
     "examples/desk_quickstart.mjs"
   ],
   "scripts": {
@@ -21,7 +22,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/agent_test.mjs",
+    "test": "node scripts/agent_test.mjs && node scripts/signals_test.mjs",
     "check:live": "node --env-file=.env.local scripts/check_live.mjs",
     "record": "node --env-file=.env.local scripts/record_odds.mjs",
     "import:replays": "node scripts/import_replays.mjs",

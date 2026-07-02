@@ -1,0 +1,587 @@
+[
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782844516356,
+    "clv": 0.07498741821841966,
+    "pnl": 1.34
+  },
+  {
+    "kind": "steam",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=2.25",
+    "market": "OU",
+    "line": 2.25,
+    "ts": 1782841278927,
+    "clv": -0.012369540007730995,
+    "pnl": -0.2
+  },
+  {
+    "kind": "steam",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=2.25",
+    "market": "OU",
+    "line": 2.25,
+    "ts": 1782841278927,
+    "clv": -0.007975460122699474,
+    "pnl": -0.13
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782841256266,
+    "clv": 0.006802721088435484,
+    "pnl": 0.13
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782841164423,
+    "clv": 0.1333000499251125,
+    "pnl": 2.54
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782841256266,
+    "clv": 0.01905227161700052,
+    "pnl": 0.37
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782841164423,
+    "clv": 0.05401350337584398,
+    "pnl": 0.92
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782841215391,
+    "clv": -0.011960478419136777,
+    "pnl": -0.23
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782844425688,
+    "clv": 0.10386740331491696,
+    "pnl": 1.77
+  },
+  {
+    "kind": "steam",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=2.75",
+    "market": "OU",
+    "line": 2.75,
+    "ts": 1782841278932,
+    "clv": -0.018901890189018822,
+    "pnl": -0.31
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · ASIANHANDICAP_PARTICIPANT_GOALS line=0",
+    "market": "AH",
+    "line": 0,
+    "ts": 1782845194384,
+    "clv": 0.10009861932938847,
+    "pnl": 1.92
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · ASIANHANDICAP_PARTICIPANT_GOALS line=0",
+    "market": "AH",
+    "line": 0,
+    "ts": 1782845194384,
+    "clv": 0.12113532691333012,
+    "pnl": 2.32
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782845231221,
+    "clv": 0.04231703087062086,
+    "pnl": 0.81
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782845139643,
+    "clv": 0.027195883866225675,
+    "pnl": 0.48
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782859684421,
+    "clv": 0.1569910057236303,
+    "pnl": 2.01
+  },
+  {
+    "kind": "steam",
+    "match": "#18175397 · OVERUNDER_PARTICIPANT_GOALS line=3.75",
+    "market": "OU",
+    "line": 3.75,
+    "ts": 1782845440290,
+    "clv": 0.21112804878048783,
+    "pnl": 3.4
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782859683570,
+    "clv": 0.3792222019353661,
+    "pnl": 4.85
+  },
+  {
+    "kind": "steam",
+    "match": "#18175397 · ASIANHANDICAP_PARTICIPANT_GOALS line=0",
+    "market": "AH",
+    "line": 0,
+    "ts": 1782845254251,
+    "clv": -0.1315910132966531,
+    "pnl": -2.18
+  },
+  {
+    "kind": "steam",
+    "match": "#18175397 · ASIANHANDICAP_PARTICIPANT_GOALS line=0",
+    "market": "AH",
+    "line": 0,
+    "ts": 1782845254251,
+    "clv": -0.1467244179750947,
+    "pnl": -2.43
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782859591766,
+    "clv": 0.15865526393394264,
+    "pnl": 2.01
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3",
+    "market": "OU",
+    "line": 3,
+    "ts": 1782855936512,
+    "clv": -0.05576036866359449,
+    "pnl": -0.79
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3",
+    "market": "OU",
+    "line": 3,
+    "ts": 1782857541453,
+    "clv": 0.006854531607006814,
+    "pnl": 0.15
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782857541443,
+    "clv": 0.029166666666666525,
+    "pnl": 0.64
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782857541443,
+    "clv": 0.03354096789650205,
+    "pnl": 0.74
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=4.5",
+    "market": "OU",
+    "line": 4.5,
+    "ts": 1782857526385,
+    "clv": 0.134561979298157,
+    "pnl": 2.26
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=4.5",
+    "market": "OU",
+    "line": 4.5,
+    "ts": 1782922053752,
+    "clv": 0.38679565512559405,
+    "pnl": 6.77
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=2.75",
+    "market": "OU",
+    "line": 2.75,
+    "ts": 1782855960581,
+    "clv": -0.012472885032537934,
+    "pnl": -0.18
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=3",
+    "market": "OU",
+    "line": 3,
+    "ts": 1782922072107,
+    "clv": 0.7071645185746778,
+    "pnl": 12.53
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782855953804,
+    "clv": -0.06630170316301708,
+    "pnl": -0.94
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=1.5",
+    "market": "OU",
+    "line": 1.5,
+    "ts": 1782922069586,
+    "clv": 0.9256930693069306,
+    "pnl": 16.38
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=1.5",
+    "market": "OU",
+    "line": 1.5,
+    "ts": 1782922069586,
+    "clv": 1.8460076045627376,
+    "pnl": 32.67
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782858792328,
+    "clv": 0.0675,
+    "pnl": 1.12
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=4.5",
+    "market": "OU",
+    "line": 4.5,
+    "ts": 1782858791299,
+    "clv": 0.21331877729257628,
+    "pnl": 5
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=4.5",
+    "market": "OU",
+    "line": 4.5,
+    "ts": 1782858791299,
+    "clv": 0.08209538702111024,
+    "pnl": 1.92
+  },
+  {
+    "kind": "steam",
+    "match": "#18179759 · OVERUNDER_PARTICIPANT_GOALS line=2.75",
+    "market": "OU",
+    "line": 2.75,
+    "ts": 1782873200259,
+    "clv": -0.0022848438690021467,
+    "pnl": -0.03
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782859591766,
+    "clv": 0.08603667136812415,
+    "pnl": 1.09
+  },
+  {
+    "kind": "steam",
+    "match": "#18175981 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.25",
+    "market": "AH",
+    "line": -0.25,
+    "ts": 1782859758584,
+    "clv": 0.26377676377676373,
+    "pnl": 3.37
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179759 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782872571332,
+    "clv": 0.08323778949782139,
+    "pnl": 2.29
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782927443430,
+    "clv": 0.05894848645778021,
+    "pnl": 1.19
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179759 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782872571330,
+    "clv": 0.04809122459097672,
+    "pnl": 1.32
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179759 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782872571330,
+    "clv": 0.052445789208270276,
+    "pnl": 1.44
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782927535887,
+    "clv": 0.2625418060200669,
+    "pnl": 5.95
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782927535887,
+    "clv": 0.343804537521815,
+    "pnl": 7.79
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179759 · OVERUNDER_PARTICIPANT_GOALS line=4.5",
+    "market": "OU",
+    "line": 4.5,
+    "ts": 1782873115941,
+    "clv": 0.06318370426254245,
+    "pnl": 1.03
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.75",
+    "market": "AH",
+    "line": -0.75,
+    "ts": 1782927554355,
+    "clv": -0.3907680063668922,
+    "pnl": -8.85
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782928220974,
+    "clv": -0.784,
+    "pnl": -18.3
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782928220974,
+    "clv": -0.43397968605724835,
+    "pnl": -10.13
+  },
+  {
+    "kind": "steam",
+    "match": "#18179764 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.25",
+    "market": "AH",
+    "line": -0.25,
+    "ts": 1782928251953,
+    "clv": 0.710570824524313,
+    "pnl": 11.36
+  },
+  {
+    "kind": "steam",
+    "match": "#18179764 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.25",
+    "market": "AH",
+    "line": -0.25,
+    "ts": 1782928251953,
+    "clv": 0.4087656529516993,
+    "pnl": 6.54
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179764 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.25",
+    "market": "AH",
+    "line": -0.25,
+    "ts": 1782928248688,
+    "clv": -0.7125792811839324,
+    "pnl": -16.32
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=2.75",
+    "market": "OU",
+    "line": 2.75,
+    "ts": 1782937538855,
+    "clv": 0.2579898100972671,
+    "pnl": 4.47
+  },
+  {
+    "kind": "steam",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782937602143,
+    "clv": -0.19913885898815928,
+    "pnl": -3.55
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782937483635,
+    "clv": 0.4380314351971141,
+    "pnl": 7.67
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782940452104,
+    "clv": 2,
+    "pnl": 36
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=2.75",
+    "market": "OU",
+    "line": 2.75,
+    "ts": 1782940473954,
+    "clv": 0.6187131216633885,
+    "pnl": 10.65
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=4.5",
+    "market": "OU",
+    "line": 4.5,
+    "ts": 1782940452102,
+    "clv": 0.6491176470588235,
+    "pnl": 11.24
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=3",
+    "market": "OU",
+    "line": 3,
+    "ts": 1782940440133,
+    "clv": 0.7380014326647565,
+    "pnl": 13.25
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18179550 · OVERUNDER_PARTICIPANT_GOALS line=3.5",
+    "market": "OU",
+    "line": 3.5,
+    "ts": 1782942517295,
+    "clv": 0.20394973070017952,
+    "pnl": 3.92
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18172379 · OVERUNDER_PARTICIPANT_GOALS line=2.75",
+    "market": "OU",
+    "line": 2.75,
+    "ts": 1782952271277,
+    "clv": 0.5889257463638683,
+    "pnl": 12.15
+  },
+  {
+    "kind": "steam",
+    "match": "#18172379 · ASIANHANDICAP_PARTICIPANT_GOALS line=-1",
+    "market": "AH",
+    "line": -1,
+    "ts": 1782953133793,
+    "clv": 0.0916240660637043,
+    "pnl": 1.49
+  },
+  {
+    "kind": "steam",
+    "match": "#18172379 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.75",
+    "market": "AH",
+    "line": -0.75,
+    "ts": 1782953129895,
+    "clv": 0.05268389662027827,
+    "pnl": 0.83
+  },
+  {
+    "kind": "steam",
+    "match": "#18172379 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.75",
+    "market": "AH",
+    "line": -0.75,
+    "ts": 1782953129894,
+    "clv": 0.04678068410462784,
+    "pnl": 0.74
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18172379 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.5",
+    "market": "AH",
+    "line": -0.5,
+    "ts": 1782955843092,
+    "clv": -0.4652572926909211,
+    "pnl": -8.44
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18172379 · ASIANHANDICAP_PARTICIPANT_GOALS line=-0.5",
+    "market": "AH",
+    "line": -0.5,
+    "ts": 1782955843092,
+    "clv": -0.20568561872909694,
+    "pnl": -3.73
+  },
+  {
+    "kind": "overreaction",
+    "match": "#18172379 · OVERUNDER_PARTICIPANT_GOALS line=2.5",
+    "market": "OU",
+    "line": 2.5,
+    "ts": 1782956871394,
+    "clv": 0.8436241610738254,
+    "pnl": 18.53
+  }
+]
