@@ -268,6 +268,37 @@ function startLive(engine: EngineLike, handle: FeedHandle): void {
   };
   void run("/api/odds/stream", "odds", (r) => engine.ingestOdds(r));
   void run("/api/scores/stream", "scores", (r) => engine.ingestScores(r));
+
+  // The odds/scores streams carry NO participant names — only the fixtures
+  // snapshot does. Resolve names here and populate handle.labels so live-match
+  // forecasts + provenance read as "Team v Team" (not bare "#fid") at the source:
+  // the runner labels each trade from handle.labels, so this flows into the mirror
+  // and onto /desk + /proof. Refresh periodically to pick up newly-listed matches.
+  const refreshLabels = async () => {
+    try {
+      const res = await fetch(`${creds.apiBase}/api/fixtures/snapshot`, {
+        headers: { Authorization: `Bearer ${creds.jwt}`, "X-Api-Token": creds.apiToken },
+      });
+      if (!res.ok) return;
+      const snap = await res.json();
+      const arr = (Array.isArray(snap) ? snap : snap.fixtures ?? []) as Array<Record<string, unknown>>;
+      for (const f of arr) {
+        const fid = String(f.FixtureId ?? "");
+        const p1 = f.Participant1 ?? f.Participant1Name;
+        const p2 = f.Participant2 ?? f.Participant2Name;
+        if (fid && typeof p1 === "string" && typeof p2 === "string") {
+          handle.labels.set(fid, `${p1} v ${p2}`);
+          const prov = handle.provenance.get(fid);
+          if (prov && prov.label.startsWith("#")) prov.label = handle.labels.get(fid)!;
+        }
+      }
+    } catch {
+      /* best-effort — names stay as #fid until the next refresh */
+    }
+  };
+  void refreshLabels();
+  const li = setInterval(refreshLabels, 4 * 60_000);
+  li.unref?.();
 }
 
 // Per-fixture ingestion tally for LIVE mode — without this `totalIngested` stays

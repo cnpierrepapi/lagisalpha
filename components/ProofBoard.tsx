@@ -270,11 +270,18 @@ export default function ProofBoard() {
         </p>
       </section>
 
-      {/* THE SIGNAL LEDGER */}
+      {/* THE SIGNAL LEDGER — live-match forecasts */}
       <section className="mt-6">
         <div className="mb-3 flex items-end justify-between">
-          <p className="label">signal ledger — every call, tied to a frame</p>
-          <p className="text-xs text-faint">{trades.length} most recent</p>
+          <div>
+            <p className="label">live-match forecasts — every call, tied to its frame and match</p>
+            <p className="mt-0.5 text-xs text-faint">
+              Each row is a call a live-deployed forecaster made on the market book of the match named below —
+              fingerprinted to the exact TxLINE frame it fired on. Seeded agents were retired; only forecasters
+              deployed against a live match appear here.
+            </p>
+          </div>
+          <p className="shrink-0 text-xs text-faint">{trades.length} most recent</p>
         </div>
         <div className="panel overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -306,7 +313,7 @@ export default function ProofBoard() {
                   <td className="px-3 py-2">
                     <span className="rounded border border-ink-600 px-1.5 py-0.5 text-muted">{t.kind}</span>
                   </td>
-                  <td className="px-3 py-2 text-muted">{t.match}</td>
+                  <td className="px-3 py-2 text-fg">{t.match}</td>
                   <td className="px-3 py-2">
                     <span className={t.direction === "back" ? "gain" : "loss"}>{t.direction}</span> {t.side}
                   </td>
