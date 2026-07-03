@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 interface CREvent {
   ts: number;
   minute: number | null;
-  market: string;
+  market: string | null;
   kind: "steam" | "overreaction" | "goal_imminent";
   gapBps: number | null;
   pickoffRisk: string;
@@ -27,7 +27,8 @@ function actionColor(a: string): string {
   if (a === "follow") return "amber";
   return "text-muted"; // hold / suspend-suggested
 }
-function shortMarket(m: string): string {
+function shortMarket(m: string | null): string {
+  if (!m) return "—"; // goal_imminent is fixture-level (no specific market/line)
   return m
     .replace("OVERUNDER_PARTICIPANT_GOALS", "O/U")
     .replace("ASIANHANDICAP_PARTICIPANT_GOALS", "AH")

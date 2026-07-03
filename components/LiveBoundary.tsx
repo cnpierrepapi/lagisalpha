@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { classifyEdge } from "@/lib/signals/classify.mjs";
+import { classifyEdge, goalImminent, IMMINENT_SURFACE_CONF } from "@/lib/signals/classify.mjs";
 import { evaluatePolicy, describeAction } from "@/lib/signals/policy.mjs";
 
 // LIVE LINE-INTEGRITY SANDBOX — the demo, made interactive.
@@ -20,6 +20,8 @@ const WINDOW_MS = 90_000; // look-back window for a move
 const GOAL_WINDOW_MS = 150_000; // a move this soon after a goal is an overreaction
 const COOLDOWN_MS = 90_000; // don't re-fire the same market+kind
 const HIST_MS = 300_000;
+const DANGER_FRESH_SEC = 30; // goal_imminent fires only if the danger tape is CURRENT
+const IMMINENT_LIVE_COOLDOWN_MS = 120_000; // one suspend warning per camped spell, not per frame
 
 // naive-book controls (deployable)
 const LAG_MIN = 2_000;
@@ -44,6 +46,7 @@ interface FixtureOut {
   goalTs?: number; // ts of the last goal (replay: the real event time; live: omitted → nowTs)
   latestAgeSec: number;
   frames: FrameOut[];
+  danger?: { action: string; ts: number; ageSec: number; possibleGoal: boolean } | null;
 }
 // the classifier's output shape (subset we render)
 interface Sig {
@@ -155,12 +158,14 @@ export default function LiveBoundary() {
   const lastGoals = useRef(new Map<string, { p1: number; p2: number }>());
   const goalAt = useRef(new Map<string, number>());
   const cooldown = useRef(new Map<string, number>());
+  const lastDanger = useRef(new Map<string, number>()); // ts of last emitted goal_imminent per fixture
 
   function resetDetection() {
     hist.current.clear();
     lastGoals.current.clear();
     goalAt.current.clear();
     cooldown.current.clear();
+    lastDanger.current.clear();
     setSignals([]);
   }
 
@@ -343,6 +348,25 @@ export default function LiveBoundary() {
           if (!sig) return;
           fresh.push({ ts: now, match: f.label, minute: f.minute, sig });
         });
+      }
+
+      // goal_imminent: fire off the momentum tape (live path carries f.danger). We gate on
+      // freshness (the danger is happening NOW, not a stale spell) + a per-fixture cooldown
+      // so a camped spell yields one suspend warning, not one per possession frame.
+      const d = f.danger;
+      if (d && d.ageSec <= DANGER_FRESH_SEC) {
+        const rec = {
+          FixtureId: fid,
+          Ts: d.ts,
+          Action: d.action,
+          PossibleEvent: d.possibleGoal ? { Goal: true } : undefined,
+        };
+        const gi = goalImminent(rec, { minute: f.minute }) as Sig | null;
+        const last = lastDanger.current.get(fid) ?? -Infinity;
+        if (gi && gi.confidence >= IMMINENT_SURFACE_CONF && d.ts - last >= IMMINENT_LIVE_COOLDOWN_MS) {
+          lastDanger.current.set(fid, d.ts);
+          fresh.push({ ts: nowTs, match: f.label, minute: f.minute, sig: gi });
+        }
       }
     }
     if (fresh.length) setSignals((prev) => [...fresh.reverse(), ...prev].slice(0, 80));

@@ -22,6 +22,12 @@ interface FrameOut {
   ts: number;
   ageSec: number;
 }
+interface DangerOut {
+  action: string; // possession tier (high_danger_possession / danger_possession) or ""
+  ts: number;
+  ageSec: number;
+  possibleGoal: boolean; // TxLINE's explicit PossibleEvent.Goal flag
+}
 interface FixtureOut {
   fid: number | string;
   label: string;
@@ -29,6 +35,29 @@ interface FixtureOut {
   goals: { p1: number; p2: number };
   latestAgeSec: number;
   frames: FrameOut[];
+  danger: DangerOut | null; // freshest goal-imminent trigger off the momentum tape
+}
+
+const DANGER_TIERS = new Set(["high_danger_possession", "danger_possession"]);
+
+// The freshest goal-imminent trigger from the scores snapshot (latest record per action
+// type). The high_danger record carries its own Ts, so the client gates on ageSec to know
+// the danger is CURRENT, not a stale spell from earlier. possibleGoal = TxLINE saying a
+// goal is about to happen (strongest). null when no danger tier / flag is present.
+function readDanger(recs: Array<Record<string, unknown>>, now: number): DangerOut | null {
+  let best: DangerOut | null = null;
+  for (const r of recs) {
+    const action = String(r.Action ?? "");
+    const pe =
+      (r.PossibleEvent as { Goal?: boolean } | undefined)?.Goal === true ||
+      (r.Data as { PossibleEvent?: { Goal?: boolean } } | undefined)?.PossibleEvent?.Goal === true;
+    if (!DANGER_TIERS.has(action) && !pe) continue;
+    const ts = Number(r.Ts) || 0;
+    if (!best || ts > best.ts) {
+      best = { action: DANGER_TIERS.has(action) ? action : "", ts, ageSec: Number(((now - ts) / 1000).toFixed(1)), possibleGoal: pe };
+    }
+  }
+  return best;
 }
 
 async function getJson(url: string, headers: Record<string, string>, timeoutMs = 6000): Promise<unknown> {
@@ -136,7 +165,8 @@ export async function GET() {
         Record<string, unknown>
       >;
       const { p1, p2, minute } = readScores(scRecs);
-      return { fid: c.fid, label: c.label, minute, goals: { p1, p2 }, latestAgeSec, frames } as FixtureOut;
+      const danger = readDanger(scRecs, now);
+      return { fid: c.fid, label: c.label, minute, goals: { p1, p2 }, latestAgeSec, frames, danger } as FixtureOut;
     }),
   );
 
