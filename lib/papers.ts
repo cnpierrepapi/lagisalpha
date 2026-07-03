@@ -86,16 +86,43 @@ export const PAPERS: Paper[] = [
   },
   {
     id: "overreaction-base",
-    title: "Market Overreaction to Salient In-Play Events",
-    authors: "Croxson & Reade",
+    title: "The Role of Surprise: Over- and Under-reaction to In-Play Events",
+    authors: "Choi & Hui",
     year: 2014,
     edgeKind: "overreaction",
     doi: "AGTH-0002",
     free: true,
     abstract:
-      "Immediately after a goal or red card the fair line overshoots the true probability shift. The overshoot mean-reverts within minutes. Fade the swing.",
-    tags: ["overreaction", "in-play", "mean-reversion"],
+      "Bettors UNDERREACT to most goals but OVERREACT to surprising ones (an underdog scoring). Only the surprise-driven overshoot mean-reverts within minutes — so fade is gated on SURPRISE, not on the size of the move.",
+    tags: ["overreaction", "surprise", "mean-reversion"],
     levers: { ...BASE, direction: "follow", phase: "inplay" },
+  },
+
+  {
+    id: "efficiency-goalarrival",
+    title: "Information and Efficiency: Goal Arrival in Soccer Betting",
+    authors: "Croxson & Reade",
+    year: 2014,
+    edgeKind: "steam",
+    doi: "AGTH-0003",
+    free: true,
+    abstract:
+      "Prices update fully within seconds of a goal — the market is EFFICIENT to goal arrival. So most goal-driven moves are real and stick: follow them. A book that lags the update is the exact stale price a sharp lifts. (Our data: a flagged move held 89% of the time.)",
+    tags: ["efficiency", "goal-arrival", "follow"],
+    levers: { ...BASE, direction: "follow", phase: "inplay" },
+  },
+  {
+    id: "momentum-persistence",
+    title: "Momentum in Sports Betting Markets",
+    authors: "Moskowitz",
+    year: 2021,
+    edgeKind: "steam",
+    doi: "AGTH-0109",
+    free: true,
+    abstract:
+      "Betting-market prices carry momentum: moves persist rather than snapping straight back, consistent with gradual information incorporation. Reinforces follow/continuation over a blind fade of every swing.",
+    tags: ["momentum", "persistence", "follow"],
+    levers: { ...BASE, direction: "follow" },
   },
 
   // --- calibrated parameter variants -----------------------------------

@@ -70,17 +70,21 @@ console.log("\n── steam ⇒ follow ──");
   check("minute passed through", s.minute === 30);
 }
 
-console.log("\n── overreaction ⇒ hold (default-to-safe) vs fade (confident) ──");
+console.log("\n── overreaction ⇒ hold by default; fade only on SURPRISE (not magnitude) ──");
 {
-  // small swing at threshold → low confidence → HOLD
+  // magnitude only (no preEventProb) → surprise unconfirmed → HOLD, even when large.
+  // (Grounded in our data: big goal-moves are decisive and STICK — size ≠ reversion.)
   const lo = classifyEdge(edge({ kind: "overreaction", edgeMeasure: 0.08 }));
   check("small overreaction → hold", lo.action === "hold", `${lo.action} conf=${lo.confidence}`);
-  check("overreaction revertLikely = true", lo.revertLikely === true);
-  // big swing (2× threshold) → confidence ~1 → FADE
-  const hi = classifyEdge(edge({ kind: "overreaction", edgeMeasure: 0.16 }));
-  check("large overreaction → fade", hi.action === "fade", `${hi.action} conf=${hi.confidence}`);
-  check("confidence monotonic in magnitude", hi.confidence > lo.confidence);
-  check("confidence bounded [0,1]", hi.confidence <= 1 && lo.confidence >= 0);
+  const hiMag = classifyEdge(edge({ kind: "overreaction", edgeMeasure: 0.16 }));
+  check("large magnitude ALONE → still hold (size doesn't justify fade)", hiMag.action === "hold", hiMag.action);
+  check("hold ⇒ revertLikely false (not a positive reversion call)", hiMag.revertLikely === false);
+  check("confidence still monotonic in magnitude", hiMag.confidence > lo.confidence);
+  check("confidence bounded [0,1]", hiMag.confidence <= 1 && lo.confidence >= 0);
+  // surprise path (preEventProb known) + high confidence → FADE, the positive reversion call
+  const surp = classifyEdge(edge({ kind: "overreaction", edgeMeasure: 0.08, fairProb: 0.7, preEventProb: 0.5 }));
+  check("surprise-driven overreaction → fade", surp.action === "fade", surp.action);
+  check("fade ⇒ revertLikely true", surp.revertLikely === true);
 }
 
 console.log("\n── surprise conditioning (firedBy) ──");
