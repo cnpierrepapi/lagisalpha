@@ -41,6 +41,7 @@ interface FixtureOut {
   label: string;
   minute: number | null;
   goals: { p1: number; p2: number };
+  goalTs?: number; // ts of the last goal (replay: the real event time; live: omitted → nowTs)
   latestAgeSec: number;
   frames: FrameOut[];
 }
@@ -132,6 +133,13 @@ export default function LiveBoundary() {
   const [connected, setConnected] = useState(false);
   const [signals, setSignals] = useState<StoredSig[]>([]);
 
+  // source: watch the live feed, or replay a recorded match (demoable 24/7)
+  const [source, setSource] = useState<"live" | "replay">("live");
+  const [replayList, setReplayList] = useState<{ fid: string; label: string }[]>([]);
+  const [replayFid, setReplayFid] = useState<string | null>(null);
+  const [speed, setSpeed] = useState(60);
+  const [replayState, setReplayState] = useState<{ progress: number; done: boolean; minute: number; goals: { p1: number; p2: number } } | null>(null);
+
   // deployable naive book + editable policy (the sandbox controls)
   const [lagMs, setLagMs] = useState(LAG_DEFAULT);
   const [spreadBps, setSpreadBps] = useState(0);
@@ -148,7 +156,17 @@ export default function LiveBoundary() {
   const goalAt = useRef(new Map<string, number>());
   const cooldown = useRef(new Map<string, number>());
 
+  function resetDetection() {
+    hist.current.clear();
+    lastGoals.current.clear();
+    goalAt.current.clear();
+    cooldown.current.clear();
+    setSignals([]);
+  }
+
+  // LIVE source: poll the snapshot; the browser holds history + runs the classifier.
   useEffect(() => {
+    if (source !== "live") return;
     let alive = true;
     const poll = async () => {
       try {
@@ -159,7 +177,7 @@ export default function LiveBoundary() {
         setConnected(true);
         const fx: FixtureOut[] = j.fixtures ?? [];
         setFixtures(fx);
-        detect(fx);
+        detect(fx, Date.now());
       } catch {
         setConnected(false);
       }
@@ -171,7 +189,98 @@ export default function LiveBoundary() {
       clearInterval(iv);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
+  // load the replay match list once
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/replay-frames", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!alive) return;
+        const list = (j.fixtures ?? []).map((f: { fid: string; label: string }) => ({ fid: String(f.fid), label: f.label }));
+        setReplayList(list);
+        if (list.length && !replayFid) setReplayFid(list[0].fid);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // REPLAY source: fetch one match's series, then step it on a virtual clock at `speed`×,
+  // feeding the SAME detect() the live path uses. Re-runs cleanly on source/match/speed change.
+  useEffect(() => {
+    if (source !== "replay" || !replayFid) return;
+    let alive = true;
+    let iv: ReturnType<typeof setInterval> | null = null;
+    resetDetection();
+    setConnected(false);
+    setFixtures([]);
+    setReplayState(null);
+
+    (async () => {
+      const r = await fetch(`/api/replay-frames?fixtureId=${encodeURIComponent(replayFid)}`, { cache: "no-store" }).catch(() => null);
+      const j = r && r.ok ? await r.json() : null;
+      if (!alive || !j || !j.frames?.length) {
+        setConnected(true);
+        return;
+      }
+      setConnected(true);
+      const allFrames: FrameOut[] = j.frames.map((f: Omit<FrameOut, "ageSec">) => ({ ...f, ageSec: 0 }));
+      const goals: { ts: number; p1: number; p2: number }[] = j.goals ?? [{ ts: j.firstTs, p1: 0, p2: 0 }];
+      const label: string = j.label;
+      const kickoff: number = j.firstTs;
+      const TICK_MS = 250;
+      let vt = kickoff; // virtual match-time clock
+      let cursor = 0; // index into allFrames consumed so far
+
+      iv = setInterval(() => {
+        if (!alive) return;
+        const nextVt = vt + speed * TICK_MS;
+        // frames newly crossed this tick (allFrames sorted by ts)
+        const batch: FrameOut[] = [];
+        while (cursor < allFrames.length && allFrames[cursor].ts <= nextVt) batch.push(allFrames[cursor++]);
+        vt = nextVt;
+
+        // current goals as of vt (last goal event at/before vt) + its ts
+        let g = goals[0];
+        for (const ge of goals) if (ge.ts <= vt) g = ge;
+        const minute = Math.max(0, Math.round((vt - kickoff) / 60000));
+
+        const snap: FixtureOut = {
+          fid: replayFid,
+          label,
+          minute,
+          goals: { p1: g.p1, p2: g.p2 },
+          goalTs: g.ts,
+          latestAgeSec: 0,
+          frames: batch.slice(-40).map((f) => ({ ...f, ageSec: Math.max(0, Math.round((vt - f.ts) / 1000)) })),
+        };
+        setFixtures([snap]);
+        if (batch.length) detect([snap], vt);
+
+        const done = cursor >= allFrames.length;
+        setReplayState({
+          progress: Math.min(1, (vt - kickoff) / Math.max(1, j.lastTs - kickoff)),
+          done,
+          minute,
+          goals: { p1: g.p1, p2: g.p2 },
+        });
+        if (done && iv) {
+          clearInterval(iv);
+          iv = null;
+        }
+      }, TICK_MS);
+    })();
+
+    return () => {
+      alive = false;
+      if (iv) clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, replayFid, speed]);
 
   // the naive book's shown prob = the fair line `lag` ago, shaded away from fair by `spread`.
   function bookProb(buf: { ts: number; prob: number }[], now: number, pRef: number): number | null {
@@ -183,15 +292,19 @@ export default function LiveBoundary() {
     return lagged + (dir * spreadRef.current) / 10000;
   }
 
-  function detect(fx: FixtureOut[]) {
+  // nowTs = the current clock for goal-recency (live: Date.now(); replay: virtual match-time).
+  // Using an explicit clock instead of Date.now() lets a recorded match replay at 60× and
+  // still measure the 150s post-goal window in match-time, not wall-clock.
+  function detect(fx: FixtureOut[], nowTs: number) {
     const fresh: StoredSig[] = [];
     for (const f of fx) {
       const fid = String(f.fid);
-      // goal change → mark an overreaction window
+      // goal change → mark an overreaction window (at the real event ts when we have it)
       const prev = lastGoals.current.get(fid);
-      if (prev && (f.goals.p1 > prev.p1 || f.goals.p2 > prev.p2)) goalAt.current.set(fid, Date.now());
+      if (prev && (f.goals.p1 > prev.p1 || f.goals.p2 > prev.p2)) goalAt.current.set(fid, f.goalTs ?? nowTs);
       lastGoals.current.set(fid, f.goals);
-      const goalRecent = (goalAt.current.get(fid) ?? 0) > 0 && Date.now() - (goalAt.current.get(fid) ?? 0) <= GOAL_WINDOW_MS;
+      const ga = goalAt.current.get(fid) ?? 0;
+      const goalRecent = ga > 0 && nowTs - ga <= GOAL_WINDOW_MS;
 
       for (const fr of f.frames) {
         if (!/PARTICIPANT_GOALS/.test(fr.market)) continue; // on-chain-settleable scope only
@@ -274,9 +387,83 @@ export default function LiveBoundary() {
         </div>
         <span className="flex items-center gap-2 text-xs">
           <span className={`inline-block h-2 w-2 rounded-full ${liveOn ? "bg-amber blink" : "bg-ink-500"}`} />
-          {!configured ? "no token" : liveOn ? "LIVE · TxLINE" : connected ? "idle — no match in-play" : "connecting"}
+          {source === "replay"
+            ? replayState
+              ? `REPLAY · ${replayState.done ? "ended" : `${replayState.minute}'`}`
+              : "loading replay…"
+            : !configured
+              ? "no token"
+              : liveOn
+                ? "LIVE · TxLINE"
+                : connected
+                  ? "idle — no match in-play"
+                  : "connecting"}
         </span>
       </header>
+
+      {/* SOURCE — watch live, or replay a recorded match (demoable 24/7) */}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="inline-flex overflow-hidden rounded border border-ink-600 text-xs">
+          <button
+            onClick={() => setSource("live")}
+            className={`px-3 py-1.5 ${source === "live" ? "bg-amber/10 text-amber" : "text-muted hover:text-fg"}`}
+          >
+            ● live feed
+          </button>
+          <button
+            onClick={() => setSource("replay")}
+            className={`border-l border-ink-600 px-3 py-1.5 ${source === "replay" ? "bg-amber/10 text-amber" : "text-muted hover:text-fg"}`}
+          >
+            ▸ replay archive
+          </button>
+        </div>
+
+        {source === "replay" && (
+          <>
+            <select
+              value={replayFid ?? ""}
+              onChange={(e) => setReplayFid(e.target.value)}
+              className="rounded border border-ink-600 bg-ink-800 px-2 py-1.5 text-xs text-fg"
+            >
+              {replayList.length === 0 && <option value="">loading matches…</option>}
+              {replayList.map((f) => (
+                <option key={f.fid} value={f.fid}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <div className="inline-flex overflow-hidden rounded border border-ink-600 text-xs">
+              {[30, 60, 120].map((sp) => (
+                <button
+                  key={sp}
+                  onClick={() => setSpeed(sp)}
+                  className={`px-2 py-1.5 ${sp !== 30 ? "border-l border-ink-600" : ""} ${speed === sp ? "bg-amber/10 text-amber" : "text-muted hover:text-fg"}`}
+                >
+                  {sp}×
+                </button>
+              ))}
+            </div>
+            {replayState && (
+              <div className="flex min-w-[140px] flex-1 items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded bg-ink-700">
+                  <div className="h-full bg-amber" style={{ width: `${Math.round(replayState.progress * 100)}%` }} />
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                // restart: nudge the effect by reselecting the same fixture
+                const f = replayFid;
+                setReplayFid(null);
+                setTimeout(() => setReplayFid(f), 0);
+              }}
+              className="rounded border border-ink-600 px-2 py-1.5 text-xs text-muted hover:text-fg"
+            >
+              ⟲ restart
+            </button>
+          </>
+        )}
+      </div>
 
       {/* TALLIES — driven by YOUR book + policy */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -286,10 +473,13 @@ export default function LiveBoundary() {
         <Tally label="margin protected" value={`+${tallies.marginPct}%`} tone="gain" hint={`${tallies.limitsCut} limits cut · ${tallies.suspends} suspends`} />
       </div>
 
-      {!configured ? (
+      {source === "live" && !configured ? (
         <p className="panel px-5 py-4 text-sm text-faint">
-          Live feed unavailable — no TxLINE token configured in this environment. Use the Archive to replay recorded
-          matches through your book + policy.
+          Live feed unavailable — no TxLINE token configured in this environment. Switch to{" "}
+          <button onClick={() => setSource("replay")} className="amber hover:text-fg">
+            ▸ replay archive
+          </button>{" "}
+          to run a recorded match through your book + policy.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
@@ -373,14 +563,18 @@ export default function LiveBoundary() {
           {/* RIGHT: live book + the boundary tape */}
           <section className="order-2 space-y-4 lg:col-span-8">
             {!liveOn ? (
-              <p className="panel px-5 py-6 text-sm text-muted">
-                No World Cup match is in-play right now. Odds are live-only, so the book and its signals appear the
-                moment a match kicks off — keep this page open through kickoff, or replay a recorded match from the{" "}
-                <a href="/desk" className="amber hover:text-fg">
-                  Archive
-                </a>
-                .
-              </p>
+              source === "replay" ? (
+                <p className="panel px-5 py-6 text-sm text-muted">Loading the recorded match…</p>
+              ) : (
+                <p className="panel px-5 py-6 text-sm text-muted">
+                  No World Cup match is in-play right now. Odds are live-only, so the book and its signals appear the
+                  moment a match kicks off — keep this page open through kickoff, or{" "}
+                  <button onClick={() => setSource("replay")} className="amber hover:text-fg">
+                    replay a recorded match
+                  </button>
+                  .
+                </p>
+              )
             ) : (
               <>
                 {/* live book per fixture */}

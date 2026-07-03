@@ -45,6 +45,19 @@ async function getJson(url: string, headers: Record<string, string>, timeoutMs =
   }
 }
 
+// Goals for one participant, robust to both feed shapes:
+//   Score.Participant1.Total.Goals  (participant-first — the real snapshot/capture shape)
+//   Score.Total.Participant1.Goals  (period-first — defensive fallback)
+function goalsOf(score: Record<string, unknown> | undefined, n: 1 | 2): number {
+  if (!score) return 0;
+  const part = score[`Participant${n}`] as { Total?: { Goals?: number } } | undefined;
+  const pFirst = part?.Total?.Goals;
+  if (pFirst != null) return Number(pFirst);
+  const tot = score.Total as Record<string, { Goals?: number }> | undefined;
+  const period = tot?.[`Participant${n}`]?.Goals;
+  return period != null ? Number(period) : 0;
+}
+
 // Running-max goals + latest minute from the scores snapshot (latest record per action
 // type). Max is robust to sparse frames; a VAR-disallowed goal can briefly inflate it
 // (acceptable for a live view — the odds tell the real story).
@@ -54,11 +67,9 @@ function readScores(recs: Array<Record<string, unknown>>): { p1: number; p2: num
   let minute: number | null = null;
   let clockTs = -1;
   for (const r of recs) {
-    const total = (r.Score as { Total?: { Participant1?: { Goals?: number }; Participant2?: { Goals?: number } } })?.Total;
-    if (total) {
-      p1 = Math.max(p1, Number(total.Participant1?.Goals ?? 0));
-      p2 = Math.max(p2, Number(total.Participant2?.Goals ?? 0));
-    }
+    const score = r.Score as Record<string, unknown> | undefined;
+    p1 = Math.max(p1, goalsOf(score, 1));
+    p2 = Math.max(p2, goalsOf(score, 2));
     const clock = r.Clock as { Seconds?: number } | undefined;
     if (clock?.Seconds != null && Number(r.Ts) > clockTs) {
       clockTs = Number(r.Ts);
