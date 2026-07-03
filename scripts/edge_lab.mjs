@@ -135,3 +135,90 @@ function autocorr() {
   }
 }
 autocorr();
+
+// ---- ANTICIPATION ODDS-DRIFT TEST (Task 2): does the LINE drift goal-ward after a
+// high_danger event, BEFORE the goal, by enough to get a lagging book picked off? ----
+//
+// This SUPERSEDES danger()'s crude "Δover +0.18pp": that number was contaminated because
+// its 60s window swept in frames where the goal actually LANDED (goal-reaction, not
+// anticipation). Here we truncate every window at min(event+W, nextGoal − GUARD) so the
+// goal's own reprice can never leak in — what's left is pure anticipation drift.
+//
+// The verdict gates the signal's ACTION semantics:
+//   • lift clearly >0 AND a meaningful % clears the 60bps materiality bar at W=8s (the lag
+//     window a book is actually picked off through)  → over_lean is a real, tradeable action.
+//   • drift ~= baseline / immaterial  → the signal is SUSPEND-ONLY (its value is the proven
+//     goal-ARRIVAL lift 1.92×: suspend pre-goal so you're not caught with a stale in-play
+//     line when the goal lands — value comes from the goal coming, not from pre-goal drift).
+//
+// PATH test: many quasi-independent danger events per match (234 total) → powered on 4
+// matches, unlike outcome-settled edges (N_effective=4). over-prob is a directionless proxy:
+// a goal by EITHER side lifts total-goals "over", so we need no possession-direction (which
+// these slimmed replays lack anyway).
+const GUARD_MS = 1500;      // keep the window safely before the goal's odds reaction
+const MATERIAL = 0.006;     // 60bps = PICKOFF_BPS.med → a lagging book is tradeably behind
+const seriesAt = (arr, t) => { let v = null; for (const e of arr) { if (e.ts <= t) v = e.p; else break; } return v; };
+const firstGoalAfter = (gt, t) => { for (const g of gt) if (g > t) return g; return Infinity; };
+function goalTimes(m) {
+  let p1 = 0, p2 = 0; const gt = [];
+  for (const s of m.scores.slice().sort((a, b) => a.Ts - b.Ts)) {
+    if (!s.Score) continue;
+    const n1 = Math.max(p1, goalsOf(s.Score, 1)), n2 = Math.max(p2, goalsOf(s.Score, 2));
+    if (n1 > p1 || n2 > p2) { gt.push(s.Ts); p1 = n1; p2 = n2; }
+  }
+  return gt;
+}
+function overSeries(m) {
+  const series = new Map();
+  for (const o of m.odds) {
+    if (!/OVERUNDER_PARTICIPANT_GOALS/.test(o.SuperOddsType)) continue;
+    const pr = sideProb(o, "over"); if (pr == null) continue;
+    const k = `${o.MarketParameters}|${o.MarketPeriod}`;
+    (series.get(k) || series.set(k, []).get(k)).push({ ts: o.Ts, p: pr });
+  }
+  for (const arr of series.values()) arr.sort((a, b) => a.ts - b.ts);
+  return series;
+}
+const pp = (x) => `${x * 100 >= 0 ? "+" : ""}${(x * 100).toFixed(2)}pp`;
+
+function drift() {
+  console.log(`\n=== ANTICIPATION ODDS-DRIFT TEST (pre-goal isolation, Task 2) ===`);
+  console.log(`Δ(over-prob) from danger event to min(event+W, nextGoal−${GUARD_MS/1000}s). goal-reaction EXCLUDED.`);
+  for (const W of [8000, 30000, 60000]) {
+    for (const tier of ["high_danger_possession", "danger_possession"]) {
+      let dSum = 0, dN = 0, dMat = 0, bSum = 0, bN = 0;
+      let gSum = 0, gN = 0, ngSum = 0, ngN = 0; // conditional on a goal actually following in-window
+      for (const m of replays) {
+        const gt = goalTimes(m); const series = overSeries(m); const { t0, t1 } = clock(m);
+        const events = m.scores.filter((s) => s.Action === tier && s.Clock?.Running).map((s) => s.Ts);
+        const baseTimes = []; for (let t = t0; t < t1 - W; t += 30_000) baseTimes.push(t);
+        for (const arr of series.values()) {
+          for (const te of events) {
+            const tg = firstGoalAfter(gt, te);
+            const tEnd = Math.min(te + W, tg - GUARD_MS);
+            if (tEnd <= te) continue;
+            const a = seriesAt(arr, te), b = seriesAt(arr, tEnd);
+            if (a == null || b == null) continue;
+            const d = b - a; dSum += d; dN++; if (Math.abs(d) >= MATERIAL) dMat++;
+            if (tg <= te + W) { gSum += d; gN++; } else { ngSum += d; ngN++; }
+          }
+          for (const tb of baseTimes) {
+            const tg = firstGoalAfter(gt, tb);
+            const tEnd = Math.min(tb + W, tg - GUARD_MS);
+            if (tEnd <= tb) continue;
+            const a = seriesAt(arr, tb), b = seriesAt(arr, tEnd);
+            if (a == null || b == null) continue;
+            bSum += b - a; bN++;
+          }
+        }
+      }
+      const dMean = dN ? dSum / dN : 0, bMean = bN ? bSum / bN : 0;
+      console.log(
+        `  W=${String(W / 1000).padStart(2)}s ${tier.padEnd(24)} Δover=${pp(dMean)} vs base ${pp(bMean)} → lift ${pp(dMean - bMean)} | material(|Δ|≥60bps) ${dN ? (100 * dMat / dN).toFixed(0) : 0}% of ${dN} | before-goal ${pp(gN ? gSum / gN : 0)}(n=${gN}) vs no-goal ${pp(ngN ? ngSum / ngN : 0)}(n=${ngN})`,
+      );
+    }
+  }
+  console.log(`  → over_lean is justified ONLY if lift clearly >0 AND a meaningful % clears the 60bps bar at W=8s;`);
+  console.log(`    otherwise the signal is SUSPEND-ONLY (value = the proven 1.92× goal-ARRIVAL lift, not pre-goal drift).`);
+}
+drift();
