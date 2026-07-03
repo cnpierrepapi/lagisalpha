@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     generatedAt: now,
     source: "txline-capture-replay",
     method:
-      "CLV settled at the reversion horizon (Choi–Hui: overreactions revert within minutes). Deterministic snapshot from real captured frames; the live worker adds the on-chain outcome leg via validateStat.",
+      "steam/overreaction settled on CLV at the reversion horizon (Choi–Hui: overreactions revert within minutes); goal_imminent settled on GOAL-ARRIVAL within 120s (ledger.imminent — it has no closing line, its value is the ~1.92× arrival lift). Deterministic snapshot from real captured frames; the live worker adds the on-chain outcome leg via validateStat.",
     caveat:
       "Deterministic 2-match snapshot — a PILOT. The proven edge (overreaction/fade ~84% CLV-positive across 6 matches) comes from the live worker's settled log; target ~50–80 matches for a segmented, out-of-sample track record.",
     ledger,

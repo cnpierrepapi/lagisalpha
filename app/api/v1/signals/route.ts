@@ -2,10 +2,12 @@
 //
 // Agenthesis is a read-only line-integrity oracle. This endpoint serves the
 // SIGNAL contract: per fixture, scored recommendations an operator's own rule-set
-// acts on — kind (steam|overreaction) → action (follow|hold|fade), a confidence,
-// a pickoffRisk, and pRef (TxLINE's demargined fair prob = the truth we benchmark
-// against). We emit the signal; the operator decides whether to limit / reprice /
-// suspend. We never touch the book.
+// acts on — kind (steam|overreaction|goal_imminent) → action (follow|hold|fade|
+// suspend-suggested), a confidence, a pickoffRisk, and pRef (TxLINE's demargined
+// fair prob = the truth we benchmark against). goal_imminent fires off the momentum
+// tape with a quantified goalProb (P(goal ≤120s)) — suspend/widen before a goal lands.
+// We emit the signal; the operator decides whether to limit / reprice / suspend. We
+// never touch the book.
 //
 // Each signal carries the proofHash tying it to the exact real TxLINE frame it was
 // derived from (reconcile via /api/verify-csv). When an operator connects their own
@@ -63,8 +65,8 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const fixtureId = url.searchParams.get("fixtureId");
-  const kind = url.searchParams.get("kind"); // steam | overreaction
-  const action = url.searchParams.get("action"); // follow | hold | fade
+  const kind = url.searchParams.get("kind"); // steam | overreaction | goal_imminent
+  const action = url.searchParams.get("action"); // follow | hold | fade | suspend-suggested
   const minConfidence = Number(url.searchParams.get("minConfidence")) || 0;
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 25, 1), 200);
 

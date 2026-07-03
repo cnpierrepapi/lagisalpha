@@ -31,6 +31,14 @@ interface Ledger {
   byAction: Record<string, Bucket>;
   breadth: { matches: number; matchesNetPositive: number; topMatchShareOfNetPct: number | null; fixtures: FixtureRow[] };
   headline: string;
+  imminent?: {
+    n: number;
+    arrived: number;
+    arrivalRate: number | null;
+    baseRate: number | null;
+    lift: number | null;
+    windowMs: number;
+  };
 }
 interface SettledRow {
   fixtureId: string;
@@ -132,6 +140,35 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
           />
         </section>
       </div>
+
+      {/* GOAL-IMMINENT ANTICIPATION — arrival-settled, not CLV */}
+      {ledger?.imminent && ledger.imminent.n > 0 && (
+        <section className="panel mt-5 p-5">
+          <p className="label mb-1">goal-imminent anticipation — settled on goal-ARRIVAL (not CLV)</p>
+          <p className="mb-3 text-xs text-faint">
+            A high-danger warning has no closing line to grade — its value is that a goal actually lands
+            disproportionately often. We grade every warning on whether a real goal arrived within{" "}
+            {Math.round((ledger.imminent.windowMs || 120000) / 1000)}s. The line itself does NOT pre-drift
+            tradeably (drift test), so the action is suspend/widen, never over-lean.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat
+              label="goal within 120s"
+              value={pct(ledger.imminent.arrivalRate)}
+              sub={`${ledger.imminent.arrived}/${ledger.imminent.n} warnings`}
+              tone="gain"
+            />
+            <Stat label="base rate" value={pct(ledger.imminent.baseRate)} sub="uniform-arrival null" />
+            <Stat
+              label="lift"
+              value={ledger.imminent.lift != null ? `${ledger.imminent.lift.toFixed(2)}×` : "—"}
+              sub="vs base (Bundesliga 1.92×)"
+              tone="gain"
+            />
+            <Stat label="action" value="suspend" sub="no over-lean — line doesn't pre-drift" />
+          </div>
+        </section>
+      )}
 
       {/* BREADTH / CONCENTRATION */}
       <section className="panel mt-5 p-5">

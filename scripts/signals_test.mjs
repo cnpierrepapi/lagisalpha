@@ -4,8 +4,8 @@
 
 import { classifyEdge, goalImminent, parseLine, _internal } from "../lib/signals/classify.mjs";
 import { classifyEdge as sdkClassifyEdge } from "../sdk/index.mjs";
-import { settleCLV, resolveGoalsOutcome } from "../lib/signals/settle.mjs";
-import { calibrate } from "../lib/signals/calibration.mjs";
+import { settleCLV, resolveGoalsOutcome, settleGoalArrival } from "../lib/signals/settle.mjs";
+import { calibrate, calibrateArrival } from "../lib/signals/calibration.mjs";
 import { _internal as reel } from "../lib/signals/proof-reel.mjs";
 
 let passed = 0;
@@ -135,6 +135,31 @@ console.log("\n── goal-imminent anticipation (momentum tape) ──");
   check("attackingParticipant null when tape slimmed", hd.attackingParticipant === null);
   const none = goalImminent({ FixtureId: 1, Ts: 5, Action: "safe_possession" });
   check("non-danger frame → null", none === null);
+}
+
+console.log("\n── goal-arrival settlement + calibration ──");
+{
+  const sig = { kind: "goal_imminent", ts: 1000 };
+  const hit = settleGoalArrival(sig, [1500, 9000], 120_000); // goal 500ms into the window
+  check("goal in window → arrived", hit.status === "settled" && hit.arrived === true);
+  check("arrivalMs = 500", hit.arrivalMs === 500);
+  const miss = settleGoalArrival(sig, [200, 200_000], 120_000); // goals before + after window
+  check("no goal in window → not arrived", miss.arrived === false && miss.arrivalMs === null);
+  const edge = settleGoalArrival(sig, [1000], 120_000); // goal AT the warning ts (not strictly after)
+  check("goal at t (not >t) → not arrived", edge.arrived === false);
+  const noTimes = settleGoalArrival({ kind: "goal_imminent" }, [1500]); // no ts
+  check("missing ts → pending", noTimes.status === "pending");
+
+  const rows = [
+    { status: "settled", arrived: true, windowMs: 120_000 },
+    { status: "settled", arrived: false, windowMs: 120_000 },
+    { status: "settled", arrived: true, windowMs: 120_000 },
+    { status: "pending", arrived: null, windowMs: 120_000 },
+  ];
+  const cal = calibrateArrival(rows, 0.1); // 2/3 arrived vs 0.1 base → 6.67× (pending excluded)
+  check("calibrateArrival excludes pending (n=3)", cal.n === 3 && cal.arrived === 2);
+  check("arrivalRate 2/3", near(cal.arrivalRate, 0.6667));
+  check("lift = arrivalRate/base", near(cal.lift, 6.67));
 }
 
 console.log("\n── determinism (same input → byte-identical signal) ──");
