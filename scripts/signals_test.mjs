@@ -6,6 +6,7 @@ import { classifyEdge, pregoalWarning, parseLine, _internal } from "../lib/signa
 import { classifyEdge as sdkClassifyEdge } from "../sdk/index.mjs";
 import { settleCLV, resolveGoalsOutcome } from "../lib/signals/settle.mjs";
 import { calibrate } from "../lib/signals/calibration.mjs";
+import { _internal as reel } from "../lib/signals/proof-reel.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -172,6 +173,45 @@ console.log("\n── calibration ledger ──");
   check("overreaction/fade hitRate 1/2", led.byKind.overreaction.hitRate === 0.5);
   check("breadth = 2 matches", led.breadth.matches === 2);
   check("headline mentions overreaction", /overreaction/.test(led.headline));
+}
+
+console.log("\n── proof reel: frame lookup ──");
+{
+  const meta = { superOddsType: "OVERUNDER_PARTICIPANT_GOALS", marketParameters: "line=2.5", marketPeriod: "null", side: "over" };
+  const mk = (ts, price) => ({ Ts: ts, SuperOddsType: meta.superOddsType, MarketParameters: meta.marketParameters, MarketPeriod: meta.marketPeriod, PriceNames: ["over", "under"], Prices: [price, 2000] });
+  // interleave an off-market frame to prove the filter holds
+  const other = { Ts: 90_000, SuperOddsType: "ASIANHANDICAP_PARTICIPANT_GOALS", MarketParameters: "line=0", MarketPeriod: "null", PriceNames: ["part1", "part2"], Prices: [1900, 1900] };
+  const frames = [mk(0, 2000), other, mk(60_000, 2200), mk(reel.HORIZON_MS, 1800), mk(240_000, 1700)].sort((a, b) => a.Ts - b.Ts);
+  const obj = reel.frameAtHorizon(frames, meta, 0); // target = HORIZON_MS
+  check("frameAtHorizon returns first frame at/after horizon", obj.ts === reel.HORIZON_MS, String(obj?.ts));
+  const base = reel.frameAtOrBefore(frames, meta, 120_000);
+  check("frameAtOrBefore returns last frame at/before target", base.ts === 60_000, String(base?.ts));
+  check("frameAtOrBefore ignores other markets", reel.frameAtOrBefore(frames, meta, 95_000).ts === 60_000);
+}
+
+console.log("\n── proof reel: believable selection ──");
+{
+  let t = 0;
+  const c = (kind, success, magnitude) => ({ kind, success, magnitude, entry: { ts: t++ } });
+  const cases = [
+    ...Array.from({ length: 10 }, (_, i) => c("overreaction", true, 0.2 - i * 0.001)),
+    ...Array.from({ length: 8 }, () => c("overreaction", false, 0.1)),
+    ...Array.from({ length: 6 }, () => c("steam", true, 0.05)),
+    ...Array.from({ length: 5 }, () => c("steam", false, 0.05)),
+  ];
+  const { kept, totals } = reel.selectBelievable(cases);
+  const keptOrLoss = kept.filter((k) => k.kind === "overreaction" && !k.success).length;
+  const keptStWin = kept.filter((k) => k.kind === "steam" && k.success).length;
+  const keptStLoss = kept.filter((k) => k.kind === "steam" && !k.success).length;
+  check("overreaction losers capped to ≤25% of winners", keptOrLoss === 3, `got ${keptOrLoss}`);
+  check("steam winners capped (representative taste)", keptStWin === 4, `got ${keptStWin}`);
+  check("steam losers capped", keptStLoss === 2, `got ${keptStLoss}`);
+  check("winners dominate the shown reel", totals.shownWins > totals.shown - totals.shownWins, JSON.stringify(totals));
+  check("discards are disclosed", totals.discarded === totals.cases - totals.shown && totals.discarded > 0);
+  check("kept is chronological", kept.every((k, i) => i === 0 || kept[i - 1].entry.ts <= k.entry.ts));
+  // an all-winner match still shows at least one loser only if losers exist (none here → none forced)
+  const allWin = reel.selectBelievable(Array.from({ length: 5 }, () => c("overreaction", true, 0.1)));
+  check("no losers available → none shown (not fabricated)", allWin.totals.losses === 0 && allWin.kept.every((k) => k.success));
 }
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} signals: ${passed} passed, ${failed} failed\n`);
