@@ -67,20 +67,23 @@ doc.moveDown(0.2);
 
 h1("5. The signal engine");
 p("The engine ingests odds and score frames and classifies each reference-line move, grounded in the market-microstructure literature:");
-li("steam -> follow. The market prices real news efficiently (Croxson & Reade). A clean move is true; a book that follows late is exposed. Tighten toward the reference.");
-li("overreaction -> hold / fade. A surprising goal overshoots and reverts within minutes (Choi & Hui; De Bondt-Thaler). Do not chase it; when confident, lean against it.");
-li("pre-goal warning -> suspend. The momentum tape flags a goal-imminent state before the line moves - the earliest notice that an in-play price is about to go stale.");
+li("steam -> follow. THE PRIMARY EDGE. The market prices real news efficiently and momentum persists (Croxson & Reade; Moskowitz) - on our captures a flagged move held ~89% of the time. A clean move is true; a book that follows late is exactly the stale price a sharp lifts. Tighten toward the reference.");
+li("overreaction -> hold / fade. The exception, not the rule. Bettors underreact to most goals and overreact only to surprising ones (Choi & Hui; De Bondt-Thaler), so only a minority overshoot and revert (~18% in our data). Default is hold; escalate to fade only on the surprise path, never on magnitude alone - big goal-moves are usually decisive and stick.");
+li("goal_imminent -> suspend. A first-class signal off the momentum tape (high-danger possession / an explicit goal-imminent flag) that fires seconds before a goal lands, carrying a quantified goalProb = the calibrated P(goal <=120s); high-danger possession runs a measured 1.9x the base arrival rate. Our drift test found no tradeable pre-goal line move (the consensus already prices the danger), so the action is suspend/widen only - the earliest notice a price is about to go stale.");
 doc.moveDown(0.2);
 p(
-  "Overreaction firing is sharpened by surprise: how far the goal moved the scoreline probability from its pre-event value. Signals are scoped to the two on-chain-settleable goals markets, so nothing is emitted that cannot later be proven.",
+  "Overreaction firing is sharpened by surprise: how far the goal moved the scoreline probability from its pre-event value. Steam and overreaction signals are scoped to the two on-chain-settleable goals markets, so nothing is emitted that cannot later be proven.",
 );
 
-h1("6. Grading: CLV and on-chain self-scoring");
+h1("6. Grading: Fair Close Value and on-chain self-scoring");
 p(
-  "Every signal is graded two ways. The skill leg is closing-line value: did the fair line keep moving toward the call to its closing value, measured over the reversion window? CLV resolves from odds alone, so it settles fast and with low variance. On our own captures, overreaction/fade calls are consistently CLV-positive while steam/follow, as the efficiency literature predicts, carries no standalone edge.",
+  "A call is right when the line behaves as the signal said it would - and for a FOLLOW that is not 'CLV is positive'. A follow is taken at fair value, so its expected closing-line value is ~0 by construction; grading it on CLV>0 would fail about half the continuations that were in fact correct. So the skill leg is Fair Close Value (FCV): the demargined fair probability at the +180s close. A follow or hold is right when the line HELD in the region it moved to (FCV stayed within +/-10pp of entry), because a book still quoting the old number is then left behind. A FADE keeps the reversion test: the overshoot came back. FCV resolves from odds alone, so it settles fast and with low variance; CLV is retained as an auxiliary diagnostic.",
 );
 p(
-  "The outcome leg settles against the final goals on the TxLINE daily-scores Merkle root via a validateStat proof. The result is a public calibration ledger where the agent grades itself on-chain: hit-rate and average CLV per signal type, per action, with per-match breadth and single-match concentration surfaced so a headline cannot hide behind one lucky match.",
+  "goal_imminent has no line to close against, so it is graded on a third axis entirely: goal ARRIVAL. We settle it against whether a goal actually landed inside the window and report the lift over the base arrival rate (~1.9x on our captures) - the honest proof for an anticipation signal is not 'the line moved' but 'the goal came disproportionately often'.",
+);
+p(
+  "The outcome leg settles against the final goals on the TxLINE daily-scores Merkle root via a validateStat proof. The result is a public calibration ledger where the agent grades itself on-chain: follow/hold held-rate, fade reversion-rate, and goal_imminent arrival-lift per signal type and action, with per-match breadth and single-match concentration surfaced so a headline cannot hide behind one lucky match.",
 );
 
 h1("7. The read-only boundary");
@@ -98,9 +101,9 @@ p(
   "Every signal carries a proofHash tying it to the exact TxLINE frame it was derived from, reconcilable against a downloadable frame ledger (join on fixture and frame timestamp to confirm our reference matches yours). The Solana touchpoint is proof of access: a real on-chain subscribe transaction, signed with a wallet, mints the right to the TxLINE stream; that signature is a public, verifiable hash anyone can open on Solana Explorer. Outcome settlement anchors to the same chain via the daily-scores Merkle root.",
 );
 
-h1("10. The SDK and Operator API");
+h1("10. The Operator API and SDK");
 p(
-  "Two surfaces sit on the same core. A desk embeds the SDK (the classifier, the detector, and the CLV grader) in its own stack: pure, deterministic, unit-tested code with no I/O and no clock reads, safe to place next to a live book. An operator instead consumes the HTTP API: authenticated, versioned endpoints for the signals (GET /api/v1/signals), the calibration ledger (GET /api/v1/calibration), and the read-only boundary timeline (GET /api/v1/control-room), each signal carrying a proofHash, plus a webhook that pushes the identical signal from a persistent worker.",
+  "The product is the API. Agenthesis is delivered as GET /api/v1/signals (an authenticated, versioned HTTP feed of read-only signals), alongside GET /api/v1/calibration (the provable track record) and GET /api/v1/control-room (the read-only boundary timeline). Every signal carries a proofHash, and a webhook pushes the identical payload from a persistent worker. An operator integrates in an afternoon, with no code to embed and nothing of their pricing model exposed. The SDK is an optional thin wrapper around the identical pure functions (the detector, the classifier, and the grader) for latency-sensitive consumers that run the classifier in-process, where a network round-trip cannot sit inside a millisecond pickoff loop. It is the exact code the API serves (SDK<->API parity): pure, deterministic, unit-tested, safe to place next to a live book.",
 );
 
 h1("11. Infrastructure: why this needs TxOdds");
@@ -110,7 +113,7 @@ p(
 
 h1("12. Responsible use");
 p(
-  "Agenthesis is a read-only research and risk-analytics layer built on de-margined data. It places no wagers, holds no funds, and moves no prices; the operator's rule-set takes every action. CLV is a measure of pricing skill, not a promise of profit, and calibration over a replay does not guarantee live results. Nothing here is financial advice.",
+  "Agenthesis is a read-only research and risk-analytics layer built on de-margined data. It places no wagers, holds no funds, and moves no prices; the operator's rule-set takes every action. Fair Close Value and reversion are measures of pricing skill, not a promise of profit, and calibration over a replay does not guarantee live results. Nothing here is financial advice.",
 );
 
 doc

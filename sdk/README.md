@@ -1,26 +1,29 @@
 # Agenthesis SDK
 
-Embed the edge-detection engine and the CLV decision core directly in your own
-stack. This is the integration path for a **quantitative forecasting desk**: you
-bring your own TxLINE feed and your own strategies; the SDK turns the demargined
-price book into typed, scored signals and grades every call on closing-line
-value — the skill metric, settled from odds alone.
+The product is the **signal API** (`GET /api/v1/signals`). This package is the
+**optional in-process wrapper** around the identical pure functions, for
+latency-sensitive consumers that run the classifier next to their own book
+rather than over a network hop. You bring your own TxLINE feed and your own
+prices; the SDK turns the demargined price book into typed, **read-only
+line-integrity signals** — a clean move to follow, an overreaction to fade, a
+goal about to make your line stale. You act on the signal; Agenthesis never
+places a bet, moves a price, or holds funds.
 
-It is the exact code the deployed product runs — pure functions, no I/O, no
-clock reads, deterministic, and unit-tested (`scripts/agent_test.mjs`, 26
-assertions). That is what makes it safe to put next to real execution.
+It is the exact code the API serves (SDK↔API parity) — pure functions, no I/O,
+no clock reads, deterministic, and unit-tested. That is what makes it safe to
+put next to a live book.
 
 ## What it gives you
 
 | Primitive | Function | What it does |
 | --- | --- | --- |
-| **Signal** | `EdgeEngine` | Ingest the demargined book → emit typed, scored edges: `steam` (sharp fair-prob move), `overreaction` (post-event overshoot), `quote` (micro-drift baseline). |
-| **Decision** | `decide(agent, edge, ctx)` | Pure mapping from an edge + your lever set → a sized call (take / side / direction / conviction weight). Flat or fractional-Kelly. |
-| **Scoring** | `markPosition(pos, closeProb)` / `scoreCLV(...)` | Closing-line value — the skill metric. Resolves from odds alone, **no match outcome required**. |
+| **Detection** | `EdgeEngine` | Ingest the demargined book → emit typed, scored edges: `steam` (sharp fair-prob move), `overreaction` (post-goal overshoot), `quote` (micro-drift baseline). |
+| **Classification** | `classifyEdge(edge, ctx)` / `goalImminent(scoreRec, ctx)` | Map an edge → a read-only signal: `steam` → follow, `overreaction` → hold/fade, plus `goal_imminent` off the momentum tape → suspend (with a quantified `goalProb`). Confidence, pickoffRisk, gapBps vs your price. |
+| **Grading** | FCV-held · `scoreCLV(...)` (aux) | Follow/hold is graded on **Fair Close Value** holding within ±10pp of entry at the +180s close; fade on reversion; `goal_imminent` on goal-arrival lift. `scoreCLV` ships as the auxiliary CLV diagnostic. Resolves from odds alone, **no match outcome required**. |
 
-You keep ownership of the two things a desk should own: the **feed** (you push
-records in) and the **execution** (you route the orders out). The SDK is the
-quantitative layer in between.
+You keep ownership of the two things an operator should own: the **feed** (you
+push records in) and the **book** (your rule-set acts on the signal). The SDK is
+the read-only benchmark in between.
 
 ## Quickstart
 
@@ -82,9 +85,12 @@ TxLINE publishes a de-margined (no-vig) book, so for side *S*: `p = 1 /
 (price/1000)`, `O = 1/p`, `b = O − 1`. An edge of magnitude *m* (probability
 units) implies expected captured move `ê = κ·m` (`κ = CONTINUATION_COEFF`),
 expected return `e = ê / p_entry`, and Kelly fraction `f* = e / b`, applied as
-fractional Kelly capped at `KELLY_CAP`. Settlement is **CLV**: `back: r =
-(p_close − p_entry)/p_entry = p_close·O_entry − 1`. The full derivation is in
-`lib/agent-core.mjs`.
+fractional Kelly capped at `KELLY_CAP`. The auxiliary CLV diagnostic is `back: r
+= (p_close − p_entry)/p_entry = p_close·O_entry − 1` (`scoreCLV`), derived in
+`lib/agent-core.mjs`. The **headline verdict**, though, is **Fair Close Value**:
+because a follow enters at fair value its expected CLV is ~0, so a follow/hold is
+scored as *right* when the line held within ±10pp of entry at the +180s close
+(`lib/signals/`, served by `/api/v1/calibration`), and a fade on reversion.
 
 ## Determinism & deployment
 

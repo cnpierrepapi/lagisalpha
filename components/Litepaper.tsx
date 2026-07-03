@@ -6,11 +6,11 @@ const SECTIONS = [
   ["03", "The idea: an independent, read-only benchmark"],
   ["04", "The data layer: TxLINE"],
   ["05", "The signal engine"],
-  ["06", "Grading: CLV and on-chain self-scoring"],
+  ["06", "Grading: Fair Close Value and on-chain self-scoring"],
   ["07", "The read-only boundary"],
   ["08", "Why it's adoptable: the independent referee"],
   ["09", "Proof and verifiability"],
-  ["10", "The SDK and Operator API"],
+  ["10", "The Operator API and SDK"],
   ["11", "Infrastructure: why this needs TxOdds"],
   ["12", "Responsible use"],
 ] as const;
@@ -60,7 +60,7 @@ export default function Litepaper() {
             ↓ Download PDF
           </a>
           <Link href="/sdk" className="card px-4 py-2 text-muted hover:text-fg">
-            Integrate (SDK + API) →
+            Integrate (API + SDK) →
           </Link>
         </div>
       </header>
@@ -154,43 +154,65 @@ export default function Litepaper() {
         </p>
         <ul className="ml-1 space-y-2">
           <li>
-            <span className="amber">steam → follow.</span> The market prices real news efficiently
-            (Croxson &amp; Reade). A clean move is true; a book that follows it late is exposed. Tighten
-            toward the reference.
+            <span className="amber">steam → follow.</span> The <span className="text-fg">primary
+            edge</span>. The market prices real news efficiently and momentum persists (Croxson &amp;
+            Reade; Moskowitz) — on our captures a flagged move held ~89% of the time. A clean move is
+            true; a book that follows it late is exactly the stale price a sharp lifts. Tighten toward
+            the reference.
           </li>
           <li>
-            <span className="amber">overreaction → hold / fade.</span> A surprising goal overshoots and
-            reverts within minutes (Choi &amp; Hui; De Bondt–Thaler). Don&apos;t chase it — and, when confident,
-            lean against it.
+            <span className="amber">overreaction → hold / fade.</span> The exception, not the rule.
+            Bettors underreact to most goals and overreact only to <em className="text-fg">surprising</em>{" "}
+            ones (Choi &amp; Hui; De Bondt–Thaler), so only a minority of goal-moves overshoot and revert
+            (~18% in our data). The default is hold; we escalate to fade only on the surprise path, never
+            on magnitude alone — big goal-moves are usually decisive and stick.
           </li>
           <li>
-            <span className="amber">pre-goal warning → suspend.</span> The momentum tape flags a
-            goal-imminent state before the line moves — the earliest possible notice that an in-play
-            price is about to go stale.
+            <span className="amber">goal_imminent → suspend.</span> A first-class signal off the
+            momentum tape (high-danger possession / an explicit goal-imminent flag) that fires seconds
+            before a goal lands, carrying a <span className="text-fg">quantified</span>{" "}
+            <code className="text-info">goalProb</code> = the calibrated P(goal ≤120s) — high-danger
+            possession runs a measured 1.9× the base arrival rate. It does not assume the line will
+            pre-drift (our drift test found no tradeable pre-goal move; the consensus already prices the
+            danger), so the action is suspend/widen only — the earliest notice that an in-play price is
+            about to go stale.
           </li>
         </ul>
         <p>
           Overreaction firing is sharpened by <em className="text-fg">surprise</em>: how far the goal
-          moved the scoreline probability from its pre-event value. Signals are scoped to the two
-          on-chain-settleable goals markets, so nothing is emitted that can&apos;t later be proven.
+          moved the scoreline probability from its pre-event value. Steam and overreaction signals are
+          scoped to the two on-chain-settleable goals markets, so nothing is emitted that can&apos;t later
+          be proven.
         </p>
       </Section>
 
-      <Section id="s06" num="06" title="Grading: CLV and on-chain self-scoring">
+      <Section id="s06" num="06" title="Grading: Fair Close Value and on-chain self-scoring">
         <p>
-          Every signal is graded two ways. The skill leg is{" "}
-          <span className="amber">closing-line value</span>: did the fair line keep moving toward the
-          call to its closing value, measured over the reversion window? CLV resolves from odds alone,
-          so it settles fast and with low variance. On our own captures, overreaction/fade calls are
-          consistently CLV-positive while steam/follow — as the efficiency literature predicts — carries
-          no standalone edge.
+          A call is right when the line behaves as the signal said it would — and for a{" "}
+          <span className="amber">follow</span> that is not &quot;CLV is positive.&quot; A follow is taken
+          at fair value, so its expected closing-line value is ~0 by construction; grading it on CLV&gt;0
+          would fail about half the continuations that were, in fact, correct. So the skill leg is{" "}
+          <span className="amber">Fair Close Value (FCV)</span>: the demargined fair probability at the{" "}
+          <code className="text-info">+180s</code> close. A follow or hold is right when the line{" "}
+          <span className="text-fg">held</span> in the region it moved to — FCV stayed within{" "}
+          <code className="text-info">±10pp</code> of entry — because a book still quoting the old number
+          is then left behind. A <span className="amber">fade</span> keeps the reversion test: the
+          overshoot came back. FCV resolves from odds alone, so it settles fast and with low variance;
+          CLV is retained as an auxiliary diagnostic.
+        </p>
+        <p>
+          <span className="amber">goal_imminent</span> has no line to close against, so it is graded on a
+          third axis entirely: goal <span className="text-fg">arrival</span>. We settle it against
+          whether a goal actually landed inside the window and report the lift over the base arrival rate
+          (~1.9× on our captures) — the honest proof for an anticipation signal is not &quot;the line
+          moved&quot; but &quot;the goal came disproportionately often.&quot;
         </p>
         <p>
           The outcome leg settles against the final goals on the TxLINE daily-scores Merkle root via a{" "}
           <code className="text-info">validateStat</code> proof. The result is a public calibration
-          ledger where the agent grades itself on-chain — hit-rate and average CLV per signal type, per
-          action, with per-match breadth and single-match concentration surfaced so a headline can&apos;t
-          hide behind one lucky match.
+          ledger where the agent grades itself on-chain — follow/hold held-rate, fade reversion-rate, and
+          goal_imminent arrival-lift per signal type and action, with per-match breadth and single-match
+          concentration surfaced so a headline can&apos;t hide behind one lucky match.
         </p>
       </Section>
 
@@ -249,20 +271,27 @@ export default function Litepaper() {
         </p>
       </Section>
 
-      <Section id="s10" num="10" title="The SDK and Operator API">
+      <Section id="s10" num="10" title="The Operator API and SDK">
         <p>
-          Two surfaces sit on the same core. A desk embeds the <span className="text-fg">SDK</span> —
-          the classifier, the detector, and the CLV grader — in its own stack: pure, deterministic,
-          unit-tested code with no I/O and no clock reads, safe to place next to a live book. An
-          operator instead consumes the <span className="text-fg">HTTP API</span>: authenticated,
-          versioned endpoints for the signals, the calibration ledger, and the read-only boundary
-          timeline, each signal carrying a proofHash, plus a webhook that pushes the identical signal
-          from a persistent worker.
+          The product is the <span className="text-fg">API</span>. Agenthesis is delivered as{" "}
+          <code className="text-info">GET /api/v1/signals</code> — an authenticated, versioned HTTP feed
+          of read-only signals — alongside <code className="text-info">/api/v1/calibration</code> (the
+          provable track record) and <code className="text-info">/api/v1/control-room</code> (the
+          read-only boundary timeline). Every signal carries a proofHash, and a webhook pushes the
+          identical payload from a persistent worker. An operator integrates in an afternoon with no
+          code to embed and nothing of their pricing model exposed.
+        </p>
+        <p>
+          The <span className="text-fg">SDK</span> is an optional thin wrapper around the identical pure
+          functions — the detector, the classifier, and the grader — for latency-sensitive consumers
+          that run the classifier in-process, where a network round-trip can&apos;t sit inside a
+          millisecond pickoff loop. It is the exact code the API serves (SDK↔API parity): pure,
+          deterministic, unit-tested, safe to place next to a live book.
         </p>
         <p>
           Read the integration guide on the{" "}
           <Link href="/sdk" className="text-amber hover:text-fg">
-            SDK page
+            API &amp; SDK page
           </Link>
           .
         </p>
@@ -288,8 +317,9 @@ export default function Litepaper() {
         <p>
           Agenthesis is a read-only research and risk-analytics layer built on de-margined data. It
           places no wagers, holds no funds, and moves no prices — the operator&apos;s rule-set takes every
-          action. CLV is a measure of pricing skill, not a promise of profit, and calibration over a
-          replay does not guarantee live results. Nothing here is financial advice.
+          action. Fair Close Value and reversion are measures of pricing skill, not a promise of profit,
+          and calibration over a replay does not guarantee live results. Nothing here is financial
+          advice.
         </p>
       </Section>
 

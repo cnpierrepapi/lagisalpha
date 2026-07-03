@@ -1,11 +1,14 @@
 // ───────────────────────────────────────────────────────────────────────────
 // Agenthesis SDK
 // ───────────────────────────────────────────────────────────────────────────
-// Embed the edge-detection engine and the CLV decision core directly in your
-// own stack. This is the integration path for a quant desk: you bring your own
-// TxLINE feed and your own strategies; the SDK turns the demargined book into
-// typed, scored edges and grades every decision on closing-line value — pure,
-// deterministic, no I/O, no clock reads, unit-tested (scripts/agent_test.mjs).
+// The product is the signal API (/api/v1/signals); this package is the OPTIONAL
+// in-process wrapper around the identical pure functions, for latency-sensitive
+// consumers that run the classifier next to their own book. You bring your own
+// TxLINE feed and prices; the SDK turns the demargined book into typed, read-only
+// line-integrity signals (steam->follow, overreaction->hold/fade, goal_imminent->
+// suspend). Follow/hold is graded on Fair Close Value (the line held within ±10pp
+// of entry at the +180s close), fade on reversion; scoreCLV ships as the auxiliary
+// CLV diagnostic. Pure, deterministic, no I/O, no clock reads, unit-tested.
 //
 // The engine and decision core are re-exported from the canonical modules in
 // lib/ (single source of truth — the deployed product runs the exact same code).
