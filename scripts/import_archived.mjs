@@ -23,8 +23,16 @@ const SLIM_ODDS = (r) => ({
   MarketParameters: r.MarketParameters ?? null, MarketPeriod: r.MarketPeriod ?? null,
   InRunning: r.InRunning ?? true, PriceNames: r.PriceNames, Prices: r.Prices,
 });
+// Un-slimmed to carry momentum/direction (PossessionType/Possession/PossibleEvent/
+// Parti*State/Data.Participant) + Stats, so folded matches can fire the goal-imminent
+// signal AND resolve which side is attacking (directional over-lean). Matches the
+// archiver's slimScore so a bucket blob round-trips losslessly on these fields.
 const SLIM_SCORE = (r) => ({
-  FixtureId: r.FixtureId, Ts: Number(r.Ts), Clock: r.Clock ?? null, Score: r.Score ?? null, Action: r.Action ?? null,
+  FixtureId: r.FixtureId, Ts: Number(r.Ts), Clock: r.Clock ?? null, GameState: r.GameState ?? null,
+  Score: r.Score ?? null, Action: r.Action ?? null,
+  Participant1Id: r.Participant1Id ?? null, Participant2Id: r.Participant2Id ?? null,
+  PossessionType: r.PossessionType ?? null, Possession: r.Possession ?? null, PossibleEvent: r.PossibleEvent ?? null,
+  Parti1State: r.Parti1State ?? null, Parti2State: r.Parti2State ?? null, Data: r.Data ?? null, Stats: r.Stats ?? null,
 });
 
 // in-play window = span of clock-running scores near these odds (mirrors filter_inplay)

@@ -35,8 +35,16 @@ const slimOdds = (r: Record<string, unknown>) => ({
   MarketParameters: r.MarketParameters, MarketPeriod: r.MarketPeriod, InRunning: r.InRunning,
   PriceNames: r.PriceNames, Prices: r.Prices,
 });
+// Keep the score fields the engine/replay consume PLUS the momentum/direction fields
+// (PossessionType/Possession/PossibleEvent/Parti*State/Data.Participant) needed to trade
+// the goal-imminent anticipation signal DIRECTIONALLY, and Stats (dense, VAR-self-correcting
+// goal counts). The old slim dropped all of these — so archived matches couldn't even fire
+// the classifier's PossibleEvent.Goal path, let alone tell which side was attacking.
 const slimScore = (r: Record<string, unknown>) => ({
   FixtureId: r.FixtureId, Ts: r.Ts, Clock: r.Clock, GameState: r.GameState, Score: r.Score, Action: r.Action,
+  Participant1Id: r.Participant1Id, Participant2Id: r.Participant2Id,
+  PossessionType: r.PossessionType, Possession: r.Possession, PossibleEvent: r.PossibleEvent,
+  Parti1State: r.Parti1State, Parti2State: r.Parti2State, Data: r.Data, Stats: r.Stats,
 });
 
 interface Buf {
