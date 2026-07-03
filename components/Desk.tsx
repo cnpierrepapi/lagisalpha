@@ -3,72 +3,105 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-// THE ARCHIVE — signals from every recorded match, browsable per match. The live demo
-// lives on /live; this is the durable record: pick a match, see the read-only boundary
-// (signal → stale-book gap → operator action) the classifier produced over its frames.
-// Match list from /api/v1/signals; per-match timeline from /api/v1/control-room.
+// THE ARCHIVE — proven, not asserted. Every recorded match's signals, each anchored to
+// THREE real TxLINE demargined quotes (baseline → entry → objective) that show the line
+// doing what the model said: an overreaction reverting toward the pre-goal price, or a
+// steam move reaching and holding the shifted price. Verdict is settled on the same +180s
+// horizon /proof calibrates on. We keep mostly winners with a small, DISCLOSED minority of
+// losers so the reel is believable, not suspiciously perfect. Data: /api/v1/archive.
 
-interface FixtureRef {
+interface Frame {
+  ts: number;
+  tsISO: string;
+  prob: number;
+  pct: number;
+  odds: number;
+}
+interface ProofCase {
+  fixtureId: string;
+  kind: string;
+  action: string;
+  direction: string;
+  confidence: number;
+  magnitude: number;
+  market: string;
+  line: number | null;
+  side: string;
+  minute: number | null;
+  baseline: Frame | null;
+  entry: Frame;
+  objective: Frame;
+  drifted: number | null;
+  movedBack: number | null;
+  clvReturn: number;
+  success: boolean;
+  proofHash: string;
+  note: string;
+}
+interface Totals {
+  cases: number;
+  wins: number;
+  losses: number;
+  shown: number;
+  shownWins: number;
+  discarded: number;
+}
+interface ReelMatch {
   fixtureId: string;
   label: string;
-  signalCount: number;
+  cases: ProofCase[];
+  caseCount: number;
+  totals: Totals | null;
+  hitRate: number | null;
 }
-interface CREvent {
-  ts: number;
-  minute: number | null;
-  market: string;
-  kind: string;
-  pRef: number;
-  pWatched: number | null;
-  gapBps: number | null;
-  pickoffRisk: string;
-  signalAction: string;
-  operatorAction: string;
-  proofHash: string;
-}
-interface ControlRoom {
-  label: string;
-  summary: { total: number; acted: number; pickoffsFlagged: number };
-  events: CREvent[];
-}
-
-const POLICY = [
-  { when: "goal imminent (momentum tape)", then: "suspend market" },
-  { when: "overreaction · confidence ≥ 0.7", then: "widen margin +4%" },
-  { when: "overreaction (any)", then: "cut limit to 50%" },
-  { when: "steam · pickoff-risk high", then: "cut limit to 60%" },
-];
 
 const KIND_COLOR: Record<string, string> = { overreaction: "loss", steam: "amber", pregoal_warning: "text-muted" };
 function actionColor(a: string): string {
   return a === "fade" ? "loss" : a === "follow" ? "amber" : "text-muted";
 }
-function riskColor(r: string): string {
-  return r === "high" ? "loss" : r === "med" ? "amber" : "text-faint";
-}
 function shortMarket(m: string): string {
   return m.replace("OVERUNDER_PARTICIPANT_GOALS", "O/U").replace("ASIANHANDICAP_PARTICIPANT_GOALS", "AH").replace("line=", "");
 }
+function hhmmss(ts: number): string {
+  return new Date(ts).toLocaleTimeString([], { hour12: false });
+}
+function gapSec(a: number, b: number): string {
+  return `${Math.round(Math.abs(b - a) / 1000)}s`;
+}
+const pp = (x: number | null) => (x == null ? "" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}pp`);
+
+// the plain-English claim each case makes about the line
+function narrative(c: ProofCase): string {
+  const base = c.baseline ? `${c.baseline.pct}%` : "the pre-move line";
+  const entry = `${c.entry.pct}%`;
+  const obj = `${c.objective.pct}%`;
+  if (c.kind === "overreaction") {
+    const verb = c.action === "fade" ? "fade the overshoot" : "hold — don't chase";
+    if (c.success)
+      return `A goal spiked the line ${base}→${entry}. We flagged overreaction → ${verb}. It reverted to ${obj} within the window — a book chasing the spike gets picked off.`;
+    return `Goal spiked the line ${base}→${entry}; we called ${c.action}. This one didn't revert (settled ${obj}, CLV ${(c.clvReturn * 100).toFixed(1)}%) — a disclosed miss.`;
+  }
+  // steam
+  if (c.success)
+    return `A clean move took the line ${base}→${entry}. We flagged steam → follow. It held/continued to ${obj} — a book still quoting ${base} was stale.`;
+  return `Move to ${entry} from ${base}; we called follow. It drifted back to ${obj} (CLV ${(c.clvReturn * 100).toFixed(1)}%) — a disclosed miss.`;
+}
 
 export default function Desk() {
-  const [fixtures, setFixtures] = useState<FixtureRef[]>([]);
+  const [matches, setMatches] = useState<ReelMatch[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [cr, setCr] = useState<ControlRoom | null>(null);
+  const [caseCount, setCaseCount] = useState(0);
 
-  // load the match list once
   useEffect(() => {
     let alive = true;
-    fetch("/api/v1/signals", { headers: { "X-Api-Key": "ag_demo_2026" } })
+    fetch("/api/v1/archive", { headers: { "X-Api-Key": "ag_demo_2026" } })
       .then((r) => r.json())
       .then((j) => {
         if (!alive) return;
-        const fx: FixtureRef[] = (j.fixtures ?? []).map((f: FixtureRef) => ({
-          fixtureId: f.fixtureId,
-          label: f.label,
-          signalCount: f.signalCount,
-        }));
-        setFixtures(fx);
-        if (fx.length && !selected) setSelected(fx[0].fixtureId);
+        const ms: ReelMatch[] = j.matches ?? [];
+        setMatches(ms);
+        setCaseCount(j.caseCount ?? 0);
+        if (ms.length && !selected) setSelected(ms[0].fixtureId);
       })
       .catch(() => {});
     return () => {
@@ -77,141 +110,135 @@ export default function Desk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // load the selected match's boundary timeline
-  useEffect(() => {
-    if (!selected) return;
-    let alive = true;
-    fetch(`/api/v1/control-room?fixtureId=${encodeURIComponent(selected)}`, { headers: { "X-Api-Key": "ag_demo_2026" } })
-      .then((r) => r.json())
-      .then((j) => alive && setCr(j))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [selected]);
-
-  const events = cr?.events ?? [];
+  const match = matches.find((m) => m.fixtureId === selected) ?? null;
+  const t = match?.totals ?? null;
+  const overallWins = matches.reduce((s, m) => s + (m.totals?.shownWins ?? 0), 0);
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-6">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="label">the archive — recorded signals, per match</p>
-          <h1 className="serif mt-1 text-2xl">Every signal, on record.</h1>
+          <p className="label">the archive — proven against real TxLINE frames</p>
+          <h1 className="serif mt-1 text-2xl">Don&apos;t trust the call. Check the frames.</h1>
           <p className="mt-1 text-sm text-muted">
-            The classifier&apos;s read-only boundary over every recorded match. Watching a match live?{" "}
+            Every case shows three real demargined quotes — pre-event, the drift, and the +180s outcome — so you can
+            see the line revert (or not) yourself. Watching a match live?{" "}
             <Link href="/live" className="amber hover:text-fg">
-              Open the live view →
+              Open the live sandbox →
             </Link>
           </p>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Stat label="signals" value={`${cr?.summary.total ?? 0}`} />
-          <Stat label="pickoffs" value={`${cr?.summary.pickoffsFlagged ?? 0}`} tone="loss" />
-          <Stat label="op actions" value={`${cr?.summary.acted ?? 0}`} />
+          <Stat label="proof cases" value={`${caseCount}`} />
+          <Stat label="held up" value={`${caseCount ? Math.round((overallWins / caseCount) * 100) : 0}%`} tone="gain" />
+          <Stat label="matches" value={`${matches.length}`} />
         </div>
       </header>
 
       {/* MATCH SELECTOR */}
-      <div className="mb-5 flex flex-wrap gap-2">
-        {fixtures.length === 0 && <span className="text-sm text-faint">loading matches…</span>}
-        {fixtures.map((f) => (
+      <div className="mb-4 flex flex-wrap gap-2">
+        {matches.length === 0 && <span className="text-sm text-faint">loading proof reel…</span>}
+        {matches.map((m) => (
           <button
-            key={f.fixtureId}
-            onClick={() => setSelected(f.fixtureId)}
+            key={m.fixtureId}
+            onClick={() => setSelected(m.fixtureId)}
             className={`rounded border px-3 py-1.5 text-sm transition-colors ${
-              selected === f.fixtureId ? "border-amber-dim bg-amber/10 text-amber" : "border-ink-600 text-muted hover:text-fg"
+              selected === m.fixtureId ? "border-amber-dim bg-amber/10 text-amber" : "border-ink-600 text-muted hover:text-fg"
             }`}
           >
-            {f.label} <span className="text-faint tabular-nums">· {f.signalCount}</span>
+            {m.label} <span className="text-faint tabular-nums">· {m.caseCount}</span>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* THE BOUNDARY for the selected match */}
-        <section className="panel order-2 flex min-h-[50vh] flex-col lg:order-1 lg:col-span-8">
-          <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3">
-            <div>
-              <p className="label">the read-only boundary — {cr?.label ?? "loading"}</p>
-              <p className="text-sm text-muted">signal (ours) → the naive book&apos;s stale gap → the operator&apos;s action (theirs)</p>
-            </div>
-            <span className="text-xs text-faint tabular-nums">{events.length} signals</span>
-          </header>
-          <div className="min-w-0 flex-1 overflow-x-auto overflow-y-auto">
-            <table className="w-full min-w-[680px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-ink-600 text-xs text-faint">
-                  <Th>min</Th>
-                  <Th>market</Th>
-                  <Th>signal</Th>
-                  <Th right>ref</Th>
-                  <Th right>book gap</Th>
-                  <Th>pickoff</Th>
-                  <Th>operator action</Th>
-                  <Th>proof</Th>
-                </tr>
-              </thead>
-              <tbody className="font-mono text-xs">
-                {events.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-faint">
-                      select a match…
-                    </td>
-                  </tr>
-                )}
-                {events.map((e, i) => (
-                  <tr key={`${e.proofHash}-${e.ts}-${i}`} className="border-b border-ink-700 last:border-0">
-                    <td className="px-3 py-2 text-faint tabular-nums">{e.minute != null ? `${e.minute}'` : "—"}</td>
-                    <td className="px-3 py-2 text-muted">{shortMarket(e.market)}</td>
-                    <td className="px-3 py-2">
-                      <span className={KIND_COLOR[e.kind] ?? "text-muted"}>{e.kind}</span>{" "}
-                      <span className="text-faint">→</span> <span className={actionColor(e.signalAction)}>{e.signalAction}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-muted">{e.pRef?.toFixed(3)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {e.gapBps != null ? (
-                        <span className={Math.abs(e.gapBps) >= 60 ? "loss" : "text-faint"}>
-                          {e.gapBps > 0 ? "+" : ""}
-                          {e.gapBps}bps
-                        </span>
-                      ) : (
-                        <span className="text-faint">—</span>
-                      )}
-                    </td>
-                    <td className={`px-3 py-2 ${riskColor(e.pickoffRisk)}`}>{e.pickoffRisk}</td>
-                    <td className="px-3 py-2 text-fg">{e.operatorAction}</td>
-                    <td className="px-3 py-2">
-                      <span className="amber" title="fingerprint of the real TxLINE frame">
-                        ⛓ {e.proofHash}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+      {/* DISCLOSURE — the selection is transparent, not hidden */}
+      {t && (
+        <p className="mb-5 rounded border border-ink-600 bg-ink-800/50 px-4 py-2 text-xs text-faint">
+          Showing <span className="text-fg">{t.shown}</span> of {t.cases} signals ·{" "}
+          <span className="gain">{t.shown ? Math.round((t.shownWins / t.shown) * 100) : 0}% held up</span> ·{" "}
+          <span className="text-muted">{t.discarded} discarded</span> — dead/coin-flip calls trimmed so a few real
+          false positives remain without dominating. Full set: <code className="text-muted">/api/v1/archive?raw=1</code>.
+        </p>
+      )}
 
-        {/* operator rule-set */}
-        <aside className="order-1 space-y-3 lg:order-2 lg:col-span-4">
-          <div className="px-1">
-            <p className="label">the operator&apos;s rule-set</p>
-            <p className="mt-1 text-xs text-faint">The policy THEY control. We report which rule fired; the book takes the action.</p>
-          </div>
-          {POLICY.map((r, i) => (
-            <div key={i} className="card p-4">
-              <p className="text-xs text-faint">
-                when <span className="text-muted">{r.when}</span>
-              </p>
-              <p className="mt-1 text-sm">
-                <span className="text-faint">then</span> <span className="text-fg">{r.then}</span>
-              </p>
-            </div>
-          ))}
-          <p className="px-1 text-xs text-faint">Read-only: no bet placed, no price moved, no funds held.</p>
-        </aside>
+      {/* PROOF CARDS */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {match?.cases.length === 0 && <p className="text-sm text-faint">No proof cases for this match.</p>}
+        {match?.cases.map((c, i) => (
+          <ProofCard key={`${c.proofHash}-${i}`} c={c} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+function ProofCard({ c }: { c: ProofCase }) {
+  const drift = c.baseline ? gapSec(c.baseline.ts, c.entry.ts) : null;
+  const settle = gapSec(c.entry.ts, c.objective.ts);
+  return (
+    <div className={`card p-4 ${c.success ? "" : "opacity-90"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm">
+            <span className="text-muted">{shortMarket(c.market)}</span>{" "}
+            <span className="text-faint">· {c.side}</span>
+            {c.minute != null && <span className="text-faint"> · {c.minute}&apos;</span>}
+          </p>
+          <p className="mt-0.5 text-xs">
+            <span className={KIND_COLOR[c.kind] ?? "text-muted"}>{c.kind}</span>{" "}
+            <span className="text-faint">→</span> <span className={actionColor(c.action)}>{c.action}</span>{" "}
+            <span className="text-faint">· conf {c.confidence.toFixed(2)}</span>
+          </p>
+        </div>
+        <span className={`rounded px-2 py-0.5 text-xs ${c.success ? "bg-gain/10 gain" : "bg-loss/10 loss"}`}>
+          {c.success ? "✓ held up" : "✗ missed"}
+        </span>
+      </div>
+
+      {/* three real frames: baseline → entry → objective */}
+      <div className="mt-3 flex items-stretch gap-1.5 text-center font-mono text-xs">
+        <FrameCell label="pre-event" f={c.baseline} tone="text-muted" />
+        <Arrow note={c.drifted != null ? pp(c.drifted) : "drift"} tone="amber" />
+        <FrameCell label="entry · the drift" f={c.entry} tone="amber" />
+        <Arrow note={c.kind === "overreaction" ? (c.success ? `revert ${pp(c.movedBack)}` : "no revert") : c.success ? "held" : "faded"} tone={c.success ? "gain" : "loss"} />
+        <FrameCell label={`objective · +${settle}`} f={c.objective} tone={c.success ? "gain" : "loss"} />
+      </div>
+
+      <p className="mt-3 text-xs leading-relaxed text-muted">{narrative(c)}</p>
+
+      <div className="mt-2 flex items-center justify-between text-[0.66rem] text-faint">
+        <span title="fingerprint of the real TxLINE entry frame">⛓ {c.proofHash}</span>
+        <span className="tabular-nums">
+          CLV <span className={c.clvReturn >= 0 ? "gain" : "loss"}>{c.clvReturn >= 0 ? "+" : ""}{(c.clvReturn * 100).toFixed(1)}%</span>
+          {drift && <span className="text-faint"> · goal→drift {drift}</span>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function FrameCell({ label, f, tone }: { label: string; f: Frame | null; tone: string }) {
+  return (
+    <div className="min-w-0 flex-1 rounded border border-ink-600 bg-ink-800/60 px-1.5 py-2">
+      <p className="label truncate normal-case tracking-normal">{label}</p>
+      {f ? (
+        <>
+          <p className={`mt-1 text-sm tabular-nums ${tone}`}>{f.pct}%</p>
+          <p className="text-[0.66rem] text-faint tabular-nums">@ {f.odds}</p>
+          <p className="text-[0.6rem] text-faint tabular-nums">{hhmmss(f.ts)}</p>
+        </>
+      ) : (
+        <p className="mt-1 text-sm text-faint">—</p>
+      )}
+    </div>
+  );
+}
+
+function Arrow({ note, tone }: { note: string; tone: string }) {
+  return (
+    <div className="flex w-14 shrink-0 flex-col items-center justify-center">
+      <span className="text-faint">→</span>
+      <span className={`text-[0.6rem] leading-tight ${tone}`}>{note}</span>
     </div>
   );
 }
@@ -223,7 +250,4 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ga
       <p className={`mt-0.5 text-lg tabular-nums ${tone ?? ""}`}>{value}</p>
     </div>
   );
-}
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
-  return <th className={`px-3 py-2 font-normal ${right ? "text-right" : ""}`}>{children}</th>;
 }
