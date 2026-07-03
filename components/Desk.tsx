@@ -137,9 +137,9 @@ export default function Desk() {
           <p className="mt-1 text-sm text-muted">
             Three real demargined quotes per case: pre-event, the drift, and the Fair Close Value; so you check the
             verdict yourself. A follow/hold is right if the line held in the region it moved to (FCV within ±10pp; CLV
-            sign isn&apos;t the test); a fade is right if the overshoot genuinely reverted. Watching a match live?{" "}
+            sign isn&apos;t the test); a fade is right if the overshoot genuinely reverted. Want to run it on your own book?{" "}
             <Link href="/live" className="amber hover:text-fg">
-              Open the live sandbox →
+              Open the sandbox →
             </Link>
           </p>
         </div>

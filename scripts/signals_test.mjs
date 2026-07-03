@@ -7,6 +7,9 @@ import { classifyEdge as sdkClassifyEdge } from "../sdk/index.mjs";
 import { settleCLV, resolveGoalsOutcome, settleGoalArrival } from "../lib/signals/settle.mjs";
 import { calibrate, calibrateArrival } from "../lib/signals/calibration.mjs";
 import { _internal as reel } from "../lib/signals/proof-reel.mjs";
+import { parseBook, bookProbAt, canonMarket, canonSide, canonLine } from "../lib/signals/book-parse.mjs";
+import { parsePolicyMarkdown, parseAction, parseWhen } from "../lib/signals/policy-md.mjs";
+import { evaluatePolicy } from "../lib/signals/policy.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -302,6 +305,96 @@ console.log("\n── proof reel: believable selection ──");
   check("kept is chronological", kept.every((k, i) => i === 0 || kept[i - 1].entry.ts <= k.entry.ts));
   const allHeld = reel.selectBelievable(Array.from({ length: 4 }, () => c("follow", true, 0.1)));
   check("no misses available → none fabricated", allHeld.kept.every((k) => k.success));
+}
+
+console.log("\n── operator book parser (JSON + YAML, lenient static/time-series) ──");
+{
+  // canonicalizers
+  check("canonMarket O/U → OVERUNDER", canonMarket("O/U") === "OVERUNDER_PARTICIPANT_GOALS");
+  check("canonMarket AH → ASIANHANDICAP", canonMarket("ah") === "ASIANHANDICAP_PARTICIPANT_GOALS");
+  check("canonSide over", canonSide("Over") === "over");
+  check("canonSide part1 from home", canonSide("home") === "part1");
+  check("canonLine strips line=", canonLine("line=-0.75") === -0.75);
+
+  // JSON, static (no ts) — odds → prob
+  const staticBook = parseBook(JSON.stringify({
+    fixtureId: "X",
+    quotes: [{ market: "O/U", line: 2.5, side: "over", odds: 2.0 }],
+  }));
+  check("parseBook JSON static → 1 quote", staticBook.quotes.length === 1);
+  check("odds 2.0 → prob 0.5", near(staticBook.quotes[0].prob, 0.5));
+  const meta = { superOddsType: "OVERUNDER_PARTICIPANT_GOALS", line: 2.5, side: "over", period: "null" };
+  check("static book: same prob at any ts", bookProbAt(staticBook, meta, 1) === 0.5 && bookProbAt(staticBook, meta, 9e12) === 0.5);
+  check("book returns null for an unquoted market", bookProbAt(staticBook, { ...meta, side: "under" }, 1) === null);
+
+  // YAML, time-series (ts) — step alignment
+  const yamlBook = parseBook(`
+fixtureId: "18179763"
+quotes:
+  - market: OVERUNDER
+    line: 2.5
+    side: over
+    ts: 1000
+    prob: 0.40
+  - market: OVERUNDER
+    line: 2.5
+    side: over
+    ts: 2000
+    prob: 0.60
+`);
+  check("parseBook YAML → 2 quotes", yamlBook.quotes.length === 2);
+  check("time-series: before first stamp → first value", bookProbAt(yamlBook, meta, 500) === 0.4);
+  check("time-series: step-aligned at/after 2nd stamp", bookProbAt(yamlBook, meta, 2500) === 0.6);
+  check("time-series: between stamps holds prior", bookProbAt(yamlBook, meta, 1500) === 0.4);
+
+  // mixed: ts'd quotes align, static is the pre-first-stamp baseline
+  const mixed = parseBook(JSON.stringify({
+    quotes: [
+      { market: "O/U", line: 2.5, side: "over", prob: 0.30 }, // static baseline
+      { market: "O/U", line: 2.5, side: "over", ts: 5000, prob: 0.70 },
+    ],
+  }));
+  check("mixed: before stamp → static baseline", bookProbAt(mixed, meta, 100) === 0.3);
+  check("mixed: at/after stamp → step value", bookProbAt(mixed, meta, 6000) === 0.7);
+
+  // bad rows are dropped, not fatal
+  const dirty = parseBook(JSON.stringify({ quotes: [{ market: "O/U", side: "over" }, { market: "O/U", line: 1.5, side: "under", odds: 3 }] }));
+  check("bad quote dropped, good kept", dirty.quotes.length === 1 && dirty.warnings.length === 1);
+  let threw = false;
+  try { parseBook(""); } catch { threw = true; }
+  check("empty file → throws", threw);
+}
+
+console.log("\n── markdown policy parser (.md → policy) ──");
+{
+  const when = parseWhen("overreaction and confidence >= 0.7 and pickoff high");
+  check("parseWhen kind", when.kind === "overreaction");
+  check("parseWhen minConfidence", when.minConfidence === 0.7);
+  check("parseWhen pickoffRisk", when.pickoffRisk === "high");
+  check("parseAction widen margin 4%", JSON.stringify(parseAction("widen margin 4%")) === JSON.stringify({ do: "widen_margin", marginPct: 4 }));
+  check("parseAction cut limit 50%", JSON.stringify(parseAction("cut limit to 50%")) === JSON.stringify({ do: "cut_limit", limitPct: 50 }));
+  check("parseAction suspend", parseAction("suspend the market").do === "suspend");
+  check("parseAction none", parseAction("no action").do === "none");
+  check("parseWhen gap bps", parseWhen("steam and gap >= 60bps").minGapBps === 60);
+
+  const md = `# My book policy
+Some prose that should be ignored.
+- when goal_imminent then suspend
+- when overreaction and confidence >= 0.7 then widen margin 4%
+* when steam and pickoff high then cut limit 60%
+default: no action
+`;
+  const pol = parsePolicyMarkdown(md);
+  check("parses 3 rules from mixed bullets", pol.rules.length === 3, `got ${pol.rules.length}`);
+  check("rule 1 = goal_imminent → suspend", pol.rules[0].when.kind === "goal_imminent" && pol.rules[0].then.do === "suspend");
+  check("rule 2 = overreaction conf → widen 4", pol.rules[1].then.marginPct === 4 && pol.rules[1].when.minConfidence === 0.7);
+  check("rule 3 = steam+high → cut 60", pol.rules[2].then.limitPct === 60 && pol.rules[2].when.pickoffRisk === "high");
+  check("default parsed", pol.default.do === "none");
+  // end-to-end: a parsed md policy drives evaluatePolicy exactly like the JSON one
+  const sig = { kind: "overreaction", action: "fade", confidence: 0.8, pickoffRisk: "high", gapBps: 120 };
+  const dec = evaluatePolicy(pol, sig);
+  check("md policy → evaluatePolicy fires widen_margin", dec.matched && dec.action.do === "widen_margin");
+  check("empty md → empty policy (no throw)", parsePolicyMarkdown("").rules.length === 0);
 }
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} signals: ${passed} passed, ${failed} failed\n`);

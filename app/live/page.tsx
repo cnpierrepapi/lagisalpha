@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import LiveBoundary from "@/components/LiveBoundary";
 
 export const metadata = {
-  title: "Live: Agenthesis",
+  title: "Sandbox: Agenthesis",
 };
 
 export default function LivePage() {

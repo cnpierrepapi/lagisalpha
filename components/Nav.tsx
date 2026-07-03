@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Live (/live) runs the classifier on the in-play book in real time, the demo. Archive
-// (/desk) browses the recorded signals per match. Proof (/proof) is the on-chain
-// calibration ledger. Build/leaderboard (the old forecaster pages) are retired.
+// Sandbox (/live) replays a recorded match through the classifier against YOUR uploaded
+// book + markdown policy, the interactive demo. Archive (/desk) browses the recorded proof
+// cards per match. Proof (/proof) is the on-chain calibration ledger. Build/leaderboard
+// (the old forecaster pages) are retired.
 const LINKS = [
-  { href: "/live", label: "Live" },
+  { href: "/live", label: "Sandbox" },
   { href: "/desk", label: "Archive" },
   { href: "/papers", label: "Papers" },
   { href: "/proof", label: "Proof" },

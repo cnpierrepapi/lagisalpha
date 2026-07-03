@@ -38,7 +38,7 @@ export default function Home() {
                 href="/live"
                 className="rounded border border-amber-dim bg-amber/10 px-5 py-2.5 font-semibold text-amber hover:bg-amber/20"
               >
-                Watch it live →
+                Replay it on your book →
               </Link>
               <Link
                 href="/proof"
