@@ -40,6 +40,10 @@ interface ProofCase {
   fcv: number | null; // follow/hold: Fair Close Value (demargined prob at +180s)
   fcvDeltaPp: number | null; // follow/hold: signed pp move entry → FCV
   success: boolean;
+  liquidity: "thin" | "thick" | null; // edge #2: book regime at fire time
+  driftRegime: "carry" | "revert" | null; // edge #2: thick→carry, thin→revert
+  lateMatch: boolean; // edge #6: closing ~20min
+  pickoffRisk: string | null;
   proofHash: string;
   note: string;
 }
@@ -208,6 +212,32 @@ function ProofCard({ c }: { c: ProofCase }) {
             <span className="text-faint">→</span> <span className={actionColor(c.action)}>{c.action}</span>{" "}
             <span className="text-faint">· conf {c.confidence.toFixed(2)}</span>
           </p>
+          {(c.liquidity || c.lateMatch) && (
+            <p className="mt-0.5 flex flex-wrap gap-1 text-[0.66rem]">
+              {c.liquidity && (
+                <span
+                  className={`rounded px-1.5 py-0.5 ${c.driftRegime === "carry" ? "bg-amber/10 amber" : "bg-loss/10 loss"}`}
+                  title={
+                    c.driftRegime === "carry"
+                      ? "thick/liquid book: a real move that tends to CARRY (edge #2 β>0) — follow, and a lagging book is exposed"
+                      : "thin/illiquid book: the move is likely NOISE that reverts (edge #2 β<0) — and a stale thin line is the pickoff surface"
+                  }
+                >
+                  {c.liquidity} book → {c.driftRegime}
+                </span>
+              )}
+              {c.lateMatch && (
+                <span className="rounded bg-ink-700 px-1.5 py-0.5 text-muted" title="closing ~20min: drift amplifies (edge #6)">
+                  late
+                </span>
+              )}
+              {c.pickoffRisk && (
+                <span className="rounded bg-ink-700 px-1.5 py-0.5 text-faint" title="pickoff risk (escalated by a thin book / late match)">
+                  pickoff {c.pickoffRisk}
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <span className={`rounded px-2 py-0.5 text-xs ${c.success ? "bg-gain/10 gain" : "bg-loss/10 loss"}`}>{badge}</span>
       </div>

@@ -29,6 +29,7 @@ interface Ledger {
   overall: Bucket;
   byKind: Record<string, Bucket>;
   byAction: Record<string, Bucket>;
+  byLiquidity: Record<string, Bucket>; // edge #2: hit-rate by book regime (thick vs thin)
   breadth: { matches: number; matchesNetPositive: number; topMatchShareOfNetPct: number | null; fixtures: FixtureRow[] };
   headline: string;
   imminent?: {
@@ -51,6 +52,9 @@ interface SettledRow {
   clvReturn: number | null;
   clvRight: boolean | null;
   status: string;
+  liquidity: "thin" | "thick" | null; // edge #2 book regime
+  driftRegime: "carry" | "revert" | null;
+  lateMatch: boolean;
   proofHash: string;
 }
 interface Proof {
@@ -147,6 +151,27 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
         A follow is taken at fair value, so its expected CLV is ~0; <span className="text-muted">avg clv</span> is
         shown only as an auxiliary, never the pass/fail test.
       </p>
+
+      {/* BY BOOK LIQUIDITY (edge #2) — does the gate actually separate the calls? */}
+      {ledger?.byLiquidity && (ledger.byLiquidity.thick?.n > 0 || ledger.byLiquidity.thin?.n > 0) && (
+        <section className="panel mt-5 p-5">
+          <p className="label mb-1">by book liquidity — the pickoff gate (edge #2)</p>
+          <p className="mb-3 max-w-3xl text-xs text-faint">
+            The same-sized line move means opposite things depending on how actively the line is quoted. On our
+            captures, <span className="amber">thick</span> (busy) lines <span className="amber">CARRY</span> — the move is
+            real info that keeps going (regress β&gt;0), so <span className="amber">follow</span> and a lagging book is
+            exposed. <span className="loss">Thin</span> (quiet) lines <span className="loss">REVERT</span> — the move is
+            usually noise that snaps back (β&lt;0), and a stale thin line is exactly the price a sharp picks off. We tag
+            every signal with the regime it fired in; here&apos;s how each held up.
+          </p>
+          <BreakTable
+            rows={[
+              ["thick → carry", ledger.byLiquidity.thick],
+              ["thin → revert", ledger.byLiquidity.thin],
+            ]}
+          />
+        </section>
+      )}
 
       {/* GOAL-IMMINENT ANTICIPATION: arrival-settled, not CLV */}
       {ledger?.imminent && ledger.imminent.n > 0 && (
@@ -246,6 +271,15 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
                   <td className="px-3 py-2">
                     <span className={r.kind === "overreaction" ? "loss" : "amber"}>{r.kind}</span>{" "}
                     <span className="text-faint">→ {r.action}</span>
+                    {r.liquidity && (
+                      <span
+                        className={r.driftRegime === "carry" ? "amber" : "loss"}
+                        title={`fired in a ${r.liquidity} book → ${r.driftRegime} (edge #2)`}
+                      >
+                        {" "}· {r.liquidity}
+                      </span>
+                    )}
+                    {r.lateMatch && <span className="text-faint"> · late</span>}
                   </td>
                   <td className="px-3 py-2 text-muted">
                     {r.side} {r.line}
