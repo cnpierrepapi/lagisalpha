@@ -120,7 +120,7 @@ export async function GET() {
     fixtures: live,
     note:
       live.length === 0
-        ? "No WC match is in-play right now — odds are live-only, so frames appear when a match kicks off."
+        ? "No WC match is in-play right now; odds are live-only, so frames appear when a match kicks off."
         : undefined,
   });
 }

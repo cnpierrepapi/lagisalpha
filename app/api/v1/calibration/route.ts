@@ -47,9 +47,9 @@ export async function GET(req: Request) {
     generatedAt: now,
     source: "txline-capture-replay",
     method:
-      "Verdict by ACTION at the +180s close: follow/hold are correct if the Fair Close Value (FCV) held within ±10pp of entry (the line stayed in its drift region — CLV sign is NOT the test, since a follow is taken at fair value); fade is correct if the overshoot genuinely reverted. goal_imminent settles on GOAL-ARRIVAL within 120s (ledger.imminent — the ~1.92× lift). Deterministic snapshot from real captured frames; the live worker adds the on-chain outcome leg via validateStat.",
+      "Verdict by ACTION at the +180s close: follow/hold are correct if the Fair Close Value (FCV) held within ±10pp of entry (the line stayed in its drift region; CLV sign is NOT the test, since a follow is taken at fair value); fade is correct if the overshoot genuinely reverted. goal_imminent settles on GOAL-ARRIVAL within 120s (ledger.imminent, the ~1.92× lift). Deterministic snapshot from real captured frames; the live worker adds the on-chain outcome leg via validateStat.",
     caveat:
-      "Deterministic multi-match snapshot — a PILOT. Numbers reproduce from the bundled captures; target ~50–80 matches for a segmented, out-of-sample track record. avg CLV is auxiliary, not the follow/hold pass-fail test.",
+      "Deterministic multi-match snapshot, a PILOT. Numbers reproduce from the bundled captures; target ~50–80 matches for a segmented, out-of-sample track record. avg CLV is auxiliary, not the follow/hold pass-fail test.",
     ledger,
     ...(detail ? { settled } : {}),
   });

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-// THE ARCHIVE — proven, not asserted. Every recorded match's signals, each anchored to
+// THE ARCHIVE: proven, not asserted. Every recorded match's signals, each anchored to
 // THREE real TxLINE demargined quotes (baseline → entry → objective) that show the line
 // doing what the model said: an overreaction reverting toward the pre-goal price, or a
 // steam move reaching and holding the shifted price. Verdict is settled on the same +180s
@@ -87,15 +87,15 @@ function narrative(c: ProofCase): string {
   const rr = c.reversionRatio != null ? Math.round(c.reversionRatio * 100) : null;
   if (c.action === "fade") {
     if (c.reverted)
-      return `A surprising goal spiked the line ${base}→${entry}. We flagged overreaction → fade. The line reverted ${rr}% of the way back (to ${obj}) and held — the overshoot a chasing book gets picked off on.`;
-    return `A goal moved the line ${base}→${entry} and it STUCK (${obj}, only ${rr}% back). We flagged fade, but it didn't revert — an efficient reprice, not a mispricing. A disclosed miss.`;
+      return `A surprising goal spiked the line ${base}→${entry}. We flagged overreaction → fade. The line reverted ${rr}% of the way back (to ${obj}) and held: the overshoot a chasing book gets picked off on.`;
+    return `A goal moved the line ${base}→${entry} and it STUCK (${obj}, only ${rr}% back). We flagged fade, but it didn't revert: an efficient reprice, not a mispricing. A disclosed miss.`;
   }
   // follow / hold → graded on Fair Close Value staying inside the ±10pp band
   const verb = c.action === "follow" ? "Following" : "Holding";
   const delta = c.fcvDeltaPp != null ? ` (${c.fcvDeltaPp >= 0 ? "+" : ""}${c.fcvDeltaPp}pp)` : "";
   if (c.success)
-    return `A clean move took the line ${base}→${entry}; the Fair Close Value settled at ${obj}${delta}, inside the ±10pp band. ${verb} was right — the line held where it moved, so a book still quoting ${base} gets left behind. (CLV isn't the test — you enter at fair value.)`;
-  return `The line moved ${base}→${entry}, but the Fair Close Value reverted to ${obj}${delta} — outside the ±10pp band, back toward ${base}. ${verb} was wrong here (a disclosed miss).`;
+    return `A clean move took the line ${base}→${entry}; the Fair Close Value settled at ${obj}${delta}, inside the ±10pp band. ${verb} was right: the line held where it moved, so a book still quoting ${base} gets left behind. (CLV isn't the test; you enter at fair value.)`;
+  return `The line moved ${base}→${entry}, but the Fair Close Value reverted to ${obj}${delta}, outside the ±10pp band, back toward ${base}. ${verb} was wrong here (a disclosed miss).`;
 }
 
 export default function Desk() {
@@ -128,11 +128,11 @@ export default function Desk() {
     <div className="mx-auto max-w-7xl px-5 py-6">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="label">the archive — proven against real TxLINE frames</p>
+          <p className="label">the archive: proven against real TxLINE frames</p>
           <h1 className="serif mt-1 text-2xl">Don&apos;t trust the call. Check the frames.</h1>
           <p className="mt-1 text-sm text-muted">
-            Three real demargined quotes per case — pre-event, the drift, and the Fair Close Value — so you check the
-            verdict yourself. A follow/hold is right if the line held in the region it moved to (FCV within ±10pp — CLV
+            Three real demargined quotes per case: pre-event, the drift, and the Fair Close Value; so you check the
+            verdict yourself. A follow/hold is right if the line held in the region it moved to (FCV within ±10pp; CLV
             sign isn&apos;t the test); a fade is right if the overshoot genuinely reverted. Watching a match live?{" "}
             <Link href="/live" className="amber hover:text-fg">
               Open the live sandbox →
@@ -162,7 +162,7 @@ export default function Desk() {
         ))}
       </div>
 
-      {/* DISCLOSURE — the honest rate, transparent selection */}
+      {/* DISCLOSURE: the honest rate, transparent selection */}
       {t && (
         <p className="mb-5 rounded border border-ink-600 bg-ink-800/50 px-4 py-2 text-xs text-faint">
           This match: <span className="gain">{t.held}</span>/<span className="text-fg">{t.holds}</span> follow/hold calls{" "}
@@ -238,7 +238,7 @@ function ProofCard({ c }: { c: ProofCase }) {
             </>
           ) : (
             <>
-              FCV <span className={c.success ? "gain" : "loss"}>{c.fcv != null ? `${(c.fcv * 100).toFixed(1)}%` : "—"}</span>
+              FCV <span className={c.success ? "gain" : "loss"}>{c.fcv != null ? `${(c.fcv * 100).toFixed(1)}%` : "-"}</span>
               {c.fcvDeltaPp != null && (
                 <span className="text-faint"> ({c.fcvDeltaPp >= 0 ? "+" : ""}{c.fcvDeltaPp}pp vs entry)</span>
               )}
@@ -262,7 +262,7 @@ function FrameCell({ label, f, tone }: { label: string; f: Frame | null; tone: s
           <p className="text-[0.6rem] text-faint tabular-nums">{hhmmss(f.ts)}</p>
         </>
       ) : (
-        <p className="mt-1 text-sm text-faint">—</p>
+        <p className="mt-1 text-sm text-faint">-</p>
       )}
     </div>
   );

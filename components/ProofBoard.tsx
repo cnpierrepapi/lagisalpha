@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-// PROOF — the provable track record (C). The read-only agent grades ITSELF: every signal
+// PROOF: the provable track record (C). The read-only agent grades ITSELF: every signal
 // settled against its market's fair line at the reversion horizon (CLV leg) and, live,
-// against the on-chain goals via validateStat (outcome leg). We report the honest numbers —
-// overall + per kind + per action + per-fixture breadth and single-match concentration —
+// against the on-chain goals via validateStat (outcome leg). We report the honest numbers:
+// overall + per kind + per action + per-fixture breadth and single-match concentration,
 // so a "pilot, not proof" pattern can't hide behind a headline. Plus the reconcile-against-
 // your-DB CSV and the Solana proof-of-access.
 
@@ -62,10 +62,10 @@ interface Proof {
 }
 
 function pct(x: number | null): string {
-  return x == null ? "—" : `${(x * 100).toFixed(0)}%`;
+  return x == null ? "-" : `${(x * 100).toFixed(0)}%`;
 }
 function clv(x: number | null): string {
-  return x == null ? "—" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
+  return x == null ? "-" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
 }
 
 export default function ProofBoard({ proof }: { proof: Proof }) {
@@ -96,10 +96,10 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
     <div className="mx-auto max-w-6xl px-5 py-8">
       <header className="mb-6">
         <p className="label">proof</p>
-        <h1 className="serif mt-1 text-3xl">The agent grades itself — on-chain.</h1>
+        <h1 className="serif mt-1 text-3xl">The agent grades itself, on-chain.</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Every signal is settled against the market&apos;s fair line at the reversion horizon (the
-          skill metric), and — live — against the final goals on the TxLINE daily-scores Merkle root.
+          skill metric), and, live, against the final goals on the TxLINE daily-scores Merkle root.
           Don&apos;t trust the track record. Verify it.
         </p>
       </header>
@@ -109,7 +109,7 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
         <Stat label="steam / follow" value={pct(steam?.hitRate ?? null)} sub={steam ? `${steam.right}/${steam.n} held · FCV in ±10pp` : ""} tone="gain" />
         <Stat label="overreaction" value={pct(over?.hitRate ?? null)} sub={over ? `${over.right}/${over.n} correct (hold held / fade reverted)` : ""} />
         <Stat label="matches" value={`${ledger?.breadth.matches ?? 0}`} sub={ledger ? `${ledger.breadth.matchesNetPositive} net-positive` : ""} />
-        <Stat label="concentration" value={ledger?.breadth.topMatchShareOfNetPct != null ? `${ledger.breadth.topMatchShareOfNetPct}%` : "—"} sub="top match share of net" tone="loss" />
+        <Stat label="concentration" value={ledger?.breadth.topMatchShareOfNetPct != null ? `${ledger.breadth.topMatchShareOfNetPct}%` : "-"} sub="top match share of net" tone="loss" />
       </div>
 
       {caveat && (
@@ -144,16 +144,16 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
         <span className="text-muted">correct</span> = the per-action verdict, not CLV sign:{" "}
         <span className="amber">follow / hold</span> is right if the Fair Close Value held inside ±10pp of entry (the
         line stayed where it moved); <span className="loss">fade</span> is right if the overshoot genuinely reverted.
-        A follow is taken at fair value, so its expected CLV is ~0 — <span className="text-muted">avg clv</span> is
+        A follow is taken at fair value, so its expected CLV is ~0; <span className="text-muted">avg clv</span> is
         shown only as an auxiliary, never the pass/fail test.
       </p>
 
-      {/* GOAL-IMMINENT ANTICIPATION — arrival-settled, not CLV */}
+      {/* GOAL-IMMINENT ANTICIPATION: arrival-settled, not CLV */}
       {ledger?.imminent && ledger.imminent.n > 0 && (
         <section className="panel mt-5 p-5">
-          <p className="label mb-1">goal-imminent anticipation — settled on goal-ARRIVAL (not CLV)</p>
+          <p className="label mb-1">goal-imminent anticipation: settled on goal-ARRIVAL (not CLV)</p>
           <p className="mb-3 text-xs text-faint">
-            A high-danger warning has no closing line to grade — its value is that a goal actually lands
+            A high-danger warning has no closing line to grade; its value is that a goal actually lands
             disproportionately often. We grade every warning on whether a real goal arrived within{" "}
             {Math.round((ledger.imminent.windowMs || 120000) / 1000)}s. The line itself does NOT pre-drift
             tradeably (drift test), so the action is suspend/widen, never over-lean.
@@ -168,18 +168,18 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
             <Stat label="base rate" value={pct(ledger.imminent.baseRate)} sub="uniform-arrival null" />
             <Stat
               label="lift"
-              value={ledger.imminent.lift != null ? `${ledger.imminent.lift.toFixed(2)}×` : "—"}
+              value={ledger.imminent.lift != null ? `${ledger.imminent.lift.toFixed(2)}×` : "-"}
               sub="vs base (Bundesliga 1.92×)"
               tone="gain"
             />
-            <Stat label="action" value="suspend" sub="no over-lean — line doesn't pre-drift" />
+            <Stat label="action" value="suspend" sub="no over-lean, line doesn't pre-drift" />
           </div>
         </section>
       )}
 
       {/* BREADTH / CONCENTRATION */}
       <section className="panel mt-5 p-5">
-        <p className="label mb-1">breadth — per match (guards against the one-match illusion)</p>
+        <p className="label mb-1">breadth: per match (guards against the one-match illusion)</p>
         <p className="mb-3 text-xs text-faint">
           A headline means nothing if one match carries it. Every settled match, its hit-rate and average CLV.
         </p>
@@ -213,7 +213,7 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
       <section className="mt-6">
         <div className="mb-3 flex items-end justify-between">
           <div>
-            <p className="label">the settled signal ledger — every call, graded</p>
+            <p className="label">the settled signal ledger: every call, graded</p>
             <p className="mt-0.5 text-xs text-faint">
               Each signal fingerprinted to the real TxLINE frame it was derived from, settled on closing-line value.
             </p>
@@ -271,7 +271,7 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
         <div className="max-w-2xl">
           <p className="label mb-1">reconcile against your database</p>
           <p className="text-sm text-muted">
-            Download every real TxLINE frame we ingested — original timestamp, market, and demargined prices.
+            Download every real TxLINE frame we ingested: original timestamp, market, and demargined prices.
             Join on <code className="rounded border border-ink-600 bg-ink-800 px-1 text-xs text-fg">fixture_id</code> +{" "}
             <code className="rounded border border-ink-600 bg-ink-800 px-1 text-xs text-fg">frame_ts_ms</code> to confirm
             our reference matches yours.
@@ -346,7 +346,7 @@ function BreakTable({ rows }: { rows: [string, Bucket | undefined][] }) {
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="border-b border-ink-600 text-xs text-faint">
-          <Th>—</Th>
+          <Th>-</Th>
           <Th right>n</Th>
           <Th right>correct</Th>
           <Th right>avg clv</Th>

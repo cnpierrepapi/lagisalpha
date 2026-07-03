@@ -1,6 +1,6 @@
 "use client";
 
-// /desk/health — a SELF-CONTAINED worker health check. It reads the EC2 worker's
+// /desk/health: a SELF-CONTAINED worker health check. It reads the EC2 worker's
 // live mirror from foil (the worker pushes total_ingested / stalls / updated_at
 // every 15s), measures whether ingestion is ADVANCING across polls, and cross-
 // references the clock against kickoff to render an explicit verdict + action.
@@ -47,7 +47,7 @@ function computeVerdict(now: number, h: DeskHealth | null, ratePerMin: number | 
     return {
       level: "bad",
       title: "Worker OFFLINE",
-      detail: `Last push was ${Math.round(ageMs / 1000)}s ago — the worker process has stopped.`,
+      detail: `Last push was ${Math.round(ageMs / 1000)}s ago; the worker process has stopped.`,
       action: "Restart:  ssh …63.33.24.157 → bash ~/agenthesis/worker/start.sh",
     };
 
@@ -58,37 +58,37 @@ function computeVerdict(now: number, h: DeskHealth | null, ratePerMin: number | 
     if (upcoming)
       return {
         level: "idle",
-        title: "Pre-game — worker healthy, idle (expected)",
+        title: "Pre-game: worker healthy, idle (expected)",
         detail: `Next kickoff: ${upcoming.label} in ${fmtDur(upcoming.utc - now)}. The live book is quiet until the match airs, so 0 frames now is normal.`,
       };
     return {
       level: "idle",
-      title: "No live match window — worker healthy",
+      title: "No live match window: worker healthy",
       detail: `Idle outside match windows. Lifetime: ${h.totalIngested.toLocaleString()} frames, ${h.tradeCount} calls, ${h.stalls} stall cycles.`,
     };
   }
 
   const sinceKick = now - inWindow.utc;
   if (ratePerMin == null)
-    return { level: "warn", title: "Measuring ingest rate…", detail: `In the ${inWindow.label} window — sampling a second reading to confirm frames are advancing.` };
+    return { level: "warn", title: "Measuring ingest rate…", detail: `In the ${inWindow.label} window, sampling a second reading to confirm frames are advancing.` };
 
   if (ratePerMin > 0)
     return {
       level: "ok",
-      title: `LIVE — ingesting ${inWindow.label}`,
+      title: `LIVE: ingesting ${inWindow.label}`,
       detail: `${ratePerMin.toFixed(0)} frames/min · ${h.totalIngested.toLocaleString()} frames total · ${h.tradeCount} calls · ${h.agentsRunning}/${h.agentsTotal} agents running. Healthy.`,
     };
 
   if (sinceKick < 3 * 60_000)
     return {
       level: "warn",
-      title: "Kickoff just happened — waiting for frames",
+      title: "Kickoff just happened, waiting for frames",
       detail: `${Math.round(sinceKick / 1000)}s since ${inWindow.label} kickoff and no frames yet. The book is bursty; a short lag is normal.`,
     };
 
   return {
     level: "bad",
-    title: "ACTION NEEDED — worker alive but 0 live frames",
+    title: "ACTION NEEDED: worker alive but 0 live frames",
     detail: `${Math.round(sinceKick / 60_000)} min into ${inWindow.label} and ingestion is flat (total ${h.totalIngested.toLocaleString()}). The devnet TxLINE token is almost certainly stale/expired.`,
     action: "Refresh TXLINE_API_TOKEN in ~/agenthesis/worker/.env, then:  pkill -f desk_worker.ts; bash ~/agenthesis/worker/start.sh",
   };
@@ -167,12 +167,12 @@ export default function DeskHealth() {
 
           {/* raw facts */}
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Fact label="last push" value={ageS == null ? "—" : `${ageS}s ago`} tone={ageS != null && ageS < 60 ? "gain" : "loss"} />
+            <Fact label="last push" value={ageS == null ? "-" : `${ageS}s ago`} tone={ageS != null && ageS < 60 ? "gain" : "loss"} />
             <Fact label="ingest rate" value={rate == null ? "measuring…" : `${rate.toFixed(0)}/min`} tone={rate && rate > 0 ? "gain" : undefined} />
-            <Fact label="frames ingested" value={health ? health.totalIngested.toLocaleString() : "—"} />
-            <Fact label="calls" value={health ? String(health.tradeCount) : "—"} />
-            <Fact label="stall cycles" value={health ? String(health.stalls) : "—"} />
-            <Fact label="agents running" value={health ? `${health.agentsRunning}/${health.agentsTotal}` : "—"} />
+            <Fact label="frames ingested" value={health ? health.totalIngested.toLocaleString() : "-"} />
+            <Fact label="calls" value={health ? String(health.tradeCount) : "-"} />
+            <Fact label="stall cycles" value={health ? String(health.stalls) : "-"} />
+            <Fact label="agents running" value={health ? `${health.agentsRunning}/${health.agentsTotal}` : "-"} />
           </div>
 
           <p className="mt-4 text-xs text-faint">

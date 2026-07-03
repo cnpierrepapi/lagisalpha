@@ -13,17 +13,17 @@ function Code({ children }: { children: string }) {
 const ENDPOINTS = [
   [
     "GET /api/v1/signals",
-    "the product: classified read-only line-integrity signals per fixture — steam, overreaction, and goal_imminent",
+    "the product: classified read-only line-integrity signals per fixture: steam, overreaction, and goal_imminent",
     "fixtureId · kind (steam|overreaction|goal_imminent) · action (follow|hold|fade|suspend) · minConfidence · limit",
   ],
   [
     "GET /api/v1/calibration",
-    "the provable track record — follow/hold held-rate (FCV ±10pp), fade reversion-rate, goal_imminent arrival-lift, per kind/action + breadth",
+    "the provable track record: follow/hold held-rate (FCV ±10pp), fade reversion-rate, goal_imminent arrival-lift, per kind/action + breadth",
     "detail=1 to include the settled rows",
   ],
   [
     "GET /api/v1/control-room",
-    "the read-only boundary timeline — signal → stale-book gap → operator action",
+    "the read-only boundary timeline: signal → stale-book gap → operator action",
     "fixtureId · lagMs (naive-book latency)",
   ],
 ];
@@ -42,7 +42,7 @@ const PRIMITIVES = [
   {
     kind: "Grading",
     fn: "FCV-held  ·  scoreCLV (aux)",
-    body: "Follow/hold is graded on Fair Close Value staying inside its ±10pp drift band; fade on reversion; goal_imminent on goal-arrival lift. scoreCLV ships as the auxiliary CLV diagnostic. All resolve from odds alone — no match outcome required.",
+    body: "Follow/hold is graded on Fair Close Value staying inside its ±10pp drift band; fade on reversion; goal_imminent on goal-arrival lift. scoreCLV ships as the auxiliary CLV diagnostic. All resolve from odds alone; no match outcome required.",
   },
 ];
 
@@ -72,7 +72,7 @@ export default function SdkDoc() {
         <p className="label">developer access</p>
         <h1 className="serif mt-1 text-4xl text-paper">Agenthesis API &amp; SDK</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          The product is the signal API: <code className="text-info">GET /api/v1/signals</code> — an
+          The product is the signal API: <code className="text-info">GET /api/v1/signals</code>, an
           authenticated HTTP feed of <span className="text-fg">read-only line-integrity signals</span>,
           each carrying the <code className="text-info">proofHash</code> that reconciles it to a real
           TxLINE frame. A clean move to follow, an overreaction to fade, a goal about to make your line
@@ -80,7 +80,7 @@ export default function SdkDoc() {
           same pure functions, for latency-sensitive consumers that run the classifier in-process.
         </p>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-faint">
-          Either way, Agenthesis never places a bet, moves a price, or holds funds — your rule-set takes
+          Either way, Agenthesis never places a bet, moves a price, or holds funds; your rule-set takes
           the action. Both surfaces run identical pure code (SDK↔API parity): no I/O, no clock reads,
           deterministic, unit-tested. That is what makes it safe to put next to a live book.
         </p>
@@ -100,12 +100,12 @@ export default function SdkDoc() {
         </div>
       </header>
 
-      {/* ─── Operator API — THE PRODUCT ───────────────────────────────────── */}
+      {/* ─── Operator API: THE PRODUCT ───────────────────────────────────── */}
       <section className="mb-12">
-        <p className="label">market operators — the product</p>
+        <p className="label">market operators: the product</p>
         <h2 className="serif mt-1 text-3xl text-paper">Operator API</h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Consume the <span className="text-fg">HTTP API</span> — no code to embed. Three
+          Consume the <span className="text-fg">HTTP API</span>, no code to embed. Three
           authenticated, versioned endpoints: the signals, the provable track record, and the
           read-only boundary timeline. Every signal carries the <code className="text-info">proofHash</code>{" "}
           that reconciles it against the frame ledger, so you can verify it came from real,
@@ -156,7 +156,7 @@ curl -s "https://agenthesis-eta.vercel.app/api/v1/signals?action=fade&minConfide
           "market": "OVERUNDER_PARTICIPANT_GOALS line=3 over",
           "pRef": 0.4579,
           "firedBy": "surprise",
-          "note": "GOAL (Participant1): 17.4%→45.8% — fade the overreaction",
+          "note": "GOAL (Participant1): 17.4%→45.8%; fade the overreaction",
           "proofHash": "b4aff838"
         },
         {
@@ -168,7 +168,7 @@ curl -s "https://agenthesis-eta.vercel.app/api/v1/signals?action=fade&minConfide
           "market": null,
           "firedBy": "possession_tier",
           "trigger": "high_danger_possession",
-          "note": "goal-imminent (high_danger_possession, P(goal≤120s)≈11%) — suspend/widen before the line goes stale"
+          "note": "goal-imminent (high_danger_possession, P(goal≤120s)≈11%); suspend/widen before the line goes stale"
         }
       ]
     }
@@ -188,18 +188,18 @@ Content-Type: application/json
         <p className="mt-2 max-w-2xl text-xs text-faint">
           The poll endpoint is the deterministic, always-available implementation (it replays the
           bundled real captures, since serverless throttles a live engine). A live deployment runs a
-          persistent, co-located worker — and because the warning only pays if it beats the pickoff by
+          persistent, co-located worker, and because the warning only pays if it beats the pickoff by
           milliseconds, that low-latency direct feed is a continuing partnership with TxOdds.
         </p>
       </section>
 
-      {/* ─── SDK — the optional in-process wrapper ────────────────────────── */}
+      {/* ─── SDK: the optional in-process wrapper ────────────────────────── */}
       <section className="mb-10 border-t border-ink-600 pt-10">
         <p className="label">latency-sensitive consumers</p>
         <h2 className="serif mt-1 text-3xl text-paper">The SDK</h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
           A network round-trip can&apos;t sit inside a millisecond-latency pickoff loop. If you run the
-          classifier in-process, embed the <span className="text-fg">exact code the API runs</span> —
+          classifier in-process, embed the <span className="text-fg">exact code the API runs</span>:
           the same pure detection, classification, and grading functions the deployed product serves.
           You bring your TxLINE feed and your prices; the SDK returns read-only signals.
         </p>
@@ -286,9 +286,9 @@ engine.ingestScores(txlineScoreRecord);`}</Code>
         <div className="card p-5 text-sm leading-relaxed text-muted">
           <p>
             TxLINE publishes a de-margined (no-vig) book, so for side <em className="text-fg">S</em>:{" "}
-            <code className="text-info">pRef = 1 / (price/1000)</code> — the fair line we benchmark
+            <code className="text-info">pRef = 1 / (price/1000)</code>, the fair line we benchmark
             against. A signal is a classified move on that line: <span className="amber">steam</span>{" "}
-            (a clean, efficient move — the <span className="text-fg">primary</span> edge; it held in our
+            (a clean, efficient move, the <span className="text-fg">primary</span> edge; it held in our
             captures → follow), <span className="amber">overreaction</span> (a surprising post-goal
             overshoot that can revert → hold, or fade when surprise-driven), or{" "}
             <span className="amber">goal_imminent</span> (the momentum tape flags{" "}
@@ -296,17 +296,17 @@ engine.ingestScores(txlineScoreRecord);`}</Code>
           </p>
           <p className="mt-3">
             Grading is <span className="amber">Fair Close Value (FCV)</span>, not CLV. A follow/hold is
-            right when the line <span className="text-fg">held</span> where it moved — the demargined
+            right when the line <span className="text-fg">held</span> where it moved: the demargined
             fair prob at the <code className="text-info">+180s</code> close stayed within{" "}
             <code className="text-info">±10pp</code> of entry (a clean move that sticks means a book
             still quoting the old number is left behind). A fade is graded on reversion.{" "}
             <span className="amber">goal_imminent</span> has no line to close against, so it settles on
-            goal <span className="text-fg">arrival</span> — the calibrated ~1.9× lift in P(goal ≤120s).
+            goal <span className="text-fg">arrival</span>: the calibrated ~1.9× lift in P(goal ≤120s).
           </p>
           <p className="mt-3">
             CLV ships as an auxiliary diagnostic (<code className="text-info">scoreCLV</code>): because a
             follow is taken at fair value its expected CLV is ~0, so &quot;CLV-positive&quot; is the
-            wrong test for a continuation — FCV-held is the honest one. The derivations live in{" "}
+            wrong test for a continuation; FCV-held is the honest one. The derivations live in{" "}
             <code className="text-info">lib/signals/</code>.
           </p>
         </div>

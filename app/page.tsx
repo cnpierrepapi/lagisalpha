@@ -5,10 +5,10 @@ import { getProof } from "@/lib/proof";
 import { PAPERS } from "@/lib/papers";
 
 const STEPS = [
-  { n: "01", t: "Benchmark", d: "Every tick, your posted price is measured against TxLINE's vig-free consensus — the one no-margin fair line." },
-  { n: "02", t: "Warn", d: "A clean move to follow, an overreaction to fade, a goal-imminent tape that's about to make your line stale — flagged before the pickoff." },
-  { n: "03", t: "Your rule-set acts", d: "You write the policy — widen, cut a limit, suspend. We emit the signal; your book takes the action. We never touch it." },
-  { n: "04", t: "Proven on-chain", d: "Every warning is settled against the TxLINE daily-scores Merkle root. Don't trust the track record — verify it on Solana." },
+  { n: "01", t: "Benchmark", d: "Every tick, your posted price is measured against TxLINE's vig-free consensus: the one no-margin fair line." },
+  { n: "02", t: "Warn", d: "A clean move to follow, an overreaction to fade, a goal-imminent tape that's about to make your line stale, flagged before the pickoff." },
+  { n: "03", t: "Your rule-set acts", d: "You write the policy: widen, cut a limit, suspend. We emit the signal; your book takes the action. We never touch it." },
+  { n: "04", t: "Proven on-chain", d: "Every warning is settled against the TxLINE daily-scores Merkle root. Don't trust the track record; verify it on Solana." },
 ];
 
 export default function Home() {
@@ -31,7 +31,7 @@ export default function Home() {
             <p className="mt-5 max-w-md text-muted">
               Agenthesis benchmarks your prices against TxLINE&apos;s vig-free consensus, warns you the
               instant a line is stale enough to get picked off, and proves every call on-chain. You
-              keep the book — we&apos;re the independent referee, not another trading desk.
+              keep the book; we&apos;re the independent referee, not another trading desk.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -78,7 +78,7 @@ export default function Home() {
           <p className="mt-2 max-w-2xl text-sm text-muted">
             Sharp money lives in the seconds around a goal: the consensus moves and a lagging in-play
             price is lifted before it catches up. It&apos;s the same phenomenon prediction-market makers
-            call loss-versus-rebalancing — stale prices, picked off by faster, better-informed flow.
+            call loss-versus-rebalancing: stale prices, picked off by faster, better-informed flow.
             Two literature-backed patterns cover it: <span className="text-fg">follow</span> the clean
             move (the market prices real news efficiently), <span className="text-fg">fade</span> the
             overreaction (a surprising goal overshoots and reverts within minutes).
@@ -104,20 +104,20 @@ export default function Home() {
             <div className="card p-5">
               <h3 className="text-paper">Read-only</h3>
               <p className="mt-2 text-sm text-muted">
-                We place no bet, move no price, hold no funds. Your rule-set acts — so it clears
+                We place no bet, move no price, hold no funds. Your rule-set acts, so it clears
                 compliance and carries no wagering surface.
               </p>
             </div>
             <div className="card p-5">
               <h3 className="text-paper">Provable</h3>
               <p className="mt-2 text-sm text-muted">
-                Every call is settled on-chain. Audit the track record before you trust it — the one
+                Every call is settled on-chain. Audit the track record before you trust it: the one
                 thing a black-box pricing vendor can&apos;t show you.
               </p>
             </div>
           </div>
           <p className="mt-6 max-w-3xl text-sm text-faint">
-            A production signal is a millisecond game — a warning only pays if it beats the pickoff.
+            A production signal is a millisecond game: a warning only pays if it beats the pickoff.
             That needs direct, co-located TxLINE feed access, so a live deployment is a continuing
             partnership with TxOdds, not a one-off. {PAPERS.length} research papers underpin the calls.
           </p>
@@ -130,7 +130,7 @@ export default function Home() {
           <p className="label">provenance</p>
           <h2 className="serif mt-2 text-2xl text-paper">Every reference from an on-chain-anchored feed.</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            The fair line is TxLINE&apos;s World Cup data layer — odds and scores cryptographically anchored
+            The fair line is TxLINE&apos;s World Cup data layer: odds and scores cryptographically anchored
             on Solana. Access is minted by a real on-chain transaction, so the reference&apos;s provenance is
             publicly verifiable.
           </p>

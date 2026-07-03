@@ -4,12 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { classifyEdge, goalImminent, IMMINENT_SURFACE_CONF } from "@/lib/signals/classify.mjs";
 import { evaluatePolicy, describeAction } from "@/lib/signals/policy.mjs";
 
-// LIVE LINE-INTEGRITY SANDBOX — the demo, made interactive.
+// LIVE LINE-INTEGRITY SANDBOX: the demo, made interactive.
 //
 // You DEPLOY a naive book (set how stale it is), you EDIT the operator's policy, and you
 // watch OUR real classifier catch the discrepancies against THAT book with THAT policy.
 // Nothing here is faked: classifyEdge + evaluatePolicy are the exact pure functions the
-// production engine and /api/v1 routes run — lifted into React state so a slider drag
+// production engine and /api/v1 routes run, lifted into React state so a slider drag
 // changes the very numbers an operator would see. The deployed app can't hold an SSE open,
 // so the browser polls the live snapshot and holds the per-market history itself.
 
@@ -292,7 +292,7 @@ export default function LiveBoundary() {
     const lagged = valueAt(buf, now - lagRef.current);
     if (lagged == null) return null;
     if (spreadRef.current <= 0) return lagged;
-    // a soft book with margin sits further from fair — amplify the existing staleness.
+    // a soft book with margin sits further from fair; amplify the existing staleness.
     const dir = lagged >= pRef ? 1 : -1;
     return lagged + (dir * spreadRef.current) / 10000;
   }
@@ -402,7 +402,7 @@ export default function LiveBoundary() {
     <div className="mx-auto max-w-7xl px-5 py-6">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="label">live line-integrity sandbox — deploy a book, write a policy, watch the pickoff</p>
+          <p className="label">live line-integrity sandbox: deploy a book, write a policy, watch the pickoff</p>
           <h1 className="serif mt-1 text-2xl">Watch the pickoff, live.</h1>
           <p className="mt-1 text-sm text-muted">
             The real classifier runs on the in-play book. You set how stale your naive book is and what your policy
@@ -420,12 +420,12 @@ export default function LiveBoundary() {
               : liveOn
                 ? "LIVE · TxLINE"
                 : connected
-                  ? "idle — no match in-play"
+                  ? "idle, no match in-play"
                   : "connecting"}
         </span>
       </header>
 
-      {/* SOURCE — watch live, or replay a recorded match (demoable 24/7) */}
+      {/* SOURCE: watch live, or replay a recorded match (demoable 24/7) */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div className="inline-flex overflow-hidden rounded border border-ink-600 text-xs">
           <button
@@ -489,7 +489,7 @@ export default function LiveBoundary() {
         )}
       </div>
 
-      {/* TALLIES — driven by YOUR book + policy */}
+      {/* TALLIES: driven by YOUR book + policy */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Tally label="signals" value={`${decided.length}`} />
         <Tally label="pickoffs caught" value={`${tallies.pickoffs}`} tone="loss" />
@@ -499,7 +499,7 @@ export default function LiveBoundary() {
 
       {source === "live" && !configured ? (
         <p className="panel px-5 py-4 text-sm text-faint">
-          Live feed unavailable — no TxLINE token configured in this environment. Switch to{" "}
+          Live feed unavailable: no TxLINE token configured in this environment. Switch to{" "}
           <button onClick={() => setSource("replay")} className="amber hover:text-fg">
             ▸ replay archive
           </button>{" "}
@@ -544,7 +544,7 @@ export default function LiveBoundary() {
                 />
               </div>
               <p className="mt-3 text-xs text-faint">
-                A stale book still quotes the pre-move price — the exact surface a sharp lifts. Applies to new signals.
+                A stale book still quotes the pre-move price: the exact surface a sharp lifts. Applies to new signals.
               </p>
             </div>
 
@@ -570,7 +570,7 @@ export default function LiveBoundary() {
                     onRemove={() => setRules((rs) => rs.filter((x) => x.id !== r.id))}
                   />
                 ))}
-                {rules.length === 0 && <p className="text-xs text-faint">No rules — every signal falls through to &quot;no action&quot;.</p>}
+                {rules.length === 0 && <p className="text-xs text-faint">No rules; every signal falls through to &quot;no action&quot;.</p>}
               </div>
               <div className="mt-3 flex items-center gap-3">
                 <button onClick={() => setRules(defaultRules())} className="text-xs text-faint hover:text-fg">
@@ -592,7 +592,7 @@ export default function LiveBoundary() {
               ) : (
                 <p className="panel px-5 py-6 text-sm text-muted">
                   No World Cup match is in-play right now. Odds are live-only, so the book and its signals appear the
-                  moment a match kicks off — keep this page open through kickoff, or{" "}
+                  moment a match kicks off; keep this page open through kickoff, or{" "}
                   <button onClick={() => setSource("replay")} className="amber hover:text-fg">
                     replay a recorded match
                   </button>
@@ -652,7 +652,7 @@ function Boundary({ decided, lagMs }: { decided: (StoredSig & { pol: { matched: 
     <section className="panel flex min-h-[45vh] flex-col">
       <header className="flex items-center justify-between border-b border-ink-600 px-5 py-3">
         <div>
-          <p className="label">the read-only boundary — live</p>
+          <p className="label">the read-only boundary, live</p>
           <p className="text-sm text-muted">
             signal (ours) → the naive book&apos;s stale gap ({(lagMs / 1000).toFixed(0)}s) → the action YOUR policy chose
           </p>
@@ -699,7 +699,7 @@ function Boundary({ decided, lagMs }: { decided: (StoredSig & { pol: { matched: 
                         {s.gapBps}bps
                       </span>
                     ) : (
-                      <span className="text-faint">—</span>
+                      <span className="text-faint">-</span>
                     )}
                   </td>
                   <td className={`px-3 py-2 ${riskColor(s.pickoffRisk)}`}>{s.pickoffRisk}</td>
@@ -747,7 +747,7 @@ function RuleEditor({
         <input
           value={rule.minConfidence}
           onChange={(e) => onChange({ minConfidence: e.target.value.replace(/[^0-9.]/g, "") })}
-          placeholder="—"
+          placeholder="-"
           className={num}
         />
         <select value={rule.pickoffRisk} onChange={(e) => onChange({ pickoffRisk: e.target.value })} className={sel}>
@@ -759,7 +759,7 @@ function RuleEditor({
         <input
           value={rule.minGapBps}
           onChange={(e) => onChange({ minGapBps: e.target.value.replace(/[^0-9]/g, "") })}
-          placeholder="—"
+          placeholder="-"
           className={num}
         />
         <span className="text-faint">bps</span>

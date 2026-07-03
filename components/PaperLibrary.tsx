@@ -12,7 +12,7 @@ const FINDINGS = [
     tone: "gain",
     title: "Follow the move",
     body:
-      "A flagged move held 89% of the time (54% extended further). Markets are efficient to goal arrival and momentum persists, so a real move carries — a lagging book is the stale price a sharp lifts. This is the oracle's core job.",
+      "A flagged move held 89% of the time (54% extended further). Markets are efficient to goal arrival and momentum persists, so a real move carries; a lagging book is the stale price a sharp lifts. This is the oracle's core job.",
     cite: "Croxson & Reade 2014 · Moskowitz 2021 · Gandar et al. 2001",
   },
   {
@@ -21,7 +21,7 @@ const FINDINGS = [
     tone: "loss",
     title: "Fade only on surprise",
     body:
-      "Only ~18% of flagged overreactions genuinely reverted; 82% were efficient reprices that stuck. Bettors overreact only to SURPRISING goals — and magnitude does not predict reversion (big moves are decisive). So fade is gated on surprise, never on size.",
+      "Only ~18% of flagged overreactions genuinely reverted; 82% were efficient reprices that stuck. Bettors overreact only to SURPRISING goals, and magnitude does not predict reversion (big moves are decisive). So fade is gated on surprise, never on size.",
     cite: "Choi & Hui 2014 · De Bondt–Thaler",
   },
   {
@@ -44,8 +44,8 @@ export default function PaperLibrary() {
           <h1 className="serif mt-1 text-3xl">The research behind the signals</h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
             Agenthesis doesn&apos;t guess. Every call is grounded in a published result AND re-checked
-            against our own captures. The headline finding: <span className="text-fg">follow</span> — not
-            fade — is the primary edge. A book that lags a real move gets picked off far more often than a
+            against our own captures. The headline finding: <span className="text-fg">follow</span>, not
+            fade, is the primary edge. A book that lags a real move gets picked off far more often than a
             line overshoots and reverts.
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function PaperLibrary() {
         </div>
       </header>
 
-      {/* WHAT WE WATCH — the thesis, grounded in the literature + our own 4-match data */}
+      {/* WHAT WE WATCH: the thesis, grounded in the literature + our own 4-match data */}
       <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         {FINDINGS.map((f) => (
           <div key={f.title} className="panel p-5">
@@ -110,7 +110,7 @@ export default function PaperLibrary() {
         the primary edge; Choi &amp; Hui (only <em>surprising</em> goals overshoot and revert) grounds the
         rare, surprise-gated <span className="text-muted">overreaction → fade</span>; the momentum tape grounds
         the pre-goal <span className="text-muted">suspend</span> warning. The signal is never more than the
-        research — and our own data — says it is.
+        research, and our own data, says it is.
       </p>
     </div>
   );

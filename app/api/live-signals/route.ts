@@ -177,6 +177,6 @@ export async function GET() {
     source: creds.apiBase,
     liveCount: live.length,
     fixtures: live,
-    note: live.length === 0 ? "No WC match is in-play right now — frames appear when a match kicks off." : undefined,
+    note: live.length === 0 ? "No WC match is in-play right now; frames appear when a match kicks off." : undefined,
   });
 }

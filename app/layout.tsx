@@ -15,9 +15,9 @@ const serif = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Agenthesis — strategies from research, graded on CLV",
+  title: "Agenthesis: strategies from research, graded on CLV",
   description:
-    "Spawn autonomous forecasters whose strategy is a research paper. They read the live TxLINE World Cup feed, flag mispriced markets, and are graded on closing-line value — no human in the loop.",
+    "Spawn autonomous forecasters whose strategy is a research paper. They read the live TxLINE World Cup feed, flag mispriced markets, and are graded on closing-line value, no human in the loop.",
 };
 
 export default function RootLayout({

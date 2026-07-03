@@ -93,7 +93,7 @@ export const PAPERS: Paper[] = [
     doi: "AGTH-0002",
     free: true,
     abstract:
-      "Bettors UNDERREACT to most goals but OVERREACT to surprising ones (an underdog scoring). Only the surprise-driven overshoot mean-reverts within minutes — so fade is gated on SURPRISE, not on the size of the move.",
+      "Bettors UNDERREACT to most goals but OVERREACT to surprising ones (an underdog scoring). Only the surprise-driven overshoot mean-reverts within minutes, so fade is gated on SURPRISE, not on the size of the move.",
     tags: ["overreaction", "surprise", "mean-reversion"],
     levers: { ...BASE, direction: "follow", phase: "inplay" },
   },
@@ -107,7 +107,7 @@ export const PAPERS: Paper[] = [
     doi: "AGTH-0003",
     free: true,
     abstract:
-      "Prices update fully within seconds of a goal — the market is EFFICIENT to goal arrival. So most goal-driven moves are real and stick: follow them. A book that lags the update is the exact stale price a sharp lifts. (Our data: a flagged move held 89% of the time.)",
+      "Prices update fully within seconds of a goal: the market is EFFICIENT to goal arrival. So most goal-driven moves are real and stick: follow them. A book that lags the update is the exact stale price a sharp lifts. (Our data: a flagged move held 89% of the time.)",
     tags: ["efficiency", "goal-arrival", "follow"],
     levers: { ...BASE, direction: "follow", phase: "inplay" },
   },

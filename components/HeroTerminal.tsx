@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 // The hero tape shows the PRODUCT: real line-integrity signals from the control-room
-// endpoint (deterministic snapshot over real captured TxLINE frames) — each one a
+// endpoint (deterministic snapshot over real captured TxLINE frames), each one a
 // signal, the stale-book gap, and the action the operator's policy chose. We reveal
 // them one at a time so a static snapshot reads like a live desk.
 interface CREvent {
@@ -28,7 +28,7 @@ function actionColor(a: string): string {
   return "text-muted"; // hold / suspend-suggested
 }
 function shortMarket(m: string | null): string {
-  if (!m) return "—"; // goal_imminent is fixture-level (no specific market/line)
+  if (!m) return "-"; // goal_imminent is fixture-level (no specific market/line)
   return m
     .replace("OVERUNDER_PARTICIPANT_GOALS", "O/U")
     .replace("ASIANHANDICAP_PARTICIPANT_GOALS", "AH")
@@ -82,7 +82,7 @@ export default function HeroTerminal() {
         <ul className="space-y-2">
           {shown.map((e, i) => (
             <li key={`${e.ts}-${i}`} className="leading-relaxed">
-              <span className="text-faint tabular-nums">{e.minute != null ? `${e.minute}'` : "—"}</span>{" "}
+              <span className="text-faint tabular-nums">{e.minute != null ? `${e.minute}'` : "-"}</span>{" "}
               <span className="text-muted">{shortMarket(e.market)}</span>{" "}
               <span className={KIND_COLOR[e.kind] ?? "text-muted"}>{e.kind}</span>{" "}
               <span className="text-faint">→</span>{" "}
