@@ -38,8 +38,8 @@ const API = [
     desc: "→ a read-only signal { kind, action, confidence, pickoffRisk, pRef, pWatched, gapBps, firedBy, revertLikely, direction, proofHash? } or null (out-of-scope markets / quote edges). watchedProb = your price → gapBps is the pickoff surface. Pure.",
   },
   {
-    sig: "pregoalWarning(scoreRec, { minute })",
-    desc: "→ a suspend-suggested signal off the momentum tape (high_danger_possession / PossibleEvent.Goal) BEFORE the line moves, or null. Pure.",
+    sig: "goalImminent(scoreRec, { minute })",
+    desc: "→ a suspend-suggested signal off the momentum tape (high_danger_possession / PossibleEvent.Goal) BEFORE a goal lands, carrying a quantified goalProb = calibrated P(goal ≤120s), or null. Pure.",
   },
   {
     sig: "markPosition(pos, closeProb) / scoreCLV({ entryProb, direction, stake }, closeProb)",
@@ -110,7 +110,7 @@ export default function SdkDoc() {
 npm install github:cnpierrepapi/agenthesis
 
 # the public surface is the self-contained "agenthesis/sdk" entry
-import { EdgeEngine, classifyEdge, pregoalWarning, scoreCLV }
+import { EdgeEngine, classifyEdge, goalImminent, scoreCLV }
   from "agenthesis/sdk";`}</Code>
         <p className="mt-2 text-xs text-faint">
           The package exposes only the pure detection + classification + grading layer. It pulls in no

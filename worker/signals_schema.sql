@@ -12,7 +12,7 @@ create table if not exists signals (
   super_odds_type text not null,
   line          numeric,
   side          text,
-  kind          text not null,               -- steam | overreaction | pregoal_warning
+  kind          text not null,               -- steam | overreaction | goal_imminent
   action        text not null,               -- follow | hold | fade | suspend-suggested
   confidence    numeric,
   fired_by      text,                        -- surprise | magnitude | ...

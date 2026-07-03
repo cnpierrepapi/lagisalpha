@@ -2,7 +2,7 @@
 // Run: node scripts/signals_test.mjs
 // Every assertion is a fixed input → fixed output; no clock, no randomness, no I/O.
 
-import { classifyEdge, pregoalWarning, parseLine, _internal } from "../lib/signals/classify.mjs";
+import { classifyEdge, goalImminent, parseLine, _internal } from "../lib/signals/classify.mjs";
 import { classifyEdge as sdkClassifyEdge } from "../sdk/index.mjs";
 import { settleCLV, resolveGoalsOutcome } from "../lib/signals/settle.mjs";
 import { calibrate } from "../lib/signals/calibration.mjs";
@@ -112,19 +112,28 @@ console.log("\n── gapBps + pickoff risk (needs the operator's price) ──"
   check("tiny gap on steam → pickoffRisk low", tight.pickoffRisk === "low", tight.pickoffRisk);
 }
 
-console.log("\n── pregoal warning (momentum tape) ──");
+console.log("\n── goal-imminent anticipation (momentum tape) ──");
 {
-  const hd = pregoalWarning({ FixtureId: 1, Ts: 5, Action: "high_danger_possession" }, { minute: 61 });
+  const hd = goalImminent({ FixtureId: 1, Ts: 5, Action: "high_danger_possession" }, { minute: 61 });
   check("high_danger → suspend-suggested", hd.action === "suspend-suggested");
-  check("high_danger confidence 0.8", near(hd.confidence, 0.8));
+  check("high_danger confidence ≈ 0.855 (calibrated lift)", near(hd.confidence, 0.855));
+  check("high_danger goalProb = 0.111 (measured 1.92×)", near(hd.goalProb, 0.111));
   check("high_danger pickoffRisk high", hd.pickoffRisk === "high");
-  check("kind = pregoal_warning", hd.kind === "pregoal_warning");
-  const dz = pregoalWarning({ FixtureId: 1, Ts: 5, Action: "danger_possession" });
+  check("kind = goal_imminent", hd.kind === "goal_imminent");
+  check("high_danger surfaces (≥ IMMINENT_SURFACE_CONF)", hd.confidence >= 0.5);
+  const dz = goalImminent({ FixtureId: 1, Ts: 5, Action: "danger_possession" });
   check("danger < high_danger confidence", dz.confidence < hd.confidence);
-  const pe = pregoalWarning({ FixtureId: 1, Ts: 5, Action: "safe_possession", PossibleEvent: { Goal: true } });
+  check("danger goalProb = 0.080 (1.38×)", near(dz.goalProb, 0.08));
+  check("danger does NOT surface standalone (< 0.5)", dz.confidence < 0.5);
+  const sh = goalImminent({ FixtureId: 1, Ts: 5, Action: "shot" });
+  check("shot → null (0.98× = no lift, excluded)", sh === null);
+  const pe = goalImminent({ FixtureId: 1, Ts: 5, Action: "safe_possession", PossibleEvent: { Goal: true } });
   check("PossibleEvent.Goal → 0.9 even on safe possession", near(pe.confidence, 0.9));
   check("PossibleEvent firedBy", pe.firedBy === "possible_event");
-  const none = pregoalWarning({ FixtureId: 1, Ts: 5, Action: "safe_possession" });
+  const dir = goalImminent({ FixtureId: 1, Ts: 5, Action: "high_danger_possession", Data: { Participant: 2 } });
+  check("attackingParticipant from Data.Participant", dir.attackingParticipant === 2);
+  check("attackingParticipant null when tape slimmed", hd.attackingParticipant === null);
+  const none = goalImminent({ FixtureId: 1, Ts: 5, Action: "safe_possession" });
   check("non-danger frame → null", none === null);
 }
 

@@ -60,7 +60,7 @@ interface ReelMatch {
   hitRate: number | null;
 }
 
-const KIND_COLOR: Record<string, string> = { overreaction: "loss", steam: "amber", pregoal_warning: "text-muted" };
+const KIND_COLOR: Record<string, string> = { overreaction: "loss", steam: "amber", goal_imminent: "text-muted" };
 function actionColor(a: string): string {
   return a === "fade" ? "loss" : a === "follow" ? "amber" : "text-muted";
 }

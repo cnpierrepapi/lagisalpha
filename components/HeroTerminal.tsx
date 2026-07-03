@@ -10,7 +10,7 @@ interface CREvent {
   ts: number;
   minute: number | null;
   market: string;
-  kind: "steam" | "overreaction" | "pregoal_warning";
+  kind: "steam" | "overreaction" | "goal_imminent";
   gapBps: number | null;
   pickoffRisk: string;
   signalAction: string;
@@ -20,7 +20,7 @@ interface CREvent {
 const KIND_COLOR: Record<string, string> = {
   overreaction: "loss",
   steam: "amber",
-  pregoal_warning: "text-muted",
+  goal_imminent: "text-muted",
 };
 function actionColor(a: string): string {
   if (a === "fade") return "loss";

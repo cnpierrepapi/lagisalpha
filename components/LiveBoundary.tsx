@@ -75,7 +75,7 @@ interface UiRule {
   pct: string; // marginPct / limitPct
 }
 
-const KIND_COLOR: Record<string, string> = { overreaction: "loss", steam: "amber", pregoal_warning: "text-muted" };
+const KIND_COLOR: Record<string, string> = { overreaction: "loss", steam: "amber", goal_imminent: "text-muted" };
 function actionColor(a: string): string {
   return a === "fade" ? "loss" : a === "follow" ? "amber" : "text-muted";
 }
@@ -717,7 +717,7 @@ function RuleEditor({
           <option value="">any kind</option>
           <option value="overreaction">overreaction</option>
           <option value="steam">steam</option>
-          <option value="pregoal_warning">pregoal_warning</option>
+          <option value="goal_imminent">goal_imminent</option>
         </select>
         <span className="text-faint">conf≥</span>
         <input
