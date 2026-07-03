@@ -33,10 +33,12 @@ interface ProofCase {
   objective: Frame;
   drifted: number | null;
   movedBack: number | null;
-  reversionRatio: number | null; // overreaction: fraction of drift recovered (sustained)
-  reverted: boolean | null; // overreaction: did the overshoot genuinely revert?
+  reversionRatio: number | null; // fade: fraction of drift recovered (sustained)
+  reverted: boolean | null; // fade: did the overshoot genuinely revert?
   clvReturn: number;
   clvPositive: boolean;
+  fcv: number | null; // follow/hold: Fair Close Value (demargined prob at +180s)
+  fcvDeltaPp: number | null; // follow/hold: signed pp move entry → FCV
   success: boolean;
   proofHash: string;
   note: string;
@@ -44,7 +46,9 @@ interface ProofCase {
 interface Totals {
   cases: number;
   reversions: number;
-  overreactions: number;
+  fades: number;
+  held: number;
+  holds: number;
   wins: number;
   losses: number;
   shown: number;
@@ -81,14 +85,17 @@ function narrative(c: ProofCase): string {
   const entry = `${c.entry.pct}%`;
   const obj = `${c.objective.pct}%`;
   const rr = c.reversionRatio != null ? Math.round(c.reversionRatio * 100) : null;
-  if (c.kind === "overreaction") {
+  if (c.action === "fade") {
     if (c.reverted)
-      return `A surprising goal spiked the line ${base}→${entry}. We flagged overreaction → ${c.action}. It reverted ${rr}% of the way back (to ${obj}) and held — the overshoot a chasing book gets picked off on.`;
-    return `A goal moved the line ${base}→${entry} and it STUCK (${obj}, only ${rr}% back). We flagged overreaction, but it didn't revert — this was an efficient reprice, not a mispricing. Shown as a disclosed miss: genuine reversions are the minority, the reprice-that-holds is the common case.`;
+      return `A surprising goal spiked the line ${base}→${entry}. We flagged overreaction → fade. The line reverted ${rr}% of the way back (to ${obj}) and held — the overshoot a chasing book gets picked off on.`;
+    return `A goal moved the line ${base}→${entry} and it STUCK (${obj}, only ${rr}% back). We flagged fade, but it didn't revert — an efficient reprice, not a mispricing. A disclosed miss.`;
   }
+  // follow / hold → graded on Fair Close Value staying inside the ±10pp band
+  const verb = c.action === "follow" ? "Following" : "Holding";
+  const delta = c.fcvDeltaPp != null ? ` (${c.fcvDeltaPp >= 0 ? "+" : ""}${c.fcvDeltaPp}pp)` : "";
   if (c.success)
-    return `A clean move took the line ${base}→${entry}; it held/continued to ${obj}. Following was right — a book still quoting ${base} gets left behind.`;
-  return `Move to ${entry} from ${base} that drifted back to ${obj} — following would have been early here.`;
+    return `A clean move took the line ${base}→${entry}; the Fair Close Value settled at ${obj}${delta}, inside the ±10pp band. ${verb} was right — the line held where it moved, so a book still quoting ${base} gets left behind. (CLV isn't the test — you enter at fair value.)`;
+  return `The line moved ${base}→${entry}, but the Fair Close Value reverted to ${obj}${delta} — outside the ±10pp band, back toward ${base}. ${verb} was wrong here (a disclosed miss).`;
 }
 
 export default function Desk() {
@@ -114,8 +121,8 @@ export default function Desk() {
 
   const match = matches.find((m) => m.fixtureId === selected) ?? null;
   const t = match?.totals ?? null;
+  const overallHeld = matches.reduce((s, m) => s + (m.totals?.held ?? 0), 0);
   const overallRev = matches.reduce((s, m) => s + (m.totals?.reversions ?? 0), 0);
-  const overallOver = matches.reduce((s, m) => s + (m.totals?.overreactions ?? 0), 0);
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-6">
@@ -124,17 +131,18 @@ export default function Desk() {
           <p className="label">the archive — proven against real TxLINE frames</p>
           <h1 className="serif mt-1 text-2xl">Don&apos;t trust the call. Check the frames.</h1>
           <p className="mt-1 text-sm text-muted">
-            Three real demargined quotes per case — pre-event, the drift, and where the line went — so you see the
-            overshoot revert (or stick) yourself. A genuine reversion means the line came back and <em>held</em>, not
-            a one-tick wiggle. Watching a match live?{" "}
+            Three real demargined quotes per case — pre-event, the drift, and the Fair Close Value — so you check the
+            verdict yourself. A <em>follow/hold</em> is right if the line <em>held</em> in the region it moved to (FCV
+            within ±10pp — CLV sign isn&apos;t the test); a <em>fade</em> is right if the overshoot genuinely reverted.
+            Watching a match live?{" "}
             <Link href="/live" className="amber hover:text-fg">
               Open the live sandbox →
             </Link>
           </p>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Stat label="genuine reversions" value={`${overallRev}`} tone="gain" />
-          <Stat label="of flagged" value={`${overallOver}`} />
+          <Stat label="held (follow/hold)" value={`${overallHeld}`} tone="gain" />
+          <Stat label="reversions (fade)" value={`${overallRev}`} tone="gain" />
           <Stat label="matches" value={`${matches.length}`} />
         </div>
       </header>
@@ -158,10 +166,11 @@ export default function Desk() {
       {/* DISCLOSURE — the honest rate, transparent selection */}
       {t && (
         <p className="mb-5 rounded border border-ink-600 bg-ink-800/50 px-4 py-2 text-xs text-faint">
-          Of <span className="text-fg">{t.overreactions}</span> overreactions flagged this match,{" "}
-          <span className="gain">{t.reversions} genuinely reverted</span> (held ≥30% of the drift back) — the rest were
-          efficient reprices that stuck. Showing all reversions + a capped few misses ({t.shown} of {t.cases} cases,{" "}
-          {t.discarded} trimmed). Genuine reversions are the minority; that&apos;s the honest signal. Full set:{" "}
+          This match: <span className="gain">{t.held}</span>/<span className="text-fg">{t.holds}</span> follow/hold calls{" "}
+          <span className="gain">held</span> (FCV inside the ±10pp band), and{" "}
+          <span className="gain">{t.reversions}</span>/<span className="text-fg">{t.fades}</span> fade calls genuinely
+          reverted. Showing a representative set + a capped few disclosed misses ({t.shown} of {t.cases} cases,{" "}
+          {t.discarded} trimmed). Full set:{" "}
           <code className="text-muted">/api/v1/archive?raw=1</code>.
         </p>
       )}
@@ -181,11 +190,12 @@ function ProofCard({ c }: { c: ProofCase }) {
   const driftGap = c.baseline ? gapSec(c.baseline.ts, c.entry.ts) : null;
   const settle = gapSec(c.entry.ts, c.objective.ts);
   const rr = c.reversionRatio != null ? Math.round(c.reversionRatio * 100) : null;
-  const isOver = c.kind === "overreaction";
-  // badge states the model's claim: did the overshoot REVERT? (not just any CLV wiggle)
-  const badge = isOver ? (c.reverted ? "✓ reverted" : "✗ reprice held") : c.success ? "✓ held" : "✗ faded";
-  const revNote = isOver ? (c.reverted ? `revert ${rr}%` : `stuck ${rr}%`) : c.success ? "held" : "faded";
-  const objLabel = isOver ? (c.reverted ? `reversion · +${settle}` : `held · +${settle}`) : `close · +${settle}`;
+  const isFade = c.action === "fade";
+  // verdict by action: fade → did the overshoot REVERT? ; follow/hold → did the Fair Close
+  // Value HOLD inside the ±10pp band? (CLV sign is not the test for follow/hold.)
+  const badge = isFade ? (c.reverted ? "✓ reverted" : "✗ reprice held") : c.success ? "✓ held" : "✗ reverted out";
+  const revNote = isFade ? (c.reverted ? `revert ${rr}%` : `stuck ${rr}%`) : c.success ? "held" : "broke band";
+  const objLabel = isFade ? (c.reverted ? `reversion · +${settle}` : `held · +${settle}`) : `FCV · +${settle}`;
   return (
     <div className={`card p-4 ${c.success ? "" : "opacity-90"}`}>
       <div className="flex items-start justify-between gap-2">
@@ -217,13 +227,24 @@ function ProofCard({ c }: { c: ProofCase }) {
       <div className="mt-2 flex items-center justify-between text-[0.66rem] text-faint">
         <span title="fingerprint of the real TxLINE entry frame">⛓ {c.proofHash}</span>
         <span className="tabular-nums">
-          {isOver && rr != null && (
+          {isFade ? (
             <>
-              <span className={c.reverted ? "gain" : "loss"}>{rr}% reverted</span>
-              <span className="text-faint"> · </span>
+              {rr != null && (
+                <>
+                  <span className={c.reverted ? "gain" : "loss"}>{rr}% reverted</span>
+                  <span className="text-faint"> · </span>
+                </>
+              )}
+              CLV <span className={c.clvReturn >= 0 ? "gain" : "loss"}>{c.clvReturn >= 0 ? "+" : ""}{(c.clvReturn * 100).toFixed(1)}%</span>
+            </>
+          ) : (
+            <>
+              FCV <span className={c.success ? "gain" : "loss"}>{c.fcv != null ? `${(c.fcv * 100).toFixed(1)}%` : "—"}</span>
+              {c.fcvDeltaPp != null && (
+                <span className="text-faint"> ({c.fcvDeltaPp >= 0 ? "+" : ""}{c.fcvDeltaPp}pp vs entry)</span>
+              )}
             </>
           )}
-          CLV <span className={c.clvReturn >= 0 ? "gain" : "loss"}>{c.clvReturn >= 0 ? "+" : ""}{(c.clvReturn * 100).toFixed(1)}%</span>
           {driftGap && <span className="text-faint"> · goal→drift {driftGap}</span>}
         </span>
       </div>

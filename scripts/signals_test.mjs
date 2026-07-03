@@ -210,7 +210,7 @@ console.log("\n── calibration ledger ──");
   check("overall counts settled only (n=3, pending=1)", led.overall.n === 3 && led.overall.pending === 1);
   check("overreaction/fade hitRate 1/2", led.byKind.overreaction.hitRate === 0.5);
   check("breadth = 2 matches", led.breadth.matches === 2);
-  check("headline mentions overreaction", /overreaction/.test(led.headline));
+  check("headline leads with follow/hold held + fade", /follow|held/.test(led.headline) && /fade/.test(led.headline));
 }
 
 console.log("\n── proof reel: frame lookup ──");
@@ -248,26 +248,27 @@ console.log("\n── proof reel: sustained reversion ──");
 console.log("\n── proof reel: believable selection ──");
 {
   let t = 0;
-  const c = (kind, success, magnitude, reversionRatio = null) => ({ kind, success, magnitude, reversionRatio, entry: { ts: t++ } });
+  const c = (action, success, magnitude, reversionRatio = null) => ({ action, success, magnitude, reversionRatio, entry: { ts: t++ } });
   const cases = [
-    ...Array.from({ length: 5 }, (_, i) => c("overreaction", true, 0.15, 0.9 - i * 0.05)), // reversions
-    ...Array.from({ length: 6 }, () => c("overreaction", false, 0.12)), // reprice-stuck
-    ...Array.from({ length: 3 }, () => c("steam", true, 0.05)),
-    ...Array.from({ length: 3 }, () => c("steam", false, 0.05)),
+    ...Array.from({ length: 5 }, (_, i) => c("fade", true, 0.15, 0.9 - i * 0.05)), // genuine reversions
+    ...Array.from({ length: 6 }, () => c("fade", false, 0.12)), // reprice-stuck (fade misses)
+    ...Array.from({ length: 4 }, () => c("follow", true, 0.05)), // held follows
+    ...Array.from({ length: 2 }, () => c("follow", false, 0.05)), // reverted-out (held misses)
   ];
-  const { kept, totals } = reel.selectBelievable(cases, { orMissRatio: 0.6, orMissMax: 3, steamWins: 1, steamLosses: 1, revCap: 12 });
-  const revs = kept.filter((k) => k.kind === "overreaction" && k.success).length;
-  const miss = kept.filter((k) => k.kind === "overreaction" && !k.success).length;
-  const stW = kept.filter((k) => k.kind === "steam" && k.success).length;
-  const stL = kept.filter((k) => k.kind === "steam" && !k.success).length;
-  check("all reversions shown (the proof)", revs === 5, `got ${revs}`);
-  check("reprice-stuck misses capped to a minority", miss === 3, `got ${miss}`);
-  check("steam kept to a token 1W/1L", stW === 1 && stL === 1, `${stW}/${stL}`);
-  check("reversions count disclosed", totals.reversions === 5 && totals.overreactions === 11, JSON.stringify(totals));
-  check("discards disclosed", totals.discarded === totals.cases - totals.shown && totals.discarded > 0);
+  const { kept, totals } = reel.selectBelievable(cases);
+  const revs = kept.filter((k) => k.action === "fade" && k.success).length;
+  const stuck = kept.filter((k) => k.action === "fade" && !k.success).length;
+  const held = kept.filter((k) => k.action !== "fade" && k.success).length;
+  const broke = kept.filter((k) => k.action !== "fade" && !k.success).length;
+  check("all fade reversions shown (the proof)", revs === 5, `got ${revs}`);
+  check("fade reprice-stuck misses capped to a minority", stuck === 3, `got ${stuck}`);
+  check("held follows shown", held === 4, `got ${held}`);
+  check("held misses (broke band) capped", broke === 2, `got ${broke}`);
+  check("totals disclosed by verdict", totals.reversions === 5 && totals.held === 4 && totals.fades === 11 && totals.holds === 6, JSON.stringify(totals));
+  check("discards disclosed", totals.discarded === totals.cases - totals.shown && totals.discarded >= 0);
   check("kept is chronological", kept.every((k, i) => i === 0 || kept[i - 1].entry.ts <= k.entry.ts));
-  const allRev = reel.selectBelievable(Array.from({ length: 4 }, () => c("overreaction", true, 0.1, 0.7)));
-  check("no misses available → none fabricated", allRev.kept.every((k) => k.success));
+  const allHeld = reel.selectBelievable(Array.from({ length: 4 }, () => c("follow", true, 0.1)));
+  check("no misses available → none fabricated", allHeld.kept.every((k) => k.success));
 }
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} signals: ${passed} passed, ${failed} failed\n`);

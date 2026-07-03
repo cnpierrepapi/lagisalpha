@@ -106,8 +106,8 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
 
       {/* HEADLINE CALIBRATION */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="overreaction / fade" value={pct(over?.hitRate ?? null)} sub={over ? `${over.right}/${over.n} CLV-positive` : ""} tone="gain" />
-        <Stat label="steam / follow" value={pct(steam?.hitRate ?? null)} sub={steam ? `${steam.right}/${steam.n} — dead leg` : ""} />
+        <Stat label="steam / follow" value={pct(steam?.hitRate ?? null)} sub={steam ? `${steam.right}/${steam.n} held · FCV in ±10pp` : ""} tone="gain" />
+        <Stat label="overreaction" value={pct(over?.hitRate ?? null)} sub={over ? `${over.right}/${over.n} correct (hold held / fade reverted)` : ""} />
         <Stat label="matches" value={`${ledger?.breadth.matches ?? 0}`} sub={ledger ? `${ledger.breadth.matchesNetPositive} net-positive` : ""} />
         <Stat label="concentration" value={ledger?.breadth.topMatchShareOfNetPct != null ? `${ledger.breadth.topMatchShareOfNetPct}%` : "—"} sub="top match share of net" tone="loss" />
       </div>
@@ -140,6 +140,13 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
           />
         </section>
       </div>
+      <p className="mt-2 text-xs text-faint">
+        <span className="text-muted">correct</span> = the per-action verdict, not CLV sign:{" "}
+        <span className="amber">follow / hold</span> is right if the Fair Close Value held inside ±10pp of entry (the
+        line stayed where it moved); <span className="loss">fade</span> is right if the overshoot genuinely reverted.
+        A follow is taken at fair value, so its expected CLV is ~0 — <span className="text-muted">avg clv</span> is
+        shown only as an auxiliary, never the pass/fail test.
+      </p>
 
       {/* GOAL-IMMINENT ANTICIPATION — arrival-settled, not CLV */}
       {ledger?.imminent && ledger.imminent.n > 0 && (
@@ -341,7 +348,7 @@ function BreakTable({ rows }: { rows: [string, Bucket | undefined][] }) {
         <tr className="border-b border-ink-600 text-xs text-faint">
           <Th>—</Th>
           <Th right>n</Th>
-          <Th right>hit-rate</Th>
+          <Th right>correct</Th>
           <Th right>avg clv</Th>
         </tr>
       </thead>

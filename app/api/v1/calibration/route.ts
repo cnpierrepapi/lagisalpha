@@ -47,9 +47,9 @@ export async function GET(req: Request) {
     generatedAt: now,
     source: "txline-capture-replay",
     method:
-      "steam/overreaction settled on CLV at the reversion horizon (Choi–Hui: overreactions revert within minutes); goal_imminent settled on GOAL-ARRIVAL within 120s (ledger.imminent — it has no closing line, its value is the ~1.92× arrival lift). Deterministic snapshot from real captured frames; the live worker adds the on-chain outcome leg via validateStat.",
+      "Verdict by ACTION at the +180s close: follow/hold are correct if the Fair Close Value (FCV) held within ±10pp of entry (the line stayed in its drift region — CLV sign is NOT the test, since a follow is taken at fair value); fade is correct if the overshoot genuinely reverted. goal_imminent settles on GOAL-ARRIVAL within 120s (ledger.imminent — the ~1.92× lift). Deterministic snapshot from real captured frames; the live worker adds the on-chain outcome leg via validateStat.",
     caveat:
-      "Deterministic 2-match snapshot — a PILOT. The proven edge (overreaction/fade ~84% CLV-positive across 6 matches) comes from the live worker's settled log; target ~50–80 matches for a segmented, out-of-sample track record.",
+      "Deterministic multi-match snapshot — a PILOT. Numbers reproduce from the bundled captures; target ~50–80 matches for a segmented, out-of-sample track record. avg CLV is auxiliary, not the follow/hold pass-fail test.",
     ledger,
     ...(detail ? { settled } : {}),
   });
