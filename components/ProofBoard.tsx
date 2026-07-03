@@ -155,14 +155,14 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
       {/* BY BOOK LIQUIDITY (edge #2) — does the gate actually separate the calls? */}
       {ledger?.byLiquidity && (ledger.byLiquidity.thick?.n > 0 || ledger.byLiquidity.thin?.n > 0) && (
         <section className="panel mt-5 p-5">
-          <p className="label mb-1">by book liquidity — the pickoff gate (edge #2)</p>
+          <p className="label mb-1">steam follows by book liquidity — the pickoff gate (edge #2)</p>
           <p className="mb-3 max-w-3xl text-xs text-faint">
-            The same-sized line move means opposite things depending on how actively the line is quoted. On our
-            captures, <span className="amber">thick</span> (busy) lines <span className="amber">CARRY</span> — the move is
-            real info that keeps going (regress β&gt;0), so <span className="amber">follow</span> and a lagging book is
-            exposed. <span className="loss">Thin</span> (quiet) lines <span className="loss">REVERT</span> — the move is
-            usually noise that snaps back (β&lt;0), and a stale thin line is exactly the price a sharp picks off. We tag
-            every signal with the regime it fired in; here&apos;s how each held up.
+            Carry-vs-revert is a <em>continuation</em> question, so this splits <span className="amber">steam follows</span>{" "}
+            only (goal-driven overreactions are decisive and out of the domain). The same-sized move means opposite things
+            by how actively the line is quoted: <span className="amber">thick</span> (busy) lines <span className="amber">CARRY</span>{" "}
+            — real info that keeps going (β&gt;0), so follow and a lagging book is exposed; <span className="loss">thin</span>{" "}
+            (quiet) lines <span className="loss">REVERT</span> — usually noise that snaps back (β&lt;0), and a stale thin
+            line is what a sharp picks off. Here&apos;s how each regime held up.
           </p>
           <BreakTable
             rows={[
@@ -273,10 +273,15 @@ export default function ProofBoard({ proof }: { proof: Proof }) {
                     <span className="text-faint">→ {r.action}</span>
                     {r.liquidity && (
                       <span
-                        className={r.driftRegime === "carry" ? "amber" : "loss"}
-                        title={`fired in a ${r.liquidity} book → ${r.driftRegime} (edge #2)`}
+                        className={r.driftRegime === "carry" ? "amber" : r.driftRegime === "revert" ? "loss" : "text-faint"}
+                        title={
+                          r.driftRegime
+                            ? `fired in a ${r.liquidity} book → ${r.driftRegime} (edge #2 base-rate prior; steam only)`
+                            : `${r.liquidity} book — context only (carry/revert prior applies to steam, not goal reprices)`
+                        }
                       >
                         {" "}· {r.liquidity}
+                        {r.driftRegime ? ` ${r.driftRegime}` : ""}
                       </span>
                     )}
                     {r.lateMatch && <span className="text-faint"> · late</span>}

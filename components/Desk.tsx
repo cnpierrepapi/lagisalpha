@@ -96,9 +96,12 @@ function narrative(c: ProofCase): string {
   }
   // follow / hold → graded on Fair Close Value staying inside the ±10pp band
   const verb = c.action === "follow" ? "Following" : "Holding";
+  // an overreaction that HELD was a decisive goal reprice, not a "clean" sharp move — name it
+  // accurately so the wording doesn't fight the "overreaction" kind label.
+  const mover = c.kind === "overreaction" ? "The goal reprice" : "A clean move";
   const delta = c.fcvDeltaPp != null ? ` (${c.fcvDeltaPp >= 0 ? "+" : ""}${c.fcvDeltaPp}pp)` : "";
   if (c.success)
-    return `A clean move took the line ${base}→${entry}; the Fair Close Value settled at ${obj}${delta}, inside the ±10pp band. ${verb} was right: the line held where it moved, so a book still quoting ${base} gets left behind. (CLV isn't the test; you enter at fair value.)`;
+    return `${mover} took the line ${base}→${entry}; the Fair Close Value settled at ${obj}${delta}, inside the ±10pp band. ${verb} was right: the line held where it moved, so a book still quoting ${base} gets left behind. (CLV isn't the test; you enter at fair value.)`;
   return `The line moved ${base}→${entry}, but the Fair Close Value reverted to ${obj}${delta}, outside the ±10pp band, back toward ${base}. ${verb} was wrong here (a disclosed miss).`;
 }
 
@@ -138,7 +141,7 @@ export default function Desk() {
             Three real demargined quotes per case: pre-event, the drift, and the Fair Close Value; so you check the
             verdict yourself. A follow/hold is right if the line held in the region it moved to (FCV within ±10pp; CLV
             sign isn&apos;t the test); a fade is right if the overshoot genuinely reverted. Want to run it on your own book?{" "}
-            <Link href="/live" className="amber hover:text-fg">
+            <Link href="/sandbox" className="amber hover:text-fg">
               Open the sandbox →
             </Link>
           </p>
@@ -214,25 +217,38 @@ function ProofCard({ c }: { c: ProofCase }) {
           </p>
           {(c.liquidity || c.lateMatch) && (
             <p className="mt-0.5 flex flex-wrap gap-1 text-[0.66rem]">
-              {c.liquidity && (
+              {c.liquidity && c.driftRegime && (
+                // STEAM only: carry/revert is a continuation call (edge #2). It's a BASE-RATE
+                // prior on how moves in this book behave, not a prediction of this one case.
                 <span
                   className={`rounded px-1.5 py-0.5 ${c.driftRegime === "carry" ? "bg-amber/10 amber" : "bg-loss/10 loss"}`}
                   title={
-                    c.driftRegime === "carry"
-                      ? "thick/liquid book: a real move that tends to CARRY (edge #2 β>0) — follow, and a lagging book is exposed"
-                      : "thin/illiquid book: the move is likely NOISE that reverts (edge #2 β<0) — and a stale thin line is the pickoff surface"
+                    (c.driftRegime === "carry"
+                      ? "thick/liquid book: moves here tend to CARRY (edge #2 β>0) — follow, and a lagging book is exposed."
+                      : "thin/illiquid book: moves here tend to be NOISE that reverts (edge #2 β<0); a stale thin line is the pickoff surface.") +
+                    " Base-rate prior for the regime, not a call on this specific line."
                   }
                 >
                   {c.liquidity} book → {c.driftRegime}
                 </span>
               )}
+              {c.liquidity && !c.driftRegime && (
+                // non-steam (goal-driven overreaction): show liquidity as neutral context only —
+                // the carry/revert prior doesn't transfer to a decisive goal reprice.
+                <span
+                  className="rounded bg-ink-700 px-1.5 py-0.5 text-faint"
+                  title="illiquid/liquid line — context only. The carry/revert prior applies to clean (steam) moves, not goal-driven reprices, which tend to stick."
+                >
+                  {c.liquidity} book
+                </span>
+              )}
               {c.lateMatch && (
-                <span className="rounded bg-ink-700 px-1.5 py-0.5 text-muted" title="closing ~20min: drift amplifies (edge #6)">
+                <span className="rounded bg-ink-700 px-1.5 py-0.5 text-faint" title="closing ~20min (edge #6)">
                   late
                 </span>
               )}
               {c.pickoffRisk && (
-                <span className="rounded bg-ink-700 px-1.5 py-0.5 text-faint" title="pickoff risk (escalated by a thin book / late match)">
+                <span className="rounded bg-ink-700 px-1.5 py-0.5 text-faint" title="pickoff exposure at fire time">
                   pickoff {c.pickoffRisk}
                 </span>
               )}

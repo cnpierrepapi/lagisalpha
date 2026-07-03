@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Sandbox (/live) replays a recorded match through the classifier against YOUR uploaded
+// Sandbox (/sandbox) replays a recorded match through the classifier against YOUR uploaded
 // book + markdown policy, the interactive demo. Archive (/desk) browses the recorded proof
 // cards per match. Proof (/proof) is the on-chain calibration ledger. Build/leaderboard
 // (the old forecaster pages) are retired.
 const LINKS = [
-  { href: "/live", label: "Sandbox" },
+  { href: "/sandbox", label: "Sandbox" },
   { href: "/desk", label: "Archive" },
   { href: "/papers", label: "Papers" },
   { href: "/proof", label: "Proof" },

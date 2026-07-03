@@ -145,6 +145,12 @@ console.log("\n── liquidity gate (edge #2) + late-match (edge #6) conditioni
   // overreaction stays 'high' regardless of liquidity (already default-safe).
   const orThin = classifyEdge(edge({ kind: "overreaction", edgeMeasure: 0.16, quoteDensity: 2 }));
   check("overreaction pickoffRisk stays high w/ thin book", orThin.pickoffRisk === "high");
+  // carry/revert is steam-only: overreaction keeps liquidity as a fact but NO driftRegime verb
+  // (a goal reprice is decisive → the thin=revert prior doesn't transfer; avoids "revert" vs "held").
+  check("overreaction: liquidity still set (thin)", orThin.liquidity === "thin");
+  check("overreaction: driftRegime null (carry/revert is steam-only)", orThin.driftRegime === null);
+  check("overreaction: note carries NO edge-#2 revert annotation", !/revert|carries|edge #2/.test(orThin.note));
+  check("steam thin: driftRegime present (revert)", thin.driftRegime === "revert");
   check("constants: LIQ median 8, late 70'", _internal.LIQ_QUOTES_60S === 8 && _internal.LATE_MATCH_MIN === 70);
 }
 

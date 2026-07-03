@@ -631,7 +631,11 @@ function Boundary({
                   <td className="px-3 py-2">
                     <span className={KIND_COLOR[s.kind] ?? "text-muted"}>{s.kind}</span>{" "}
                     <span className="text-faint">→</span> <span className={actionColor(s.action)}>{s.action}</span>
-                    {s.liquidity && <span className={s.driftRegime === "carry" ? " amber" : " loss"}> · {s.liquidity}</span>}
+                    {s.liquidity && (
+                      <span className={s.driftRegime === "carry" ? " amber" : s.driftRegime === "revert" ? " loss" : " text-faint"} title={s.driftRegime ? `${s.liquidity} book → ${s.driftRegime} (edge #2 prior, steam)` : `${s.liquidity} book — context`}>
+                        {" "}· {s.liquidity}{s.driftRegime ? ` ${s.driftRegime}` : ""}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted">{s.pRef?.toFixed(3)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">

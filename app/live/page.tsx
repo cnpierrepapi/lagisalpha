@@ -1,15 +1,7 @@
-import Nav from "@/components/Nav";
-import LiveBoundary from "@/components/LiveBoundary";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Sandbox: Agenthesis",
-};
-
-export default function LivePage() {
-  return (
-    <main className="min-h-screen">
-      <Nav />
-      <LiveBoundary />
-    </main>
-  );
+// /live is retired → the sandbox now lives at /sandbox (archive-only, no live feed). Keep
+// this permanent redirect so any old link or bookmark still lands in the right place.
+export default function LiveRedirect() {
+  redirect("/sandbox");
 }
