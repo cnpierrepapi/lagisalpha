@@ -1,4 +1,4 @@
-// Agenthesis SDK — strategy & agent construction (pure JS).
+// Linethesis SDK — strategy & agent construction (pure JS).
 //
 // A "strategy" is a lever set gated to certain edge kinds; an "agent" runs one
 // or more strategies over a shared bankroll. These are the exact shapes the pure

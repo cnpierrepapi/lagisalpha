@@ -43,7 +43,7 @@ export default function Litepaper() {
       <header className="mb-10 border-b border-ink-600 pb-8">
         <p className="label">litepaper · v1.0</p>
         <h1 className="serif mt-2 text-4xl leading-tight text-paper">
-          Agenthesis: a read-only line-integrity oracle
+          Linethesis: a read-only line-integrity oracle
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted">
           An independent agent that benchmarks a betting operator&apos;s prices against TxLINE&apos;s
@@ -53,7 +53,7 @@ export default function Litepaper() {
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <a
-            href="/agenthesis-litepaper.pdf"
+            href="/linethesis-litepaper.pdf"
             download
             className="rounded border border-amber-dim bg-amber/10 px-4 py-2 text-amber hover:bg-amber/20"
           >
@@ -85,7 +85,7 @@ export default function Litepaper() {
           In-play betting markets move fast, and the operators who post prices into them lose money at
           one specific moment: when their line is <em className="text-fg">stale</em>. The consensus
           re-prices on new information: a goal, a red card, a surge of danger; and a book that hasn&apos;t
-          caught up is lifted at the old number before it can adjust. Agenthesis is a read-only agent
+          caught up is lifted at the old number before it can adjust. Linethesis is a read-only agent
           that watches that gap. It benchmarks a watched price against TxLINE&apos;s de-margined (no-vig)
           consensus, classifies every reference-line move as a clean move to{" "}
           <span className="amber">follow</span> or an overreaction to <span className="amber">fade</span>,
@@ -114,7 +114,7 @@ export default function Litepaper() {
 
       <Section id="s03" num="03" title="The idea: an independent, read-only benchmark">
         <p>
-          Agenthesis answers that question and stops. It emits a signal, a recommendation with a
+          Linethesis answers that question and stops. It emits a signal, a recommendation with a
           confidence and a pickoff-risk, and the operator&apos;s own rule-set decides whether to widen a
           margin, cut a limit, or suspend a market. We compute the decision; the book takes the action.
           That boundary is the entire product: it is why an unknown vendor&apos;s agent is something a real
@@ -131,7 +131,7 @@ export default function Litepaper() {
 
       <Section id="s04" num="04" title="The data layer: TxLINE">
         <p>
-          Everything Agenthesis does rests on one thing only TxLINE provides: a{" "}
+          Everything Linethesis does rests on one thing only TxLINE provides: a{" "}
           <span className="text-fg">de-vig (de-margined) odds stream</span>. The bookmaker margin is
           stripped out, so each side&apos;s price is already a clean implied probability, for a side priced{" "}
           <code className="text-info">price</code>, the fair probability is{" "}
@@ -149,7 +149,7 @@ export default function Litepaper() {
           high-danger possession, goal-imminent flags, that reads the attacking pressure seconds before
           the line jumps. Our <code className="text-info">goal_imminent</code> signal is built entirely
           on that tape, and it is where the next generation of signals comes from: the more of the
-          possession stream we read, the more we can flag before a price ever moves. So Agenthesis
+          possession stream we read, the more we can flag before a price ever moves. So Linethesis
           consumes <span className="text-fg">two TxLINE streams, and only TxLINE streams</span>. The
           feed is anchored on Solana, and access is minted by a real on-chain subscribe transaction, so
           the reference&apos;s provenance is publicly verifiable.
@@ -158,7 +158,7 @@ export default function Litepaper() {
           The natural next step is coverage. Today the signals are scoped to the goals markets that
           stream demargined; the more of the de-vig book TxLINE streams{" "}
           <span className="text-fg">beyond goals</span>, cards, corners, match-result, shots, the more of
-          an operator&apos;s book Agenthesis can watch. Broader demargined coverage is a direct multiplier
+          an operator&apos;s book Linethesis can watch. Broader demargined coverage is a direct multiplier
           on how many of an operator&apos;s lines we can protect.
         </p>
       </Section>
@@ -234,7 +234,7 @@ export default function Litepaper() {
 
       <Section id="s07" num="07" title="The read-only boundary">
         <p>
-          Agenthesis places no bet, moves no price, and holds no funds. The action is always the
+          Linethesis places no bet, moves no price, and holds no funds. The action is always the
           operator&apos;s. The{" "}
           <Link href="/desk" className="text-amber hover:text-fg">
             Control Room
@@ -254,14 +254,14 @@ export default function Litepaper() {
       <Section id="s08" num="08" title="Why it's adoptable: the independent referee">
         <p>
           Incumbents already sell repricing: managed trading services and dynamic-pricing engines that
-          adjust an operator&apos;s odds in real time. Agenthesis deliberately does not compete there. That
+          adjust an operator&apos;s odds in real time. Linethesis deliberately does not compete there. That
           lane is both the most contested and the one an operator is least willing to hand a startup,
           because it means giving up control of the book.
         </p>
         <p>
           The incumbents&apos; structural weakness is that they are player and referee at once: they price
           your book, they may share your P&amp;L, and they sell you the integrity feed, an unauditable
-          black box. Agenthesis is the neutral referee they cannot be. No managed trading, no shared
+          black box. Linethesis is the neutral referee they cannot be. No managed trading, no shared
           P&amp;L, no conflict; read-only; and, uniquely, <span className="text-fg">provable</span>,
           because the track record settles on-chain. Verify-before-trust is the antidote to the
           black-box problem, and it is the one thing a non-anchored feed cannot offer.
@@ -289,7 +289,7 @@ export default function Litepaper() {
 
       <Section id="s10" num="10" title="The Operator API and SDK">
         <p>
-          The product is the <span className="text-fg">API</span>. Agenthesis is delivered as{" "}
+          The product is the <span className="text-fg">API</span>. Linethesis is delivered as{" "}
           <code className="text-info">GET /api/v1/signals</code>, an authenticated, versioned HTTP feed
           of read-only signals, alongside <code className="text-info">/api/v1/calibration</code> (the
           provable track record) and <code className="text-info">/api/v1/control-room</code> (the
@@ -328,7 +328,7 @@ export default function Litepaper() {
           non-anchored competitor can reproduce.
         </p>
         <p>
-          And the partnership runs both ways. Agenthesis is also a <span className="text-fg">reason to be
+          And the partnership runs both ways. Linethesis is also a <span className="text-fg">reason to be
           on TxLINE</span>: any bookmaker or prediction market already taking the feed can bolt it on and
           instantly harden its line integrity, no new pricing model, no giving up the book, so it makes
           the de-vig feed worth more to the operators who buy it, an upgrade sitting on top of the data
@@ -341,7 +341,7 @@ export default function Litepaper() {
 
       <Section id="s12" num="12" title="Responsible use">
         <p>
-          Agenthesis is a read-only research and risk-analytics layer built on de-margined data. It
+          Linethesis is a read-only research and risk-analytics layer built on de-margined data. It
           places no wagers, holds no funds, and moves no prices; the operator&apos;s rule-set takes every
           action. Fair Close Value and reversion are measures of pricing skill, not a promise of profit,
           and calibration over a replay does not guarantee live results. Nothing here is financial
@@ -350,7 +350,7 @@ export default function Litepaper() {
       </Section>
 
       <footer className="mt-6 border-t border-ink-600 pt-6 text-xs text-faint">
-        Agenthesis · built on the TxLINE World Cup data layer ·{" "}
+        Linethesis · built on the TxLINE World Cup data layer ·{" "}
         <Link href="/desk" className="text-amber hover:text-fg">
           see the read-only boundary in the Control Room →
         </Link>

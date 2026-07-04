@@ -1,4 +1,4 @@
-# Agenthesis SDK
+# Linethesis SDK
 
 The product is the **signal API** (`GET /api/v1/signals`). This package is the
 **optional in-process wrapper** around the identical pure functions, for
@@ -6,7 +6,7 @@ latency-sensitive consumers that run the classifier next to their own book
 rather than over a network hop. You bring your own TxLINE feed and your own
 prices; the SDK turns the demargined price book into typed, **read-only
 line-integrity signals** — a clean move to follow, an overreaction to fade, a
-goal about to make your line stale. You act on the signal; Agenthesis never
+goal about to make your line stale. You act on the signal; Linethesis never
 places a bet, moves a price, or holds funds.
 
 It is the exact code the API serves (SDK↔API parity) — pure functions, no I/O,
@@ -28,36 +28,30 @@ the read-only benchmark in between.
 ## Quickstart
 
 ```js
-import { EdgeEngine, defineStrategy, createAgent, decide, markPosition } from "agenthesis/sdk";
+import { EdgeEngine, classifyEdge, goalImminent } from "linethesis/sdk";
 
-const engine = new EdgeEngine();                                  // detection thresholds
-const strat  = defineStrategy({ stakeMode: "kelly" }, { label: "my-desk" });
-const agent  = createAgent({ bankroll: 100_000, strategies: [strat] });
+const engine = new EdgeEngine();                       // detection thresholds
 
 engine.on("edge", (edge) => {
-  const minute = engine.matchMinute(edge.market.fixtureId);
-  const open   = agent.positions.filter((p) => p.status === "open").length;
-  const d = decide(agent, edge, { minute, openCount: open });
-  if (d.take) execution.place(d);                                 // YOU route the order
+  const minute      = engine.matchMinute(edge.market.fixtureId);
+  const watchedProb = myBook.impliedProbFor(edge.market); // YOUR price (optional)
+  const signal = classifyEdge(edge, { minute, watchedProb });
+  if (!signal) return;                                 // out-of-scope / no signal
+  // signal.action in follow | hold | fade ; signal.pickoffRisk ; signal.gapBps
+  myRuleSet.apply(signal);                             // YOUR book takes the action
 });
 
-engine.ingestOdds(txlineOddsRecord);                              // feed YOUR stream
+engine.on("matchEvent", (rec) => {
+  const imminent = goalImminent(rec, { minute: engine.matchMinute(rec.FixtureId) });
+  if (imminent) myRuleSet.apply(imminent);             // suspend/widen before the line goes stale
+});
+
+engine.ingestOdds(txlineOddsRecord);                   // feed YOUR TxLINE stream
 engine.ingestScores(txlineScoreRecord);
 ```
 
-A complete, runnable end-to-end backtest on real captured TxLINE frames:
-
-```bash
-node examples/desk_quickstart.mjs
-# Feeding Brazil v Japan — 13319 odds + 971 score frames…
-# 18149 edges -> 11 calls · hit-rate 91% · avg CLV +49.54%
-```
-
-> This is a single captured match with loose demo levers, so the sample is tiny
-> (11 settled calls) and CLV runs hot — the frames are a pre-match run-up where
-> the book drifts hard into kickoff. Production levers settle far tighter (~3%
-> avg CLV over the full exec ledger); the point of the example is the wiring, not
-> the return.
+A runnable end-to-end walk over real captured TxLINE frames lives in
+`examples/desk_quickstart.mjs`.
 
 ## API
 

@@ -1,15 +1,16 @@
-# Agenthesis
+# Linethesis
 
-**Strategies from research. Forecasters graded on closing-line value.**
+**A read-only line-integrity oracle. Built on TxLINE.**
 
-Agenthesis lets you spawn **autonomous forecasters whose strategy _is_ a
-research paper**. Each forecaster reads the live TxLINE World Cup data feed,
-detects **mispricings** drawn from the academic literature, and flags them
-**with no human in the loop**. Every call is graded on **closing-line value** —
-never on a wager; the only thing you buy is _more research_.
+Linethesis benchmarks a betting operator's prices against TxLINE's **de-vig
+(no-margin) consensus**, warns the instant a line is **stale enough to get
+picked off**, and settles every call **on-chain** so its track record is
+provable, not asserted. It classifies each reference-line move as a clean move
+to **follow**, an overreaction to **fade**, or a **goal-imminent** warning to
+suspend — and it never touches the book. You keep the book; the operator's
+rule-set takes the action.
 
-Built for the TxLINE / TxODDS World Cup hackathon (Solana) — Track C,
-Autonomous Agents.
+Built for the TxLINE / TxODDS World Cup hackathon (Solana) — Track C.
 
 ## How it works
 
@@ -46,7 +47,7 @@ the market, is the only thing that moves you up.
   `/api/verify-csv` against the provider's own data. On-chain proof of access is
   a real Solana subscribe transaction (surfaced on `/proof`).
 - **Two integration surfaces on one pure core.** A trading desk embeds the
-  **SDK** (`agenthesis/sdk` — `EdgeEngine` + decision core + CLV scoring, pure &
+  **SDK** (`linethesis/sdk` — `EdgeEngine` + decision core + CLV scoring, pure &
   deterministic, 26 unit tests); a market operator consumes the **Operator API**
   (`GET /api/v1/signals`, authed, + a documented webhook contract). See `/sdk`.
 - **Self-contained & reproducible.** Real captured matches are bundled, so the

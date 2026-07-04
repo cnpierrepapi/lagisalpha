@@ -1,4 +1,4 @@
-// Agenthesis SDK — quant-desk quickstart (runnable).
+// Linethesis SDK — quant-desk quickstart (runnable).
 //
 //   node examples/desk_quickstart.mjs
 //

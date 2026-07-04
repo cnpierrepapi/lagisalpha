@@ -43,7 +43,7 @@ export default function PaperLibrary() {
           <p className="label">the methodology</p>
           <h1 className="serif mt-1 text-3xl">The research behind the signals</h1>
           <p className="mt-2 max-w-xl text-sm text-muted">
-            Agenthesis doesn&apos;t guess. Every call is grounded in a published result AND re-checked
+            Linethesis doesn&apos;t guess. Every call is grounded in a published result AND re-checked
             against our own captures. The headline finding: <span className="text-fg">follow</span>, not
             fade, is the primary edge. A book that lags a real move gets picked off far more often than a
             line overshoots and reverts.

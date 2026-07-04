@@ -484,7 +484,7 @@ export default function LiveBoundary() {
                     ↑ upload book
                     <input type="file" accept=".json,.yaml,.yml,application/json,text/yaml" className="hidden" onChange={(e) => e.target.files?.[0] && onBookFile(e.target.files[0])} />
                   </label>
-                  <button onClick={() => download("agenthesis-book-sample.json", SAMPLE_BOOK_JSON, "application/json")} className="text-xs text-faint hover:text-fg">
+                  <button onClick={() => download("linethesis-book-sample.json", SAMPLE_BOOK_JSON, "application/json")} className="text-xs text-faint hover:text-fg">
                     ↓ sample
                   </button>
                 </div>
@@ -504,7 +504,7 @@ export default function LiveBoundary() {
                   ↑ upload .md
                   <input type="file" accept=".md,.markdown,text/markdown,text/plain" className="hidden" onChange={(e) => e.target.files?.[0] && onPolicyFile(e.target.files[0])} />
                 </label>
-                <button onClick={() => download("agenthesis-policy.md", policyMd, "text/markdown")} className="text-faint hover:text-fg">
+                <button onClick={() => download("linethesis-policy.md", policyMd, "text/markdown")} className="text-faint hover:text-fg">
                   ↓
                 </button>
                 <button onClick={() => setPolicyMd(DEFAULT_POLICY_MD)} className="text-faint hover:text-fg">

@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import PaperLibrary from "@/components/PaperLibrary";
 
 export const metadata = {
-  title: "Research Library: Agenthesis",
+  title: "Research Library: Linethesis",
 };
 
 export default function PapersPage() {

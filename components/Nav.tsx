@@ -23,7 +23,7 @@ export default function Nav() {
     <nav className="sticky top-0 z-20 border-b border-ink-600 bg-ink-900/85 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
         <Link href="/" className="prompt text-sm font-semibold tracking-tight">
-          agenthesis
+          linethesis
         </Link>
 
         <div className="flex items-center gap-1 text-sm">

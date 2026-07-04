@@ -2,9 +2,9 @@ import Nav from "@/components/Nav";
 import SdkDoc from "@/components/SdkDoc";
 
 export const metadata = {
-  title: "SDK: Agenthesis",
+  title: "SDK: Linethesis",
   description:
-    "Embed the Agenthesis mispricing-detection engine and CLV decision core in your own stack. The exact pure, deterministic code the product runs.",
+    "Embed the Linethesis line-integrity engine next to your own book: the exact pure, deterministic detector, classifier, and grader the product runs.",
 };
 
 export default function SdkPage() {

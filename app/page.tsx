@@ -29,7 +29,7 @@ export default function Home() {
               We see it first.
             </h1>
             <p className="mt-5 max-w-md text-muted">
-              Agenthesis benchmarks your prices against TxLINE&apos;s vig-free consensus, warns you the
+              Linethesis benchmarks your prices against TxLINE&apos;s vig-free consensus, warns you the
               instant a line is stale enough to get picked off, and proves every call on-chain. You
               keep the book; we&apos;re the independent referee, not another trading desk.
             </p>
@@ -153,9 +153,9 @@ export default function Home() {
             <div className="card p-5">
               <h3 className="text-paper">An upgrade for anyone on TxLINE</h3>
               <p className="mt-2 text-sm text-muted">
-                Any bookmaker or prediction market already plugged into TxLINE can bolt on Agenthesis and
+                Any bookmaker or prediction market already plugged into TxLINE can bolt on Linethesis and
                 instantly harden its line integrity, no new pricing model, no giving up the book.
-                Agenthesis makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
+                Linethesis makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
                 a provable stale-line shield on top.
               </p>
             </div>
@@ -201,7 +201,7 @@ export default function Home() {
 
       <footer className="border-t border-ink-600">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-xs text-faint">
-          <span className="prompt">agenthesis</span>
+          <span className="prompt">linethesis</span>
           <span>Built on TxLINE · AGPL-3.0</span>
         </div>
       </footer>

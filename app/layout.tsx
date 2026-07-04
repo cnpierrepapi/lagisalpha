@@ -15,9 +15,9 @@ const serif = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Agenthesis: strategies from research, graded on CLV",
+  title: "Linethesis: a read-only line-integrity oracle · built on TxLINE",
   description:
-    "Spawn autonomous forecasters whose strategy is a research paper. They read the live TxLINE World Cup feed, flag mispriced markets, and are graded on closing-line value, no human in the loop.",
+    "Linethesis benchmarks a betting operator's prices against TxLINE's de-vig consensus, warns the instant a line is stale enough to get picked off, and settles every call on-chain. You keep the book; it never touches it.",
 };
 
 export default function RootLayout({

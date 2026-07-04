@@ -20,7 +20,7 @@ export async function GET() {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="agenthesis-signal-ledger-${stamp}.csv"`,
+      "Content-Disposition": `attachment; filename="linethesis-signal-ledger-${stamp}.csv"`,
       "Cache-Control": "no-store",
       "X-Signal-Count": String(signalCount),
       "X-Match-Count": String(matchCount),

@@ -2,9 +2,9 @@ import Nav from "@/components/Nav";
 import Litepaper from "@/components/Litepaper";
 
 export const metadata = {
-  title: "Litepaper: Agenthesis",
+  title: "Litepaper: Linethesis",
   description:
-    "The Agenthesis thesis: strategies from research, run by autonomous forecasters that flag mispricings and are graded on closing-line value over a verifiable feed.",
+    "The Linethesis thesis: a read-only line-integrity oracle that benchmarks an operator's prices against TxLINE's de-vig consensus, warns before the stale-line pickoff, and settles every call on-chain.",
 };
 
 export default function LitepaperPage() {
