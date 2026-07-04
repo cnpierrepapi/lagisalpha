@@ -21,6 +21,13 @@ const DEMARGINED = "TXLineStablePriceDemargined";
 // A market goes QUIET at kickoff/FT/suspension; once the whole book is silent
 // this long (WALL time — mainnet is real-time) the match is over → finalize.
 const IDLE_END_MS = Number(process.env.ARCHIVE_IDLE_MS) || 8 * 60_000;
+// PRIMARY end signal: TxLINE emits a `game_finalised` action at FT (GameState stays
+// "scheduled" the whole match, so it's useless — the action is the real signal). Idle-
+// silence finalize is flaky (post-FT settlement/disconnect frames keep resetting it, so a
+// match can sit un-finalized for a long time). On game_finalised we finalize after a short
+// grace to capture any trailing frames, and keep idle as a fallback.
+const FINALISE_ACTIONS = new Set(["game_finalised", "match_finalised", "game_finished"]);
+const FINALISE_GRACE_MS = Number(process.env.ARCHIVE_FINALISE_GRACE_MS) || 90_000;
 const MIN_ODDS = Number(process.env.ARCHIVE_MIN_ODDS) || 150; // don't archive a stub book
 const SWEEP_MS = 30_000;
 const CHECKPOINT_MS = Number(process.env.ARCHIVE_CHECKPOINT_MS) || 5 * 60_000; // crash-safe blob flush
@@ -58,6 +65,7 @@ interface Buf {
   lastTs: number;
   lastFrameAt: number; // wall-clock ms of the last frame (idle detection)
   lastCheckpointAt: number;
+  finishedAt: number; // wall-clock ms of the game_finalised action (0 = not seen)
   archived: boolean;
 }
 
@@ -72,7 +80,7 @@ function getBuf(fid: string): Buf {
   let b = bufs.get(fid);
   if (!b) {
     const n = labelFor(fid);
-    b = { fid, p1: n.p1, p2: n.p2, odds: [], scores: [], inPlay: false, firstTs: 0, lastTs: 0, lastFrameAt: 0, lastCheckpointAt: 0, archived: false };
+    b = { fid, p1: n.p1, p2: n.p2, odds: [], scores: [], inPlay: false, firstTs: 0, lastTs: 0, lastFrameAt: 0, lastCheckpointAt: 0, finishedAt: 0, archived: false };
     bufs.set(fid, b);
   } else if (b.p1.startsWith("#") && !labelFor(fid).p1.startsWith("#")) {
     const n = labelFor(fid); // upgrade #fid → real names once the snapshot resolves them
@@ -129,6 +137,12 @@ function onFrame(kind: "odds" | "scores", rec: Record<string, unknown>): void {
       log(`IN-PLAY ${fid} ${b.p1} v ${b.p2} — clock running`);
       void logEvent("match_inplay", { fixtureId: fid, match: `${b.p1} v ${b.p2}` });
     }
+    // FT signal — mark the end time so sweep finalizes after a short grace (reliable,
+    // unlike waiting for total frame silence which post-match frames keep resetting).
+    if (b.inPlay && !b.finishedAt && FINALISE_ACTIONS.has(String(rec.Action))) {
+      b.finishedAt = now;
+      log(`FT-SIGNAL ${fid} ${b.p1} v ${b.p2} — ${rec.Action}; finalizing in ${FINALISE_GRACE_MS / 1000}s`);
+    }
   }
 }
 
@@ -177,7 +191,9 @@ async function sweep(): Promise<void> {
   for (const b of bufs.values()) {
     if (b.archived || !b.inPlay || b.odds.length < MIN_ODDS) continue;
     const idle = now - b.lastFrameAt;
-    if (idle > IDLE_END_MS) {
+    // Finalize on the FT signal (after its grace) OR the idle fallback.
+    const finishedReady = b.finishedAt > 0 && now - b.finishedAt >= FINALISE_GRACE_MS;
+    if (finishedReady || idle > IDLE_END_MS) {
       try {
         await finalize(b);
       } catch (e) {
