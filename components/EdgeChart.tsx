@@ -60,11 +60,16 @@ export default function EdgeChart({
   };
 
   const hf = hover != null ? pts[hover] : null;
-  const selFrame = selectedTs == null || !pts.length ? null : pts.reduce((b, p) => (Math.abs(p.ts - selectedTs) < Math.abs(b.ts - selectedTs) ? p : b), pts[0]);
-  const tip = hf ?? selFrame;
-  const tipPct = tip ? (x(tip.ts) / W) * 100 : 0;
+  // the exact selected entry (not a nearest frame) so the pin lands on the real call
+  const selEntry = selectedTs == null ? null : entries.find((e) => e.ts === selectedTs) ?? null;
+  const selMkt = selEntry ? (selEntry.side === "yes" ? selEntry.fair - selEntry.gap : selEntry.fair + selEntry.gap) : null;
+  // tooltip: hover (a series tick) takes priority, else the selected entry's own values
+  const tipTs = hf ? hf.ts : selEntry ? selEntry.ts : null;
+  const tipFair = hf ? hf.fair : selEntry ? selEntry.fair : null;
+  const tipPm = hf ? hf.pm : selMkt;
+  const tipPct = tipTs != null ? (x(tipTs) / W) * 100 : 0;
   const min = (ts: number) => `${Math.max(0, Math.floor(ts / 60))}'`;
-  const gapPp = tip && tip.pm != null ? (tip.fair - tip.pm) * 100 : null;
+  const gapPp = tipFair != null && tipPm != null ? (tipFair - tipPm) * 100 : null;
 
   return (
     <div className="relative select-none">
@@ -93,10 +98,11 @@ export default function EdgeChart({
             <circle key={i} cx={x(en.ts)} cy={y(pmProb)} r={4} className={en.side === "yes" ? "fill-amber" : "fill-fg"} opacity={en.reached ? 1 : 0.4} stroke="#0a0c0f" strokeWidth={1} />
           );
         })}
-        {selFrame && (
+        {selEntry && selMkt != null && (
           <g>
-            <line x1={x(selFrame.ts)} x2={x(selFrame.ts)} y1={PAD} y2={H - PAD} className="stroke-amber" strokeWidth={1} opacity={0.65} />
-            {selFrame.pm != null && <circle cx={x(selFrame.ts)} cy={y(selFrame.pm)} r={6} fill="none" className="stroke-amber" strokeWidth={1.5} />}
+            <line x1={x(selEntry.ts)} x2={x(selEntry.ts)} y1={PAD} y2={H - PAD} className="stroke-amber" strokeWidth={1} opacity={0.7} />
+            <circle cx={x(selEntry.ts)} cy={y(selMkt)} r={7} fill="none" className="stroke-amber" strokeWidth={2} />
+            <circle cx={x(selEntry.ts)} cy={y(selMkt)} r={2.5} className="fill-amber" />
           </g>
         )}
         {hf && (
@@ -108,14 +114,14 @@ export default function EdgeChart({
         )}
       </svg>
 
-      {tip && (
+      {tipTs != null && tipFair != null && (
         <div
           className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 rounded border border-ink-600 bg-ink-900/95 px-2 py-1 font-mono text-[11px] leading-tight shadow"
-          style={{ left: `${Math.min(88, Math.max(12, tipPct))}%` }}
+          style={{ left: `${Math.min(90, Math.max(10, tipPct))}%` }}
         >
-          <div className="text-faint">{min(tip.ts)}</div>
-          <div className="text-amber">fair {tip.fair.toFixed(3)}</div>
-          <div className="text-muted">mkt&nbsp; {tip.pm != null ? tip.pm.toFixed(3) : "—"}</div>
+          <div className="text-faint">{min(tipTs)}</div>
+          <div className="text-amber">fair {tipFair.toFixed(3)}</div>
+          <div className="text-muted">mkt&nbsp; {tipPm != null ? tipPm.toFixed(3) : "—"}</div>
           {gapPp != null && (
             <div className={Math.abs(gapPp) >= theta * 100 ? "text-amber" : "text-faint"}>
               gap {gapPp > 0 ? "+" : ""}
