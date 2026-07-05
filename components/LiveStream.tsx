@@ -1,10 +1,10 @@
 "use client";
 
-// LIVE / REPLAY dual stream.
-//   LIVE   — reads the box's real-time blob (desk-archives/live-stream.json): two INDEPENDENT
-//            timestamped tick arrays (TxLINE fair, market price). Interleaved newest-first so you
-//            see TxLINE move, then the market catch up. Rows where the gap >= theta glow orange.
-//   REPLAY — plays back a settled match's aligned tape on a virtual clock (one merged series).
+// LIVE / REPLAY dual stream — one row per tick, showing BOTH the TxLINE fair and the market price
+// side by side so the discrepancy is obvious. A row appears whenever either stream moves; the row
+// glows orange in proportion to the gap.
+//   LIVE   — reads the box blob (desk-archives/live-stream.json): two timestamped tick arrays.
+//   REPLAY — plays back a settled match's 1s tape on a virtual clock.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PickoffMatch } from "@/lib/pickoff-source";
@@ -15,7 +15,7 @@ const STREAM_BLOB =
   "/storage/v1/object/public/desk-archives/live-stream.json";
 
 interface StreamFix { fid: string; teams: string; txline: [number, number][]; market: [number, number][] }
-interface Row { key: string; ts: number; label: string; kind: "txline" | "market"; v: number; fair: number | null; pm: number | null }
+interface Row { key: string; label: string; fair: number | null; pm: number | null }
 
 function stepAt(arr: [number, number][], ts: number): number | null {
   let v: number | null = null;
@@ -31,10 +31,9 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
   const replayable = matches.filter((m) => (m.series?.length ?? 0) > 2);
   const [mode, setMode] = useState<"live" | "replay">("live");
 
-  // ---- LIVE state ----
+  // ---- LIVE ----
   const [fixtures, setFixtures] = useState<StreamFix[] | null>(null);
-  const [liveFid, setLiveFid] = useState<string>("");
-
+  const [liveFid, setLiveFid] = useState("");
   useEffect(() => {
     if (mode !== "live") return;
     let on = true;
@@ -49,28 +48,29 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
         })
         .catch(() => on && setFixtures([]));
     load();
-    const iv = setInterval(load, 4000);
+    const iv = setInterval(load, 3000);
     return () => { on = false; clearInterval(iv); };
   }, [mode]);
 
   const liveFx = fixtures?.find((f) => f.fid === liveFid) ?? fixtures?.[0];
   const liveRows: Row[] = useMemo(() => {
     if (!liveFx) return [];
-    const rows: Row[] = [];
-    for (const [ts, v] of liveFx.txline) rows.push({ key: `t${ts}`, ts, label: hhmmss(ts) + " UTC", kind: "txline", v, fair: null, pm: null });
-    for (const [ts, v] of liveFx.market) rows.push({ key: `m${ts}`, ts, label: hhmmss(ts) + " UTC", kind: "market", v, fair: null, pm: null });
-    rows.sort((a, b) => b.ts - a.ts);
-    return rows.slice(0, 80).map((r) => ({ ...r, fair: stepAt(liveFx.txline, r.ts), pm: stepAt(liveFx.market, r.ts) }));
+    const tsSet = new Set<number>();
+    liveFx.txline.forEach(([t]) => tsSet.add(t));
+    liveFx.market.forEach(([t]) => tsSet.add(t));
+    return [...tsSet]
+      .sort((a, b) => b - a)
+      .slice(0, 140)
+      .map((t) => ({ key: String(t), label: hhmmss(t) + " UTC", fair: stepAt(liveFx.txline, t), pm: stepAt(liveFx.market, t) }));
   }, [liveFx]);
 
-  // ---- REPLAY state ----
+  // ---- REPLAY ----
   const [fid, setFid] = useState(replayable[0]?.fid ?? "");
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState(250);
+  const [speed, setSpeed] = useState(120);
   const [rTicks, setRTicks] = useState<Row[]>([]);
   const rIdx = useRef(0);
   const rm = replayable.find((m) => m.fid === fid) ?? replayable[0];
-
   useEffect(() => { setRTicks([]); rIdx.current = 0; }, [fid, mode]);
   useEffect(() => {
     if (mode !== "replay" || !rm || !playing) return;
@@ -82,16 +82,14 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
       if (fair == null) return;
       const mm = Math.floor(sec / 60);
       const ss = sec % 60;
-      setRTicks((prev) => [{ key: `r${rIdx.current}`, ts: sec, label: `${mm}:${String(ss).padStart(2, "0")}`, kind: "txline" as const, v: fair, fair, pm }, ...prev].slice(0, 80));
+      setRTicks((prev) => [{ key: `r${rIdx.current}`, label: `${mm}:${String(ss).padStart(2, "0")}`, fair, pm }, ...prev].slice(0, 140));
     }, speed);
     return () => clearInterval(iv);
   }, [mode, rm, playing, speed]);
 
   const rows = mode === "live" ? liveRows : rTicks;
-  const latest = liveFx && liveFx.txline.length && liveFx.market.length
-    ? { fair: liveFx.txline[liveFx.txline.length - 1][1], pm: liveFx.market[liveFx.market.length - 1][1] }
-    : null;
-  const latestGap = latest ? latest.fair - latest.pm : null;
+  const latest = rows[0];
+  const latestGap = latest && latest.fair != null && latest.pm != null ? latest.fair - latest.pm : null;
 
   return (
     <div className="card overflow-hidden p-0">
@@ -111,7 +109,7 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
             <button onClick={() => setPlaying((p) => !p)} className="rounded border border-ink-600 px-2 py-1 text-xs text-muted hover:text-fg">{playing ? "❙❙ pause" : "▶ play"}</button>
             <button onClick={() => { setRTicks([]); rIdx.current = 0; setPlaying(true); }} className="rounded border border-ink-600 px-2 py-1 text-xs text-muted hover:text-fg">⟲ restart</button>
             <div className="flex gap-1 text-xs">
-              {[500, 250, 100].map((s) => (<button key={s} onClick={() => setSpeed(s)} className={`rounded px-1.5 py-1 ${speed === s ? "text-amber" : "text-faint hover:text-fg"}`}>{s === 500 ? "1x" : s === 250 ? "2x" : "5x"}</button>))}
+              {[240, 120, 40].map((s) => (<button key={s} onClick={() => setSpeed(s)} className={`rounded px-1.5 py-1 ${speed === s ? "text-amber" : "text-faint hover:text-fg"}`}>{s === 240 ? "1x" : s === 120 ? "2x" : "6x"}</button>))}
             </div>
           </div>
         ) : fixtures == null ? (
@@ -126,7 +124,7 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
             <span className="serif text-sm text-paper">{liveFx.teams}</span>
             {latest && (
               <span className="font-mono text-faint">
-                fair <span className="text-amber">{latest.fair.toFixed(3)}</span> · mkt <span className="text-muted">{latest.pm.toFixed(3)}</span> ·{" "}
+                fair <span className="text-amber">{latest.fair?.toFixed(3) ?? "—"}</span> · mkt <span className="text-muted">{latest.pm?.toFixed(3) ?? "—"}</span> ·{" "}
                 <span className={latestGap != null && Math.abs(latestGap) >= THETA ? "text-amber" : "text-faint"}>
                   gap {latestGap != null ? `${latestGap > 0 ? "+" : ""}${(latestGap * 100).toFixed(1)}pp` : "—"}
                 </span>
@@ -139,8 +137,8 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
       </div>
 
       <div className="max-h-[440px] overflow-y-auto px-4 py-3 font-mono text-xs">
-        <div className="mb-2 grid grid-cols-[6.5rem_5rem_1fr_4.5rem] gap-3 text-faint">
-          <span>time</span><span>stream</span><span>price</span><span className="text-right">gap</span>
+        <div className="mb-2 grid grid-cols-[7rem_1fr_1fr_4.5rem] gap-3 text-faint">
+          <span>time</span><span>TxLINE fair</span><span>market</span><span className="text-right">gap</span>
         </div>
         {rows.length === 0 ? (
           <p className="text-faint">{mode === "live" ? "waiting for the first tick…" : "press play to stream the match…"}</p>
@@ -149,16 +147,16 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
             {rows.map((r) => {
               const gap = r.fair != null && r.pm != null ? r.fair - r.pm : null;
               const ag = gap != null ? Math.abs(gap) : 0;
-              const tint = Math.min(ag / 0.1, 1) * 0.24; // any gap tints; full orange by ~10pp
+              const tint = Math.min(ag / 0.1, 1) * 0.24;
               return (
                 <li
                   key={r.key}
-                  className="grid grid-cols-[6.5rem_5rem_1fr_4.5rem] gap-3 border-t border-ink-800 py-1"
+                  className="grid grid-cols-[7rem_1fr_1fr_4.5rem] gap-3 border-t border-ink-800 py-1"
                   style={ag > 0 ? { backgroundColor: `rgba(217,119,6,${tint.toFixed(3)})` } : undefined}
                 >
                   <span className="text-faint">{r.label}</span>
-                  <span className={r.kind === "txline" ? "text-amber" : "text-muted"}>{r.kind === "txline" ? "TxLINE" : "market"}</span>
-                  <span className="text-fg">{r.v.toFixed(3)}</span>
+                  <span className="text-amber">{r.fair != null ? r.fair.toFixed(3) : "—"}</span>
+                  <span className="text-muted">{r.pm != null ? r.pm.toFixed(3) : "—"}</span>
                   <span className={`text-right ${ag >= 0.02 ? "text-amber" : ag > 0 ? "text-muted" : "text-faint"}`}>
                     {gap != null ? `${gap > 0 ? "+" : ""}${(gap * 100).toFixed(1)}` : "—"}
                   </span>
