@@ -2,53 +2,42 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// The hero tape shows the PRODUCT: real line-integrity signals from the control-room
-// endpoint (deterministic snapshot over real captured TxLINE frames), each one a
-// signal, the stale-book gap, and the action the operator's policy chose. We reveal
-// them one at a time so a static snapshot reads like a live desk.
-interface CREvent {
-  ts: number;
-  minute: number | null;
-  market: string | null;
-  kind: "steam" | "overreaction" | "goal_imminent";
-  gapBps: number | null;
-  pickoffRisk: string;
-  signalAction: string;
-  operatorAction: string;
+// The hero tape shows the PRODUCT: real divergences from the published track record. Each line is
+// a moment the prediction market lagged TxLINE's vig-free fair, the cheap side to take, the size
+// that sat there, and whether the market later travelled back to fair. Revealed one at a time so a
+// static snapshot reads like a live scan.
+interface Div {
+  teams: string;
+  side: "yes" | "no";
+  entry: number;
+  fair: number;
+  gap: number;
+  reached: boolean;
+  usd: number;
 }
 
-const KIND_COLOR: Record<string, string> = {
-  overreaction: "loss",
-  steam: "amber",
-  goal_imminent: "text-muted",
-};
-function actionColor(a: string): string {
-  if (a === "fade") return "loss";
-  if (a === "follow") return "amber";
-  return "text-muted"; // hold / suspend-suggested
-}
-function shortMarket(m: string | null): string {
-  if (!m) return "-"; // goal_imminent is fixture-level (no specific market/line)
-  return m
-    .replace("OVERUNDER_PARTICIPANT_GOALS", "O/U")
-    .replace("ASIANHANDICAP_PARTICIPANT_GOALS", "AH")
-    .replace("line=", "");
-}
+const BLOB =
+  (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mohbmvajroqizlfaarjk.supabase.co") +
+  "/storage/v1/object/public/desk-archives/pickoffs.json";
 
 export default function HeroTerminal() {
-  const [events, setEvents] = useState<CREvent[]>([]);
-  const [shown, setShown] = useState<CREvent[]>([]);
+  const [items, setItems] = useState<Div[]>([]);
+  const [shown, setShown] = useState<Div[]>([]);
   const [loaded, setLoaded] = useState(false);
   const idx = useRef(0);
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/v1/control-room", { headers: { "X-Api-Key": "ag_demo_2026" } })
+    fetch(BLOB)
       .then((r) => r.json())
       .then((j) => {
         if (!alive) return;
-        const evs: CREvent[] = (j.events ?? []).filter((e: CREvent) => e.kind === "overreaction" || e.pickoffRisk === "high");
-        setEvents(evs.length ? evs : (j.events ?? []));
+        const out: Div[] = [];
+        for (const m of j.matches ?? [])
+          for (const e of m.divergences?.["5"] ?? [])
+            out.push({ teams: m.teams, side: e.side, entry: e.entry, fair: e.fair, gap: e.gap, reached: e.reached, usd: e.usd });
+        out.sort((a, b) => b.usd - a.usd);
+        setItems(out.slice(0, 24));
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -57,44 +46,44 @@ export default function HeroTerminal() {
     };
   }, []);
 
-  // reveal one signal at a time, looping
   useEffect(() => {
-    if (!events.length) return;
+    if (!items.length) return;
     const iv = setInterval(() => {
-      const e = events[idx.current % events.length];
+      const e = items[idx.current % items.length];
       idx.current += 1;
       setShown((prev) => [e, ...prev].slice(0, 7));
     }, 1400);
     return () => clearInterval(iv);
-  }, [events]);
+  }, [items]);
 
   return (
     <div className="panel overflow-hidden">
       <header className="flex items-center justify-between border-b border-ink-600 px-4 py-2.5">
-        <span className="label">signals.log · Brazil v Japan</span>
+        <span className="label">divergences.log</span>
         <span className="flex items-center gap-2 text-xs text-faint">
           <span className={`inline-block h-2 w-2 rounded-full ${loaded ? "bg-amber blink" : "bg-ink-500"}`} />
           {loaded ? "REPLAY" : "loading"}
         </span>
       </header>
       <div className="min-h-[240px] px-4 py-3 font-mono text-xs">
-        {shown.length === 0 && <p className="text-faint">benchmarking against the demargined consensus…</p>}
+        {shown.length === 0 && <p className="text-faint">scanning the market against the vig-free fair…</p>}
         <ul className="space-y-2">
-          {shown.map((e, i) => (
-            <li key={`${e.ts}-${i}`} className="leading-relaxed">
-              <span className="text-faint tabular-nums">{e.minute != null ? `${e.minute}'` : "-"}</span>{" "}
-              <span className="text-muted">{shortMarket(e.market)}</span>{" "}
-              <span className={KIND_COLOR[e.kind] ?? "text-muted"}>{e.kind}</span>{" "}
-              <span className="text-faint">→</span>{" "}
-              <span className={actionColor(e.signalAction)}>{e.signalAction}</span>
-              {e.gapBps != null && (
-                <span className="text-faint"> · book {e.gapBps > 0 ? "+" : ""}{e.gapBps}bps stale</span>
-              )}
-              <br />
-              <span className="text-faint">└ operator:</span>{" "}
-              <span className="text-fg">{e.operatorAction}</span>
-            </li>
-          ))}
+          {shown.map((e, i) => {
+            const mkt = e.side === "yes" ? e.entry : 1 - e.entry;
+            return (
+              <li key={i} className="leading-relaxed">
+                <span className="text-muted">{e.teams}</span>{" "}
+                <span className="text-faint">
+                  fair {e.fair.toFixed(2)} · mkt {mkt.toFixed(2)}
+                </span>{" "}
+                <span className="amber">+{(e.gap * 100).toFixed(0)}pp</span>{" "}
+                <span className="text-faint">→</span> <span className="text-fg">buy {e.side.toUpperCase()} cheap</span>
+                <br />
+                <span className="text-faint">└ ${Math.round(e.usd).toLocaleString()} on the table ·</span>{" "}
+                <span className={e.reached ? "amber" : "text-faint"}>{e.reached ? "travelled back to fair ✓" : "held"}</span>
+              </li>
+            );
+          })}
         </ul>
         <p className="prompt mt-2 text-faint">
           <span className="blink amber">_</span>

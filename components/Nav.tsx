@@ -3,16 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Desk (/desk) shows a live book defended against TxLINE fair. Proof (/proof) is the
-// win-pool leakage ledger: real pickoffs, each verifiable on-chain. Sandbox (/sandbox)
-// replays a match against YOUR book + policy. Papers/build/leaderboard (the old forecaster
-// pages) are retired.
+// Trader-facing IA. Edge (/edge) is the product: the live divergence detector plus the
+// replay of the edge on real matches. Proof (/proof) is the track record. Litepaper (/litepaper)
+// is the writeup. The old operator surfaces (Desk, Sandbox, SDK, Papers) are retired/unlinked.
 const LINKS = [
-  { href: "/desk", label: "Desk" },
-  { href: "/proof", label: "Proof" },
   { href: "/edge", label: "Edge" },
-  { href: "/sandbox", label: "Sandbox" },
-  { href: "/sdk", label: "SDK" },
+  { href: "/proof", label: "Proof" },
   { href: "/litepaper", label: "Litepaper" },
 ];
 

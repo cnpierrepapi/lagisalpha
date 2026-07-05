@@ -4,18 +4,17 @@ import HeroTerminal from "@/components/HeroTerminal";
 import { getProof } from "@/lib/proof";
 
 const STEPS = [
-  { n: "01", t: "Benchmark", d: "Every prediction market fill is measured against TxLINE's vig-free consensus: the one no-margin fair line, tick for tick, in real time." },
-  { n: "02", t: "Catch the divergence", d: "When the book lags the fair past the threshold, the cheap side is underpriced. We flag it: which side, how many points off, and how much size sat at the stale price." },
-  { n: "03", t: "The delay closes", d: "It's a measurable lag, not noise: 73% of the time the book travels back to TxLINE's price, and the underpriced side is a positive-edge buy at resolution." },
-  { n: "04", t: "Proven on-chain", d: "Every entry carries a Polygon tx hash; every outcome settles against TxLINE's on-chain scores. Don't trust the ledger, verify it." },
+  { n: "01", t: "The sharp line leads", d: "TxLINE strips the vig from a live odds feed, so its price is the true probability. It moves the instant news hits, seconds before a traded market can follow." },
+  { n: "02", t: "The market lags", d: "A prediction market only reprices when someone trades, so it sits behind. When it falls past the threshold below fair, the cheap side is underpriced, and we flag it: which side, how far off, how much size is there." },
+  { n: "03", t: "You take the cheap side", d: "The gap closes 73% of the time as the market catches up, and buying the underpriced side and holding to resolution paid a positive edge that grew with the gap. Take it early, ride it to the fair or the result." },
+  { n: "04", t: "Verify every entry", d: "Each entry is a Polygon fill you can open; each outcome settles on TxLINE's on-chain scores. Don't trust the track record, check it." },
 ];
 
-// Measured on a single live match — Paraguay v France, in-play (see /proof for the full ledger).
 const EVIDENCE = [
-  { k: "$8.6M", d: "of real prediction-market book we measured against TxLINE fair, in-play." },
-  { k: "1.25pp", d: "median gap. The two books sit lockstep at the spread for 89 minutes of 90." },
-  { k: "$1.03M", d: "traded ≥10pp off fair, almost all of it in the minutes around one goal." },
-  { k: "on-chain", d: "every fill a Polygon tx hash, every outcome a TxLINE validate_stat proof." },
+  { k: "$8.6M", d: "traded in-play on this one match, all of it measured against the sharp fair." },
+  { k: "1.25pp", d: "median gap. The market tracks fair to the spread until news hits, then it lags." },
+  { k: "$1.03M", d: "changed hands 10+ points below fair, the cheap side left on the table around one goal." },
+  { k: "on-chain", d: "every fill a Polygon tx, every outcome a TxLINE on-chain settlement. Verify it." },
 ];
 
 export default function Home() {
@@ -29,28 +28,29 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-5 py-14">
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
           <div>
-            <p className="label">built on TxLINE</p>
+            <p className="label">the lead-lag edge in prediction markets · built on TxLINE</p>
             <h1 className="serif mt-4 text-5xl leading-[1.05] sm:text-6xl">
-              Prediction Markets trade a step
+              Prediction markets trade
               <br />
-              behind the true price.
+              a step behind the true price.
             </h1>
             <p className="mt-5 max-w-md text-muted">
-              TxLINE strips the vig, so its odds are the true price. When a prediction market lags it, the cheap
-              side is underpriced, and it snaps back 73% of the time. We measure the gap, live and on-chain.
+              TxLINE strips the vig, so its odds are the true price. A prediction market lags it, and the
+              cheap side is underpriced. Lagisalpha catches the gap the moment it opens, tells you which
+              side to take, and shows it snap back 73% of the time. A repeatable edge you can act on.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="#evidence"
+                href="/edge"
                 className="rounded border border-amber-dim bg-amber/10 px-5 py-2.5 font-semibold text-amber hover:bg-amber/20"
               >
-                See the evidence →
+                See the edge live →
               </Link>
               <Link
-                href="/edge"
+                href="/proof"
                 className="rounded border border-ink-600 px-5 py-2.5 font-semibold text-muted hover:text-fg"
               >
-                Replay the edge
+                The track record
               </Link>
             </div>
           </div>
@@ -58,20 +58,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* EVIDENCE — measured, not claimed */}
+      {/* EVIDENCE — money on the table */}
       <section id="evidence" className="scroll-mt-20 border-t border-ink-600 bg-ink-850">
         <div className="mx-auto max-w-7xl px-5 py-14">
-          <p className="label">this is what the frontier looks like without the reference</p>
+          <p className="label">the edge, on one match</p>
           <h2 className="serif mt-2 max-w-3xl text-3xl text-paper">
-            One live sports market. $8.6M of real book. $1.03M lifted off fair.
+            One match. $1.03M traded 10+ points below fair.
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-muted">
-            We ran a prediction market&apos;s real fills against TxLINE&apos;s vig-free fair for all 90 minutes of
-            Paraguay v France. The two prices tracked inside <span className="text-fg">1 to 2 points</span>,
-            the market&apos;s spread, the whole match. Then France scored, and for the minutes around the goal
-            they split <span className="text-fg">10 to 37 points</span> while the stale side got taken. That
-            split is what the book pays out with no fair to settle against, and what TxLINE closes. Not a
-            claim: a measurement, every fill on-chain.
+            We aligned a prediction market&apos;s real fills to TxLINE&apos;s vig-free fair for all 90 minutes
+            of Paraguay v France. The two prices sat within <span className="text-fg">1 to 2 points</span>,
+            the spread, the whole match. Then France scored, the sharp line jumped, and for the minutes the
+            market took to catch up, over a million dollars traded <span className="text-fg">10 to 37 points</span>{" "}
+            below fair. Every one of those fills was a cheap side sitting there to be taken. Not a claim: a
+            measurement, every fill on-chain.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {EVIDENCE.map((e) => (
@@ -82,8 +82,9 @@ export default function Home() {
             ))}
           </div>
           <p className="mt-5 text-xs text-faint">
-            Paraguay v France, in-play. prediction market order-book fills read on-chain from Polygon, aligned
-            to TxLINE&apos;s vig-free 1X2. Full per-match ledger on <Link href="/proof" className="underline decoration-ink-500 underline-offset-2 hover:text-fg">/proof</Link>.
+            Paraguay v France, in-play. Prediction market fills read on-chain from Polygon, aligned to
+            TxLINE&apos;s vig-free 1X2. The full track record, across eight matches, is on{" "}
+            <Link href="/proof" className="underline decoration-ink-500 underline-offset-2 hover:text-fg">/proof</Link>.
           </p>
         </div>
       </section>
@@ -91,7 +92,7 @@ export default function Home() {
       {/* HOW IT WORKS */}
       <section className="border-t border-ink-600">
         <div className="mx-auto max-w-7xl px-5 py-14">
-          <p className="label">how it works</p>
+          <p className="label">how you trade it</p>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s) => (
               <div key={s.n} className="card p-5">
@@ -104,118 +105,104 @@ export default function Home() {
         </div>
       </section>
 
-      {/* THE PAIN */}
+      {/* THE EDGE */}
       <section className="border-t border-ink-600 bg-ink-850">
         <div className="mx-auto max-w-7xl px-5 py-12">
-          <p className="label">the pain</p>
-          <h2 className="serif mt-2 max-w-2xl text-2xl text-paper">
-            Volume is vanity. Getting picked off is what drains the pool.
-          </h2>
+          <p className="label">the edge</p>
+          <h2 className="serif mt-2 max-w-2xl text-2xl text-paper">The lag is the alpha.</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            A prediction market doesn&apos;t bleed from low volume, it bleeds from paying out to the
-            sharps who lift a stale quote the moment the consensus moves. The book lags the sharp,
-            vig-free line: in the seconds around a goal the prediction market price sits behind TxLINE&apos;s
-            fair, and the underpriced side gets taken before it catches up. That lag is a{" "}
-            <span className="text-fg">measurable delay</span>: the book travels back to TxLINE&apos;s
-            price 73% of the time, and buying the cheap side and holding to resolution is a
-            positive-edge trade. Lagisalpha turns that leakage into a number you can see, and prove.
+            A prediction market can only move its price by trading, so it is always a step behind the sharp,
+            vig-free line. In the seconds around a goal the market sits below fair and the cheap side is
+            there for the taking. That is not a one-off: across eight matches the gap closed{" "}
+            <span className="text-fg">73%</span> of the time, and buying the underpriced side paid a
+            positive edge that grew the wider the gap. Find the divergence, take the cheap side, let it
+            converge to the fair or settle at the result.
           </p>
         </div>
       </section>
 
-      {/* INDEPENDENT REFEREE */}
+      {/* WHY THE EDGE IS REAL */}
       <section className="border-t border-ink-600">
         <div className="mx-auto max-w-7xl px-5 py-12">
-          <p className="label">why it&apos;s adoptable</p>
+          <p className="label">why the edge is there</p>
           <h2 className="serif mt-2 max-w-2xl text-2xl text-paper">
-            The neutral referee the incumbents can&apos;t be.
+            A slow market, a fast reference, a gap that repeats.
           </h2>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div className="card p-5">
-              <h3 className="text-paper">Independent</h3>
+              <h3 className="text-paper">The market is slow</h3>
               <p className="mt-2 text-sm text-muted">
-                No managed trading, no shared P&amp;L, no conflict. We benchmark; we don&apos;t compete
-                with your book.
+                A prediction market reprices only when someone trades. New information outruns it, so its
+                price lags the truth for real, tradeable seconds.
               </p>
             </div>
             <div className="card p-5">
-              <h3 className="text-paper">Read-only</h3>
+              <h3 className="text-paper">The reference is sharp</h3>
               <p className="mt-2 text-sm text-muted">
-                We place no bet, move no price, hold no funds. Your rule-set acts, so it clears
-                compliance and carries no wagering surface.
+                TxLINE&apos;s de-vig line is the consensus fair with the margin stripped out. It already
+                holds the true price the market has not reached yet.
               </p>
             </div>
             <div className="card p-5">
-              <h3 className="text-paper">Provable</h3>
+              <h3 className="text-paper">The gap repeats</h3>
               <p className="mt-2 text-sm text-muted">
-                Every call is settled on-chain. Audit the track record before you trust it: the one
-                thing a black-box pricing vendor can&apos;t show you.
+                Not luck on one match. The divergence opens every time news hits and closes 73% of the
+                time. A pattern you can trade, not a story.
               </p>
             </div>
           </div>
           <p className="mt-6 max-w-3xl text-sm text-faint">
-            A production signal is a millisecond game: a warning only pays if it beats the pickoff.
-            That needs direct, co-located TxLINE feed access, so a live deployment is a continuing
-            partnership with TxOdds, not a one-off.
+            The edge is validated on eight matches so far, so the return is a pilot, not a promise. The
+            reach rate is the firmer read, and both tighten as matches accrue. See the numbers, with the
+            confidence interval, on <Link href="/proof" className="underline decoration-ink-500 underline-offset-2 hover:text-fg">/proof</Link>.
           </p>
         </div>
       </section>
 
-      {/* BUILT ON TXLINE */}
+      {/* WHY TXLINE */}
       <section className="border-t border-ink-600 bg-ink-850">
         <div className="mx-auto max-w-7xl px-5 py-12">
-          <p className="label">why txline is the unlock</p>
+          <p className="label">why it runs on TxLINE</p>
           <h2 className="serif mt-2 max-w-2xl text-2xl text-paper">
-            The missing price layer for the sports frontier.
+            The only feed that shows the true price early.
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-muted">
-            TxLINE publishes a <span className="text-fg">de-vig odds stream</span>: the bookmaker margin
-            stripped out, so every price is a clean, real-time fair probability. That is the exact piece a
-            sports prediction market has always lacked, and it is TxLINE&apos;s untapped edge in this market.
-            That one-of-a-kind
-            reference is the whole foundation, and it&apos;s what let us score a real prediction
-            market&apos;s book to the point: remove the vig and a price gap stops being noise and becomes
-            a measurable distance from the true price, the exact distance a sharp gets paid to close.
-            No ordinary odds feed gives you that.
+            Strip the vig and a price move stops being noise and becomes a measurable distance from the
+            true probability. That distance is the whole signal, and only TxLINE&apos;s de-vig stream
+            exposes it. Without it, a gap between two prices is just two prices; with it, the gap is exactly
+            how far the market is behind, and which way to trade. To catch it live you want the fastest,
+            most direct feed, which is TxLINE.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="card p-5">
-              <h3 className="text-paper">The reference the market can be graded against</h3>
+              <h3 className="text-paper">The leading indicator</h3>
               <p className="mt-2 text-sm text-muted">
-                We difference a live order book against TxLINE&apos;s vig-free fair, tick for tick. The
-                books agree at the spread until information hits, then the gap opens, and that gap, timed
-                to the goal, is the pickoff surface. No feed but the de-vig stream makes it visible.
+                We difference the market&apos;s book against TxLINE&apos;s vig-free fair, tick for tick. The
+                two agree at the spread until news hits, then the fair moves first and the gap is your
+                entry. No feed but the de-vig stream makes that visible.
               </p>
             </div>
             <div className="card p-5">
-              <h3 className="text-paper">An upgrade for anyone on TxLINE</h3>
+              <h3 className="text-paper">More markets, more entries</h3>
               <p className="mt-2 text-sm text-muted">
-                Any prediction market or bookmaker already plugged into TxLINE can bolt on Lagisalpha and
-                instantly harden its line integrity, no new pricing model, no giving up the book.
-                Lagisalpha makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
-                a provable stale-line shield on top.
+                Today the signal runs on the goals and match-result markets that stream de-vigged. The more
+                of the book TxLINE streams beyond goals, cards, corners, the more divergences there are to
+                trade.
               </p>
             </div>
           </div>
-          <p className="mt-6 max-w-3xl text-sm text-faint">
-            Because it runs on nothing but TxLINE, a live product needs TxLINE&apos;s continued support:
-            direct, low-latency feed access so the warning beats the pickoff by milliseconds, and more of
-            the de-vig book <span className="text-muted">beyond goals</span>, cards, corners, match odds,
-            so we can watch every line an operator quotes. A win here is the start of that partnership,
-            not the end of it.
-          </p>
         </div>
       </section>
 
       {/* PROVENANCE */}
       <section className="border-t border-ink-600">
         <div className="mx-auto max-w-7xl px-5 py-12">
-          <p className="label">provenance</p>
-          <h2 className="serif mt-2 text-2xl text-paper">Both sides of the measurement are anchored on-chain.</h2>
+          <p className="label">check it yourself</p>
+          <h2 className="serif mt-2 text-2xl text-paper">Both sides of the edge are anchored on-chain.</h2>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            The fair line is TxLINE&apos;s World Cup data layer: odds and scores cryptographically anchored
-            on Solana. The book is a prediction market&apos;s fills, read straight from Polygon. Nothing in the
-            ledger is asserted, both legs are public and verifiable.
+            The fair line is TxLINE&apos;s World Cup feed: odds and scores anchored on Solana. The market
+            side is real fills read straight from Polygon. Nothing in the track record is asserted; both
+            legs are public, so you can recompute the edge yourself.
           </p>
           {proof.signedOnSolana ? (
             <p className="mt-4 flex flex-wrap items-center gap-2 text-sm">

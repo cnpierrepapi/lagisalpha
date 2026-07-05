@@ -38,3 +38,5 @@ yarn-error.log*
 # raw recordings are local-only.
 /captures
 captures_live/
+
+.vercel

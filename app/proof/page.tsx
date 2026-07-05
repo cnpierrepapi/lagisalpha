@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import { getProof } from "@/lib/proof";
 import { getPickoffs, polygonTx, type PickoffMatch } from "@/lib/pickoff-source";
 
-export const metadata = { title: "Win-Pool Leakage Ledger: Lagisalpha" };
+export const metadata = { title: "The track record: Lagisalpha" };
 export const dynamic = "force-dynamic";
 
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();
@@ -23,7 +23,7 @@ function MatchCard({ m }: { m: PickoffMatch }) {
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
           <p className="serif text-2xl text-fg">{usd(ip.usd)}</p>
-          <p className="text-xs text-muted">in-play book measured</p>
+          <p className="text-xs text-muted">traded in-play</p>
         </div>
         <div>
           <p className="serif text-2xl text-fg">{ip.median_pp}pp</p>
@@ -39,13 +39,13 @@ function MatchCard({ m }: { m: PickoffMatch }) {
         </div>
       </div>
 
-      <p className="label mt-5">biggest pickoffs · each verifiable on-chain</p>
+      <p className="label mt-5">biggest divergences · the cheapest entries, verify each on-chain</p>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full min-w-[520px] text-sm">
           <thead>
             <tr className="text-left text-xs text-faint">
               <th className="py-1 font-normal">min</th>
-              <th className="py-1 font-normal">book P(win)</th>
+              <th className="py-1 font-normal">market P(win)</th>
               <th className="py-1 font-normal">TxLINE fair</th>
               <th className="py-1 font-normal">gap</th>
               <th className="py-1 font-normal">size</th>
@@ -89,15 +89,15 @@ export default async function ProofPage() {
     <main className="min-h-screen">
       <Nav />
       <section className="mx-auto max-w-7xl px-5 py-12">
-        <p className="label">win-pool leakage ledger</p>
-        <h1 className="serif mt-2 text-4xl text-paper">The sports frontier, measured and proven.</h1>
+        <p className="label">the track record</p>
+        <h1 className="serif mt-2 text-4xl text-paper">The edge, proven on real fills.</h1>
         <p className="mt-3 max-w-3xl text-sm text-muted">
-          This is what a sports prediction market looks like with, and without, a real-time fair to settle
-          against. Every row is a real fill on a real book, priced against TxLINE&apos;s vig-free fair at
-          that instant. The books sit at the spread until information hits; then the gap opens and the
-          stale side gets lifted, and that gap is what the market pays out when TxLINE isn&apos;t closing
-          it. Nothing here is asserted: each fill is a Polygon transaction you can open, and each outcome
-          settles against TxLINE&apos;s on-chain scores. Don&apos;t trust the ledger, verify it.
+          Every row is a real trade on a real prediction market, priced against TxLINE&apos;s vig-free fair
+          at that instant. The market tracks fair to the spread until news hits; then the gap opens and the
+          cheap side sits there to be taken. Below is how much traded off fair, and how the divergence
+          signal graded: how often the market travels back to fair, and the edge from buying the cheap side.
+          Nothing here is asserted. Each fill is a Polygon transaction you can open, each outcome settles on
+          TxLINE&apos;s on-chain scores, so you can recompute the edge yourself.
         </p>
 
         {ledger && ledger.matches.length > 0 ? (
@@ -105,19 +105,19 @@ export default async function ProofPage() {
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="card p-4">
                 <p className="serif text-2xl text-fg">{ledger.matchCount}</p>
-                <p className="text-xs text-muted">matches in the ledger</p>
+                <p className="text-xs text-muted">matches measured</p>
               </div>
               <div className="card p-4">
                 <p className="serif text-2xl text-fg">{usd(ledger.totals.usd)}</p>
-                <p className="text-xs text-muted">total in-play book measured</p>
+                <p className="text-xs text-muted">traded in-play, measured vs fair</p>
               </div>
               <div className="card p-4">
                 <p className="serif text-2xl text-amber">{usd(ledger.totals.ge5pp_usd)}</p>
-                <p className="text-xs text-muted">lifted ≥5pp off fair</p>
+                <p className="text-xs text-muted">cheap side traded ≥5pp below fair</p>
               </div>
               <div className="card p-4">
                 <p className="serif text-2xl text-amber">{usd(ledger.totals.ge10pp_usd)}</p>
-                <p className="text-xs text-muted">lifted ≥10pp off fair</p>
+                <p className="text-xs text-muted">cheap side traded ≥10pp below fair</p>
               </div>
             </div>
 
