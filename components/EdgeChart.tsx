@@ -17,12 +17,12 @@ export default function EdgeChart({
   frames,
   entries = [],
   theta = 0.05,
-  selectedTs = null,
+  selectedIndex = null,
 }: {
   frames: ChartFrame[];
   entries?: ChartEntry[];
   theta?: number;
-  selectedTs?: number | null;
+  selectedIndex?: number | null;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -61,7 +61,7 @@ export default function EdgeChart({
 
   const hf = hover != null ? pts[hover] : null;
   // the exact selected entry (not a nearest frame) so the pin lands on the real call
-  const selEntry = selectedTs == null ? null : entries.find((e) => e.ts === selectedTs) ?? null;
+  const selEntry = selectedIndex != null ? entries[selectedIndex] ?? null : null;
   const selMkt = selEntry ? (selEntry.side === "yes" ? selEntry.fair - selEntry.gap : selEntry.fair + selEntry.gap) : null;
   // tooltip: hover (a series tick) takes priority, else the selected entry's own values
   const tipTs = hf ? hf.ts : selEntry ? selEntry.ts : null;
@@ -94,8 +94,9 @@ export default function EdgeChart({
         <polyline points={fairLine} fill="none" className="stroke-amber" strokeWidth={1.5} />
         {entries.map((en, i) => {
           const pmProb = en.side === "yes" ? en.fair - en.gap : en.fair + en.gap;
+          const on = i === selectedIndex;
           return (
-            <circle key={i} cx={x(en.ts)} cy={y(pmProb)} r={4} className={en.side === "yes" ? "fill-amber" : "fill-fg"} opacity={en.reached ? 1 : 0.4} stroke="#0a0c0f" strokeWidth={1} />
+            <circle key={i} cx={x(en.ts)} cy={y(pmProb)} r={on ? 5.5 : 4} className={en.side === "yes" ? "fill-amber" : "fill-fg"} opacity={en.reached ? 1 : 0.4} stroke="#0a0c0f" strokeWidth={1} />
           );
         })}
         {selEntry && selMkt != null && (

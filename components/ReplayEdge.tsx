@@ -19,7 +19,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
   const withEdge = matches.filter((m) => m.edge && Object.keys(m.edge).length);
   const [fid, setFid] = useState(withEdge[0]?.fid ?? "");
   const [theta, setTheta] = useState<"5" | "10">("5");
-  const [selTs, setSelTs] = useState<number | null>(null);
+  const [selIdx, setSelIdx] = useState<number | null>(null);
 
   const m = withEdge.find((x) => x.fid === fid) ?? withEdge[0];
   const edge = m?.edge?.[theta];
@@ -60,7 +60,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
             {(["5", "10"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => { setTheta(t); setSelTs(null); }}
+                onClick={() => { setTheta(t); setSelIdx(null); }}
                 className={`rounded px-2 py-0.5 ${theta === t ? "bg-amber/20 text-amber" : "text-muted hover:text-fg"}`}
               >
                 ≥{t}pp
@@ -94,7 +94,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
       <div className="card p-5">
         <label className="flex w-fit flex-col gap-1">
           <span className="label">match</span>
-          <select value={fid} onChange={(e) => { setFid(e.target.value); setSelTs(null); }} className="rounded border border-ink-600 bg-transparent px-2 py-1 text-sm text-fg">
+          <select value={fid} onChange={(e) => { setFid(e.target.value); setSelIdx(null); }} className="rounded border border-ink-600 bg-transparent px-2 py-1 text-sm text-fg">
             {withEdge.map((mm) => (
               <option key={mm.fid} value={mm.fid} className="bg-ink-800">{mm.teams}</option>
             ))}
@@ -102,7 +102,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
         </label>
 
         <div className="mt-4">
-          <EdgeChart frames={frames} entries={entries} theta={Number(theta) / 100} selectedTs={selTs} />
+          <EdgeChart key={m?.fid ?? "none"} frames={frames} entries={entries} theta={Number(theta) / 100} selectedIndex={selIdx} />
           <div className="mt-1 flex flex-wrap gap-4 text-xs text-faint">
             <span><span className="text-amber">—</span> TxLINE fair</span>
             <span><span className="text-muted">—</span> market price</span>
@@ -128,12 +128,11 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
               </thead>
               <tbody className="font-mono">
                 {divs.map((e, i) => {
-                  const ts = e.t - kickSec;
-                  const on = selTs === ts;
+                  const on = selIdx === i;
                   return (
                     <tr
                       key={i}
-                      onClick={() => setSelTs(on ? null : ts)}
+                      onClick={() => setSelIdx(on ? null : i)}
                       className={`cursor-pointer border-t border-ink-700 ${on ? "bg-amber/10" : "hover:bg-ink-800/60"}`}
                     >
                       <td className="py-1.5 text-fg">{e.side === "yes" ? "buy YES" : "buy NO"}</td>
