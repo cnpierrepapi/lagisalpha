@@ -400,7 +400,7 @@ function startReplay(engine: EngineLike, handle: FeedHandle): void {
 }
 
 // ---- singleton ---------------------------------------------------------
-const KEY = "__linescout_feed__";
+const KEY = "__lagisalpha_feed__";
 
 export function getFeed(): FeedHandle {
   const g = globalThis as unknown as Record<string, FeedHandle | undefined>;

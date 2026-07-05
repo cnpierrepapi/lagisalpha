@@ -1,4 +1,4 @@
-# Linescout SDK
+# Lagisalpha SDK
 
 The product is the **signal API** (`GET /api/v1/signals`). This package is the
 **optional in-process wrapper** around the identical pure functions, for
@@ -6,7 +6,7 @@ latency-sensitive consumers that run the classifier next to their own book
 rather than over a network hop. You bring your own TxLINE feed and your own
 prices; the SDK turns the demargined price book into typed, **read-only
 line-integrity signals** — a clean move to follow, an overreaction to fade, a
-goal about to make your line stale. You act on the signal; Linescout never
+goal about to make your line stale. You act on the signal; Lagisalpha never
 places a bet, moves a price, or holds funds.
 
 It is the exact code the API serves (SDK↔API parity) — pure functions, no I/O,
@@ -28,7 +28,7 @@ the read-only benchmark in between.
 ## Quickstart
 
 ```js
-import { EdgeEngine, classifyEdge, goalImminent } from "linescout/sdk";
+import { EdgeEngine, classifyEdge, goalImminent } from "lagisalpha/sdk";
 
 const engine = new EdgeEngine();                       // detection thresholds
 

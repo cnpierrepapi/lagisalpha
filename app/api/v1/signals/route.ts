@@ -1,6 +1,6 @@
 // /api/v1/signals — the headline MARKET-OPERATOR endpoint (LOCKED product).
 //
-// Linescout is a read-only line-integrity oracle. This endpoint serves the
+// Lagisalpha is a read-only line-integrity oracle. This endpoint serves the
 // SIGNAL contract: per fixture, scored recommendations an operator's own rule-set
 // acts on — kind (steam|overreaction|goal_imminent) → action (follow|hold|fade|
 // suspend-suggested), a confidence, a pickoffRisk, and pRef (TxLINE's demargined

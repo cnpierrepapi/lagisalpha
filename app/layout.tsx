@@ -15,7 +15,7 @@ const serif = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Linescout: the delay in prediction market prices, measured · built on TxLINE",
+  title: "Lagisalpha: the delay in prediction market prices, measured · built on TxLINE",
   description:
     "Prediction markets trade a step behind the true price. TxLINE strips the vig, so its odds are the true price; when a prediction market lags it, the cheap side is underpriced, and it snaps back to fair 73% of the time. Measured live, proven on-chain.",
 };

@@ -118,7 +118,7 @@ export default function Home() {
             fair, and the underpriced side gets taken before it catches up. That lag is a{" "}
             <span className="text-fg">measurable delay</span>: the book travels back to TxLINE&apos;s
             price 73% of the time, and buying the cheap side and holding to resolution is a
-            positive-edge trade. Linescout turns that leakage into a number you can see, and prove.
+            positive-edge trade. Lagisalpha turns that leakage into a number you can see, and prove.
           </p>
         </div>
       </section>
@@ -190,9 +190,9 @@ export default function Home() {
             <div className="card p-5">
               <h3 className="text-paper">An upgrade for anyone on TxLINE</h3>
               <p className="mt-2 text-sm text-muted">
-                Any prediction market or bookmaker already plugged into TxLINE can bolt on Linescout and
+                Any prediction market or bookmaker already plugged into TxLINE can bolt on Lagisalpha and
                 instantly harden its line integrity, no new pricing model, no giving up the book.
-                Linescout makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
+                Lagisalpha makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
                 a provable stale-line shield on top.
               </p>
             </div>
@@ -238,7 +238,7 @@ export default function Home() {
 
       <footer className="border-t border-ink-600">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-xs text-faint">
-          <span className="prompt">linescout</span>
+          <span className="prompt">lagisalpha</span>
           <span>Built on TxLINE · AGPL-3.0</span>
         </div>
       </footer>

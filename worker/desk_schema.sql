@@ -1,4 +1,4 @@
--- AGENTHESIS DESK MIRROR — runs in the foil Supabase project.
+-- LAGISALPHA DESK MIRROR — runs in the foil Supabase project.
 -- The EC2 worker (service_role, bypasses RLS) is the ONLY writer of the mirror
 -- tables. The browser uses the anon key to READ the mirror and to QUEUE a
 -- pause/stop intent into desk_controls. Paste this into the foil SQL editor.

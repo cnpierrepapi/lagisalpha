@@ -1,4 +1,4 @@
-// Linescout SDK — quant-desk quickstart (runnable).
+// Lagisalpha SDK — quant-desk quickstart (runnable).
 //
 //   node examples/desk_quickstart.mjs
 //

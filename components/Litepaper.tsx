@@ -42,18 +42,18 @@ export default function Litepaper() {
       <header className="mb-10 border-b border-ink-600 pb-8">
         <p className="label">litepaper · v1.0</p>
         <h1 className="serif mt-2 text-4xl leading-tight text-paper">
-          Linescout: measuring the delay in prediction market prices
+          Lagisalpha: measuring the delay in prediction market prices
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-muted">
           Prediction markets carry real money and deep sports volume, and their in-play prices lag the
           sharp, vig-free consensus. TxLINE publishes that consensus as a de-margined fair probability.
-          Linescout puts the two side by side. When the prediction market price sits far enough below the TxLINE
+          Lagisalpha puts the two side by side. When the prediction market price sits far enough below the TxLINE
           fair, the cheap side is underpriced; that gap is a divergence. We measure it on real on-chain
           fills, and we grade the signal, not a trader&apos;s profit and loss.
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <a
-            href="/linescout-litepaper.pdf"
+            href="/lagisalpha-litepaper.pdf"
             download
             className="rounded border border-amber-dim bg-amber/10 px-4 py-2 text-amber hover:bg-amber/20"
           >
@@ -90,7 +90,7 @@ export default function Litepaper() {
           the prediction market book can be measured against, tick for tick.
         </p>
         <p>
-          Linescout detects the divergence and then answers two questions on real fills. First, does the
+          Lagisalpha detects the divergence and then answers two questions on real fills. First, does the
           prediction market price travel back to the TxLINE fair before the match ends: does the delay close.
           Across eight matches it closes about 73% of the time. Second, if you buy the cheap side and
           hold it to resolution, is that a positive-edge trade: the pooled edge is about plus 18% at a
@@ -119,7 +119,7 @@ export default function Litepaper() {
 
       <Section id="s03" num="03" title="The signal: a measured divergence">
         <p>
-          Linescout works in probability space. TxLINE&apos;s de-margined 1X2 market gives a fair
+          Lagisalpha works in probability space. TxLINE&apos;s de-margined 1X2 market gives a fair
           probability that a team wins, summing to one across the three outcomes. A prediction market&apos;s
           moneyline gives the market&apos;s probability of the same event. Because both are the probability
           that a team wins, a difference between them is a real disagreement about price, not a units
@@ -237,8 +237,8 @@ export default function Litepaper() {
         </p>
         <p>
           The relationship runs both ways. Any market or book already taking the TxLINE feed can use
-          Linescout to see where its prices lag, with no new pricing model and no change to its book, so
-          Linescout is a reason to be on TxLINE. Continued support means two things: low-latency access so
+          Lagisalpha to see where its prices lag, with no new pricing model and no change to its book, so
+          Lagisalpha is a reason to be on TxLINE. Continued support means two things: low-latency access so
           a live signal beats the pickoff, and more of the de-margined book beyond goals, such as cards,
           corners, and match result, so we can measure every line, not only the goals markets.
         </p>
@@ -246,7 +246,7 @@ export default function Litepaper() {
 
       <Section id="s11" num="11" title="Responsible use">
         <p>
-          Linescout is a read-only research and measurement layer built on de-margined data. It places no
+          Lagisalpha is a read-only research and measurement layer built on de-margined data. It places no
           wagers, holds no funds, and moves no prices. It measures a delay in one market&apos;s prices
           against another market&apos;s fair; it is not a trading strategy and not financial advice. The
           historical edge is a pilot over a small sample, calibration does not guarantee live results, and
@@ -255,7 +255,7 @@ export default function Litepaper() {
       </Section>
 
       <footer className="mt-6 border-t border-ink-600 pt-6 text-xs text-faint">
-        Linescout · built on the TxLINE World Cup data layer ·{" "}
+        Lagisalpha · built on the TxLINE World Cup data layer ·{" "}
         <Link href="/edge" className="text-amber hover:text-fg">
           replay the edge →
         </Link>

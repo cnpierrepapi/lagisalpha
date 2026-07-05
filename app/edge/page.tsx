@@ -3,7 +3,7 @@ import ReplayEdge from "@/components/ReplayEdge";
 import LiveEdgePanel from "@/components/LiveEdgePanel";
 import { getPickoffs } from "@/lib/pickoff-source";
 
-export const metadata = { title: "Replay the edge: Linescout" };
+export const metadata = { title: "Replay the edge: Lagisalpha" };
 export const dynamic = "force-dynamic";
 
 export default async function EdgePage() {

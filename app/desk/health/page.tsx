@@ -39,7 +39,7 @@ function computeVerdict(now: number, h: DeskHealth | null, ratePerMin: number | 
       level: "bad",
       title: "No mirror data",
       detail: "Can't reach foil, or the worker has never pushed a meta row.",
-      action: "On the box (54.229.238.5):  sudo systemctl restart linescout-worker",
+      action: "On the box (54.229.238.5):  sudo systemctl restart lagisalpha-worker",
     };
 
   const ageMs = now - h.updatedAt;
@@ -48,7 +48,7 @@ function computeVerdict(now: number, h: DeskHealth | null, ratePerMin: number | 
       level: "bad",
       title: "Worker OFFLINE",
       detail: `Last push was ${Math.round(ageMs / 1000)}s ago; the worker process has stopped.`,
-      action: "Restart:  ssh …54.229.238.5 → sudo systemctl restart linescout-worker",
+      action: "Restart:  ssh …54.229.238.5 → sudo systemctl restart lagisalpha-worker",
     };
 
   const inWindow = KICKOFFS.find((k) => now >= k.utc && now <= k.utc + MATCH_WINDOW_MS);
@@ -90,7 +90,7 @@ function computeVerdict(now: number, h: DeskHealth | null, ratePerMin: number | 
     level: "bad",
     title: "ACTION NEEDED: worker alive but 0 live frames",
     detail: `${Math.round(sinceKick / 60_000)} min into ${inWindow.label} and ingestion is flat (total ${h.totalIngested.toLocaleString()}). The devnet TxLINE token is almost certainly stale/expired.`,
-    action: "Refresh TXLINE_API_TOKEN in ~/linescout/worker/.env, then:  sudo systemctl restart linescout-worker",
+    action: "Refresh TXLINE_API_TOKEN in ~/lagisalpha/worker/.env, then:  sudo systemctl restart lagisalpha-worker",
   };
 }
 

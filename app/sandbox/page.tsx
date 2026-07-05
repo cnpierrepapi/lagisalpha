@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import LiveBoundary from "@/components/LiveBoundary";
 
 export const metadata = {
-  title: "Sandbox: Linescout",
+  title: "Sandbox: Lagisalpha",
 };
 
 // The line-integrity sandbox: replay a recorded match through the classifier against your

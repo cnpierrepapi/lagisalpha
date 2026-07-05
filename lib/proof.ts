@@ -1,6 +1,6 @@
 // PROOF OF ACCESS — the Solana touchpoint.
 //
-// Linescout ingests TxLINE's data layer, which is itself anchored on Solana.
+// Lagisalpha ingests TxLINE's data layer, which is itself anchored on Solana.
 // Access to that feed is minted by a real on-chain SUBSCRIBE transaction signed
 // with a Solana wallet ("sign up through Solana"): that transaction's signature
 // is a public, verifiable hash. We surface it so anyone can confirm the data the
