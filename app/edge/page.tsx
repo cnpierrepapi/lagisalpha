@@ -1,6 +1,5 @@
 import Nav from "@/components/Nav";
 import ReplayEdge from "@/components/ReplayEdge";
-import LiveEdgePanel from "@/components/LiveEdgePanel";
 import { getPickoffs } from "@/lib/pickoff-source";
 
 export const metadata = { title: "Replay the edge: Lagisalpha" };
@@ -23,9 +22,6 @@ export default async function EdgePage() {
           positive-edge buy at resolution. Both are measured on the real fills, pooled across matches.
         </p>
         <div className="mt-6">
-          <LiveEdgePanel />
-        </div>
-        <div className="mt-5">
           <ReplayEdge matches={matches} pooled={ledger?.pooled} />
         </div>
         <p className="mt-4 text-xs text-faint">

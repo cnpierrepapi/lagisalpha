@@ -19,6 +19,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
   const withEdge = matches.filter((m) => m.edge && Object.keys(m.edge).length);
   const [fid, setFid] = useState(withEdge[0]?.fid ?? "");
   const [theta, setTheta] = useState<"5" | "10">("5");
+  const [selTs, setSelTs] = useState<number | null>(null);
 
   const m = withEdge.find((x) => x.fid === fid) ?? withEdge[0];
   const edge = m?.edge?.[theta];
@@ -59,7 +60,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
             {(["5", "10"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => setTheta(t)}
+                onClick={() => { setTheta(t); setSelTs(null); }}
                 className={`rounded px-2 py-0.5 ${theta === t ? "bg-amber/20 text-amber" : "text-muted hover:text-fg"}`}
               >
                 ≥{t}pp
@@ -93,7 +94,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
       <div className="card p-5">
         <label className="flex w-fit flex-col gap-1">
           <span className="label">match</span>
-          <select value={fid} onChange={(e) => setFid(e.target.value)} className="rounded border border-ink-600 bg-transparent px-2 py-1 text-sm text-fg">
+          <select value={fid} onChange={(e) => { setFid(e.target.value); setSelTs(null); }} className="rounded border border-ink-600 bg-transparent px-2 py-1 text-sm text-fg">
             {withEdge.map((mm) => (
               <option key={mm.fid} value={mm.fid} className="bg-ink-800">{mm.teams}</option>
             ))}
@@ -101,13 +102,13 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
         </label>
 
         <div className="mt-4">
-          <EdgeChart frames={frames} entries={entries} theta={Number(theta) / 100} />
+          <EdgeChart frames={frames} entries={entries} theta={Number(theta) / 100} selectedTs={selTs} />
           <div className="mt-1 flex flex-wrap gap-4 text-xs text-faint">
             <span><span className="text-amber">—</span> TxLINE fair</span>
             <span><span className="text-muted">—</span> market price</span>
             <span><span className="text-amber opacity-50">▮</span> divergence</span>
             <span>● entry (faded = never reached fair)</span>
-            <span className="ml-auto">hover to read any tick · reach {pct(edge.reachRate)} · edge {signed(edge.aggEdgePct)} · n {edge.n}</span>
+            <span className="ml-auto">hover any tick · click an entry below to pin it · reach {pct(edge.reachRate)} · edge {signed(edge.aggEdgePct)} · n {edge.n}</span>
           </div>
         </div>
 
@@ -126,17 +127,25 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
                 </tr>
               </thead>
               <tbody className="font-mono">
-                {divs.map((e, i) => (
-                  <tr key={i} className="border-t border-ink-700">
-                    <td className="py-1.5 text-fg">{e.side === "yes" ? "buy YES" : "buy NO"}</td>
-                    <td className="py-1.5 text-muted">{e.entry.toFixed(3)}</td>
-                    <td className="py-1.5 text-fg">{(e.side === "yes" ? e.fair : 1 - e.fair).toFixed(3)}</td>
-                    <td className="py-1.5 text-muted">{(e.gap * 100).toFixed(1)}pp</td>
-                    <td className="py-1.5 text-muted">{usd(e.usd ?? 0)}</td>
-                    <td className={`py-1.5 ${e.reached ? "text-amber" : "text-faint"}`}>{e.reached ? "✓" : "✗"}</td>
-                    <td className={`py-1.5 ${e.win ? "text-amber" : "text-faint"}`}>{e.win ? "✓" : "✗"}</td>
-                  </tr>
-                ))}
+                {divs.map((e, i) => {
+                  const ts = e.t - kickSec;
+                  const on = selTs === ts;
+                  return (
+                    <tr
+                      key={i}
+                      onClick={() => setSelTs(on ? null : ts)}
+                      className={`cursor-pointer border-t border-ink-700 ${on ? "bg-amber/10" : "hover:bg-ink-800/60"}`}
+                    >
+                      <td className="py-1.5 text-fg">{e.side === "yes" ? "buy YES" : "buy NO"}</td>
+                      <td className="py-1.5 text-muted">{e.entry.toFixed(3)}</td>
+                      <td className="py-1.5 text-fg">{(e.side === "yes" ? e.fair : 1 - e.fair).toFixed(3)}</td>
+                      <td className="py-1.5 text-muted">{(e.gap * 100).toFixed(1)}pp</td>
+                      <td className="py-1.5 text-muted">{usd(e.usd ?? 0)}</td>
+                      <td className={`py-1.5 ${e.reached ? "text-amber" : "text-faint"}`}>{e.reached ? "✓" : "✗"}</td>
+                      <td className={`py-1.5 ${e.win ? "text-amber" : "text-faint"}`}>{e.win ? "✓" : "✗"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

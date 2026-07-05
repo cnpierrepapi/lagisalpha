@@ -125,7 +125,7 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
             {latest && (
               <span className="font-mono text-faint">
                 fair <span className="text-amber">{latest.fair?.toFixed(3) ?? "—"}</span> · mkt <span className="text-muted">{latest.pm?.toFixed(3) ?? "—"}</span> ·{" "}
-                <span className={latestGap != null && Math.abs(latestGap) >= THETA ? "text-amber" : "text-faint"}>
+                <span className={latestGap != null && latestGap >= THETA ? "text-amber" : "text-faint"}>
                   gap {latestGap != null ? `${latestGap > 0 ? "+" : ""}${(latestGap * 100).toFixed(1)}pp` : "—"}
                 </span>
               </span>
@@ -146,18 +146,18 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
           <ul>
             {rows.map((r) => {
               const gap = r.fair != null && r.pm != null ? r.fair - r.pm : null;
-              const ag = gap != null ? Math.abs(gap) : 0;
-              const tint = Math.min(ag / 0.1, 1) * 0.24;
+              const pos = gap != null && gap > 0 ? gap : 0; // TxLINE above market = the cheap side to buy
+              const tint = Math.min(pos / 0.1, 1) * 0.26;
               return (
                 <li
                   key={r.key}
                   className="grid grid-cols-[7rem_1fr_1fr_4.5rem] gap-3 border-t border-ink-800 py-1"
-                  style={ag > 0 ? { backgroundColor: `rgba(217,119,6,${tint.toFixed(3)})` } : undefined}
+                  style={pos > 0 ? { backgroundColor: `rgba(217,119,6,${tint.toFixed(3)})` } : undefined}
                 >
                   <span className="text-faint">{r.label}</span>
                   <span className="text-amber">{r.fair != null ? r.fair.toFixed(3) : "—"}</span>
                   <span className="text-muted">{r.pm != null ? r.pm.toFixed(3) : "—"}</span>
-                  <span className={`text-right ${ag >= 0.02 ? "text-amber" : ag > 0 ? "text-muted" : "text-faint"}`}>
+                  <span className={`text-right ${gap != null && gap >= 0.02 ? "text-amber" : "text-faint"}`}>
                     {gap != null ? `${gap > 0 ? "+" : ""}${(gap * 100).toFixed(1)}` : "—"}
                   </span>
                 </li>

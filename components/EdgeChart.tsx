@@ -17,10 +17,12 @@ export default function EdgeChart({
   frames,
   entries = [],
   theta = 0.05,
+  selectedTs = null,
 }: {
   frames: ChartFrame[];
   entries?: ChartEntry[];
   theta?: number;
+  selectedTs?: number | null;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -58,9 +60,11 @@ export default function EdgeChart({
   };
 
   const hf = hover != null ? pts[hover] : null;
-  const hoverPct = hf ? (x(hf.ts) / W) * 100 : 0;
+  const selFrame = selectedTs == null || !pts.length ? null : pts.reduce((b, p) => (Math.abs(p.ts - selectedTs) < Math.abs(b.ts - selectedTs) ? p : b), pts[0]);
+  const tip = hf ?? selFrame;
+  const tipPct = tip ? (x(tip.ts) / W) * 100 : 0;
   const min = (ts: number) => `${Math.max(0, Math.floor(ts / 60))}'`;
-  const gapPp = hf && hf.pm != null ? (hf.fair - hf.pm) * 100 : null;
+  const gapPp = tip && tip.pm != null ? (tip.fair - tip.pm) * 100 : null;
 
   return (
     <div className="relative select-none">
@@ -89,6 +93,12 @@ export default function EdgeChart({
             <circle key={i} cx={x(en.ts)} cy={y(pmProb)} r={4} className={en.side === "yes" ? "fill-amber" : "fill-fg"} opacity={en.reached ? 1 : 0.4} stroke="#0a0c0f" strokeWidth={1} />
           );
         })}
+        {selFrame && (
+          <g>
+            <line x1={x(selFrame.ts)} x2={x(selFrame.ts)} y1={PAD} y2={H - PAD} className="stroke-amber" strokeWidth={1} opacity={0.65} />
+            {selFrame.pm != null && <circle cx={x(selFrame.ts)} cy={y(selFrame.pm)} r={6} fill="none" className="stroke-amber" strokeWidth={1.5} />}
+          </g>
+        )}
         {hf && (
           <g>
             <line x1={x(hf.ts)} x2={x(hf.ts)} y1={PAD} y2={H - PAD} className="stroke-ink-500" strokeWidth={0.75} strokeDasharray="3 3" />
@@ -98,14 +108,14 @@ export default function EdgeChart({
         )}
       </svg>
 
-      {hf && (
+      {tip && (
         <div
           className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 rounded border border-ink-600 bg-ink-900/95 px-2 py-1 font-mono text-[11px] leading-tight shadow"
-          style={{ left: `${Math.min(88, Math.max(12, hoverPct))}%` }}
+          style={{ left: `${Math.min(88, Math.max(12, tipPct))}%` }}
         >
-          <div className="text-faint">{min(hf.ts)}</div>
-          <div className="text-amber">fair {hf.fair.toFixed(3)}</div>
-          <div className="text-muted">mkt&nbsp; {hf.pm != null ? hf.pm.toFixed(3) : "—"}</div>
+          <div className="text-faint">{min(tip.ts)}</div>
+          <div className="text-amber">fair {tip.fair.toFixed(3)}</div>
+          <div className="text-muted">mkt&nbsp; {tip.pm != null ? tip.pm.toFixed(3) : "—"}</div>
           {gapPp != null && (
             <div className={Math.abs(gapPp) >= theta * 100 ? "text-amber" : "text-faint"}>
               gap {gapPp > 0 ? "+" : ""}
