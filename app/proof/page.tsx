@@ -2,7 +2,7 @@ import Nav from "@/components/Nav";
 import { getProof } from "@/lib/proof";
 import { getPickoffs, polygonTx, type PickoffMatch } from "@/lib/pickoff-source";
 
-export const metadata = { title: "Win-Pool Leakage Ledger: Linethesis" };
+export const metadata = { title: "Win-Pool Leakage Ledger: Linescout" };
 export const dynamic = "force-dynamic";
 
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();

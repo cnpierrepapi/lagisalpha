@@ -1,4 +1,4 @@
-// Linethesis SDK — quant-desk quickstart (runnable).
+// Linescout SDK — quant-desk quickstart (runnable).
 //
 //   node examples/desk_quickstart.mjs
 //

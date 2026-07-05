@@ -39,7 +39,7 @@ export default function Home() {
               Prediction markets conquered politics and crypto. Sports, the largest market on earth, is
               the frontier they&apos;re only now reaching, and a fair one needs the one thing it never had:
               a real-time, vig-free, verifiable price to settle against. That is TxLINE&apos;s untapped
-              edge. Linethesis is the tool that makes it real: we put a live market&apos;s book against
+              edge. Linescout is the tool that makes it real: we put a live market&apos;s book against
               TxLINE&apos;s fair and show, to the point, where a market without it gets picked off.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -122,7 +122,7 @@ export default function Home() {
             lifted before it catches up. Two literature-backed patterns cover it:{" "}
             <span className="text-fg">follow</span> the clean move (the market prices real news
             efficiently), <span className="text-fg">fade</span> the overreaction (a surprising goal
-            overshoots and reverts within minutes). Linethesis turns that pool leakage into a number you
+            overshoots and reverts within minutes). Linescout turns that pool leakage into a number you
             can see, and prove.
           </p>
         </div>
@@ -195,9 +195,9 @@ export default function Home() {
             <div className="card p-5">
               <h3 className="text-paper">An upgrade for anyone on TxLINE</h3>
               <p className="mt-2 text-sm text-muted">
-                Any prediction market or bookmaker already plugged into TxLINE can bolt on Linethesis and
+                Any prediction market or bookmaker already plugged into TxLINE can bolt on Linescout and
                 instantly harden its line integrity, no new pricing model, no giving up the book.
-                Linethesis makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
+                Linescout makes the TxLINE feed worth more to the operators who buy it: adopt TxLINE, get
                 a provable stale-line shield on top.
               </p>
             </div>
@@ -243,7 +243,7 @@ export default function Home() {
 
       <footer className="border-t border-ink-600">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-xs text-faint">
-          <span className="prompt">linethesis</span>
+          <span className="prompt">linescout</span>
           <span>Built on TxLINE · AGPL-3.0</span>
         </div>
       </footer>

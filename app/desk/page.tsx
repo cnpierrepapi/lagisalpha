@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import { getPickoffs, polygonTx, type PickoffMatch } from "@/lib/pickoff-source";
 
-export const metadata = { title: "The Desk: defend a live book | Linethesis" };
+export const metadata = { title: "The Desk: defend a live book | Linescout" };
 export const dynamic = "force-dynamic";
 
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();
@@ -73,7 +73,7 @@ export default async function DeskPage() {
           A sports prediction market&apos;s order book, laid against TxLINE&apos;s vig-free fair for the
           length of a match, the reference these markets have never had. It&apos;s quiet, prices agree at
           the spread, until a goal, when the fair jumps and the book lags. That window is where a stale
-          quote gets lifted. Linethesis watches this gap tick by tick; your rule-set decides what to do
+          quote gets lifted. Linescout watches this gap tick by tick; your rule-set decides what to do
           about it. Hover any dot to see the pickoff; click to verify it on-chain.
         </p>
 

@@ -1,7 +1,7 @@
-# Agenthesis — Build TODO (🔒 LOCKED framing, Jul 2 2026)
+# Linescout — Build TODO (🔒 LOCKED framing, Jul 2 2026)
 
-## What Agenthesis IS (the one sentence — put verbatim in README + litepaper)
-> **Agenthesis is an independent, read-only agent that benchmarks a betting operator's
+## What Linescout IS (the one sentence — put verbatim in README + litepaper)
+> **Linescout is an independent, read-only agent that benchmarks a betting operator's
 > prices against TxLINE's vig-free (demargined) consensus, warns them the instant a line
 > goes stale enough to get picked off, and settles every warning it makes on-chain — so its
 > track record is provable, not asserted.**

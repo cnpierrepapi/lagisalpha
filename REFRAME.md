@@ -1,4 +1,4 @@
-# Agenthesis — The Reframe (one page)
+# Linescout — The Reframe (one page)
 
 **From:** autonomous agents trading fake-USD with entry/exit P&L (a betting-desk metaphor).
 **To:** **autonomous forecasters detecting mispricings in consensus odds, facing off and graded on Closing-Line Value (CLV) — packaged as an operator edge feed.**

@@ -23,9 +23,12 @@ export interface PickoffStats {
   ge5pp_usd: number; ge5pp_fills: number;
   ge10pp_usd: number; ge10pp_fills: number;
 }
+// one downsampled replay point: [secondsFromKick, txlineFair, bookImplied|null]
+export type ReplayPoint = [number, number, number | null];
 export interface PickoffMatch {
   fid: string; slug: string; teams: string; kick: number; ft: number;
   all: PickoffStats; inplay: PickoffStats; top_pickoffs: PickoffFill[];
+  series: ReplayPoint[];
 }
 export interface PickoffLedger {
   generatedAt: number; matchCount: number;

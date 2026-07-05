@@ -1,4 +1,4 @@
--- SIGNALS + CALIBRATION LEDGER (Agenthesis C, on-chain self-grading).
+-- SIGNALS + CALIBRATION LEDGER (Linescout C, on-chain self-grading).
 -- Applied to foil Supabase by the worker operator (NOT auto-run). Additive; does not
 -- touch the desk_* tables. Anon reads the ledger (public /proof); service_role writes.
 

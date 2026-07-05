@@ -2,7 +2,7 @@
 //
 // A clean, authenticated, versioned poll endpoint. A prediction market (or any B2B
 // intermediary between TxLINE and a book) polls this and receives, per match, the
-// pickoffs Linethesis measured: each carries the book's price, TxLINE's vig-free fair,
+// pickoffs Linescout measured: each carries the book's price, TxLINE's vig-free fair,
 // the stale gap, and the Polygon transaction hash that settled the fill on-chain, so the
 // operator reconciles every signal against the public ledger.
 //

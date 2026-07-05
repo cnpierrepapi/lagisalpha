@@ -322,7 +322,7 @@ class AgentRunner extends EventEmitter {
   }
 }
 
-const KEY = "__agenthesis_runner__";
+const KEY = "__linescout_runner__";
 
 export function getRunner(): AgentRunner {
   const g = globalThis as unknown as Record<string, AgentRunner | undefined>;

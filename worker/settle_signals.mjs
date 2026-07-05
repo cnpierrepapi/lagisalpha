@@ -1,4 +1,4 @@
-// SETTLE SIGNALS — the live on-chain grading leg (Agenthesis C). Runs on the EC2 worker
+// SETTLE SIGNALS — the live on-chain grading leg (Linescout C). Runs on the EC2 worker
 // AFTER a fixture finalises. NOT yet wired into desk_worker's loop / not yet run against
 // foil (the box is mid-capture; the devnet faucet is dead so the sim payer is unfunded —
 // the outcome leg will report `pending`, never a false "wrong", per the reference).

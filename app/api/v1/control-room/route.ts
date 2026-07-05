@@ -2,7 +2,7 @@
 //
 // For the strongest in-play match, the timeline: each signal, the NAIVE-FOLLOW book's
 // stale price + pickoff gap (pWatched / gapBps), and the action the OPERATOR'S policy
-// chose. Linethesis computes the decision; the operator's rule-set owns the action — we
+// chose. Linescout computes the decision; the operator's rule-set owns the action — we
 // never touch the book. Params: ?fixtureId, ?lagMs (naive-book latency in ms).
 //
 // Auth: `Authorization: Bearer <key>` or `X-Api-Key: <key>` (demo key ag_demo_2026).

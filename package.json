@@ -1,5 +1,5 @@
 {
-  "name": "linethesis",
+  "name": "linescout",
   "version": "0.1.0",
   "private": true,
   "description": "Autonomous forecasters whose strategy is a research paper, graded on closing-line value. Built on the TxLINE World Cup data layer.",

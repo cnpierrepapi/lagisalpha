@@ -1,4 +1,4 @@
-# Agenthesis EC2 live desk worker
+# Linescout EC2 live desk worker
 
 Runs the **same** runner / engine / agents as the web app, but headless on an
 always-on box, fed by the **live TxLINE SSE**. Trades happen in real time here;
@@ -28,16 +28,16 @@ writes everything with the service-role key.)
 
 ```bash
 # from your machine — copy the repo up (or git clone it on the box)
-scp -i ~/Downloads/predmkt.pem -r ./agenthesis ubuntu@63.33.24.157:~/agenthesis
+scp -i ~/Downloads/predmkt.pem -r ./linescout ubuntu@63.33.24.157:~/linescout
 
 # on the box — Node is already installed via nvm; install just tsx
 ssh -i ~/Downloads/predmkt.pem ubuntu@63.33.24.157
-cd ~/agenthesis/worker && npm install        # installs tsx only (no Next/React)
+cd ~/linescout/worker && npm install        # installs tsx only (no Next/React)
 ```
 
 ## 3. Env file
 
-Create `~/agenthesis/worker/.env` on the box (values from your local
+Create `~/linescout/worker/.env` on the box (values from your local
 `.env.local` for the TxLINE keys, foil dashboard for the service-role key):
 
 ```ini
@@ -60,7 +60,7 @@ DESK_SESSION=live
 ## 4. Run it (around kickoff)
 
 ```bash
-cd ~/agenthesis/worker
+cd ~/linescout/worker
 set -a; source .env; set +a
 nohup npx tsx desk_worker.ts > ~/desk_worker.log 2>&1 &
 echo $! > ~/desk_worker.pid          # remember the PID so we can stop cleanly

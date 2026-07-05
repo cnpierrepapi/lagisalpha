@@ -1,5 +1,5 @@
 {
-  "name": "agenthesis-worker",
+  "name": "linescout-worker",
   "private": true,
   "type": "module",
   "description": "EC2 live desk worker — runs the runner/engine headless on live TxLINE and mirrors to Supabase.",

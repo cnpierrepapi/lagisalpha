@@ -15,9 +15,9 @@ const serif = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Linethesis: a read-only line-integrity oracle · built on TxLINE",
+  title: "Linescout: a read-only line-integrity oracle · built on TxLINE",
   description:
-    "Linethesis benchmarks a betting operator's prices against TxLINE's de-vig consensus, warns the instant a line is stale enough to get picked off, and settles every call on-chain. You keep the book; it never touches it.",
+    "Linescout benchmarks a betting operator's prices against TxLINE's de-vig consensus, warns the instant a line is stale enough to get picked off, and settles every call on-chain. You keep the book; it never touches it.",
 };
 
 export default function RootLayout({

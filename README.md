@@ -1,8 +1,8 @@
-# Linethesis
+# Linescout
 
 **A read-only line-integrity oracle. Built on TxLINE.**
 
-Linethesis benchmarks a betting operator's prices against TxLINE's **de-vig
+Linescout benchmarks a betting operator's prices against TxLINE's **de-vig
 (no-margin) consensus**, warns the instant a line is **stale enough to get
 picked off**, and settles every call **on-chain** so its track record is
 provable, not asserted. It classifies each reference-line move as a clean move
@@ -47,7 +47,7 @@ the market, is the only thing that moves you up.
   `/api/verify-csv` against the provider's own data. On-chain proof of access is
   a real Solana subscribe transaction (surfaced on `/proof`).
 - **Two integration surfaces on one pure core.** A trading desk embeds the
-  **SDK** (`linethesis/sdk` — `EdgeEngine` + decision core + CLV scoring, pure &
+  **SDK** (`linescout/sdk` — `EdgeEngine` + decision core + CLV scoring, pure &
   deterministic, 26 unit tests); a market operator consumes the **Operator API**
   (`GET /api/v1/signals`, authed, + a documented webhook contract). See `/sdk`.
 - **Self-contained & reproducible.** Real captured matches are bundled, so the

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const REPO = "https://github.com/cnpierrepapi/linethesis";
+const REPO = "https://github.com/cnpierrepapi/linescout";
 
 function Code({ children }: { children: string }) {
   return (
@@ -70,7 +70,7 @@ export default function SdkDoc() {
     <div className="mx-auto max-w-5xl px-5 py-10">
       <header className="mb-10">
         <p className="label">developer access</p>
-        <h1 className="serif mt-1 text-4xl text-paper">Linethesis API &amp; SDK</h1>
+        <h1 className="serif mt-1 text-4xl text-paper">Linescout API &amp; SDK</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
           The product is the signal API: <code className="text-info">GET /api/v1/signals</code>, an
           authenticated HTTP feed of <span className="text-fg">read-only line-integrity signals</span>,
@@ -80,7 +80,7 @@ export default function SdkDoc() {
           same pure functions, for latency-sensitive consumers that run the classifier in-process.
         </p>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-faint">
-          Either way, Linethesis never places a bet, moves a price, or holds funds; your rule-set takes
+          Either way, Linescout never places a bet, moves a price, or holds funds; your rule-set takes
           the action. Both surfaces run identical pure code (SDK↔API parity): no I/O, no clock reads,
           deterministic, unit-tested. That is what makes it safe to put next to a live book.
         </p>
@@ -131,11 +131,11 @@ export default function SdkDoc() {
         </p>
 
         <p className="label mb-2 mt-6">try it</p>
-        <Code>{`curl -s https://linethesis.vercel.app/api/v1/signals \\
+        <Code>{`curl -s https://linescout.vercel.app/api/v1/signals \\
   -H "X-Api-Key: ag_demo_2026"
 
 # only high-confidence fades on one fixture
-curl -s "https://linethesis.vercel.app/api/v1/signals?action=fade&minConfidence=0.7" \\
+curl -s "https://linescout.vercel.app/api/v1/signals?action=fade&minConfidence=0.7" \\
   -H "X-Api-Key: ag_demo_2026"`}</Code>
 
         <p className="label mb-2 mt-6">response (abridged)</p>
@@ -180,8 +180,8 @@ curl -s "https://linethesis.vercel.app/api/v1/signals?action=fade&minConfidence=
           In production the same signal is delivered by push. Register a URL and a persistent worker
           watching the live TxLINE stream POSTs each new signal to it:
         </p>
-        <Code>{`POST https://your-endpoint.example/linethesis-signals
-X-Linethesis-Signature: sha256=<hmac of body with your secret>
+        <Code>{`POST https://your-endpoint.example/linescout-signals
+X-Linescout-Signature: sha256=<hmac of body with your secret>
 Content-Type: application/json
 
 { "event": "signal.opened", "signal": { /* identical shape to the poll response */ } }`}</Code>
@@ -227,11 +227,11 @@ Content-Type: application/json
       <section className="mb-10">
         <p className="label mb-3">install</p>
         <Code>{`# install straight from the repo
-npm install github:cnpierrepapi/linethesis
+npm install github:cnpierrepapi/linescout
 
-# the public surface is the self-contained "linethesis/sdk" entry
+# the public surface is the self-contained "linescout/sdk" entry
 import { EdgeEngine, classifyEdge, goalImminent, scoreCLV }
-  from "linethesis/sdk";`}</Code>
+  from "linescout/sdk";`}</Code>
         <p className="mt-2 text-xs text-faint">
           The package exposes only the pure detection + classification + grading layer. It pulls in no
           runtime dependencies beyond Node&apos;s built-in <code className="text-info">events</code>.
@@ -241,7 +241,7 @@ import { EdgeEngine, classifyEdge, goalImminent, scoreCLV }
       {/* Quickstart */}
       <section className="mb-10">
         <p className="label mb-3">quickstart</p>
-        <Code>{`import { EdgeEngine, classifyEdge, goalImminent } from "linethesis/sdk";
+        <Code>{`import { EdgeEngine, classifyEdge, goalImminent } from "linescout/sdk";
 
 const engine = new EdgeEngine();                       // detection thresholds
 

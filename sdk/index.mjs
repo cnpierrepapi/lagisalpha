@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// Linethesis SDK
+// Linescout SDK
 // ───────────────────────────────────────────────────────────────────────────
 // The product is the signal API (/api/v1/signals); this package is the OPTIONAL
 // in-process wrapper around the identical pure functions, for latency-sensitive
@@ -14,7 +14,7 @@
 // lib/ (single source of truth — the deployed product runs the exact same code).
 //
 //   import { EdgeEngine, defineStrategy, createAgent, decide, markPosition }
-//     from "linethesis/sdk";
+//     from "linescout/sdk";
 //
 //   const engine = new EdgeEngine();                 // detection thresholds
 //   const strat  = defineStrategy({ stakeMode: "kelly" }, { label: "my-desk" });
@@ -41,7 +41,7 @@ export { EdgeEngine } from "../lib/edge/engine.mjs";
 // own watched price) into a read-only signal — kind (steam|overreaction) → action
 // (follow|hold|fade), confidence, pickoffRisk, gapBps. goalImminent fires off the
 // momentum tape before a goal lands, with a quantified goalProb (P(goal ≤120s)) →
-// suspend/widen. You act on the signal; Linethesis never touches your book. Identical
+// suspend/widen. You act on the signal; Linescout never touches your book. Identical
 // to what /api/v1/signals serves (SDK↔API parity).
 export { classifyEdge, goalImminent, parseLine } from "../lib/signals/classify.mjs";
 
