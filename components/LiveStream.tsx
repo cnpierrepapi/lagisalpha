@@ -10,12 +10,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PickoffMatch } from "@/lib/pickoff-source";
 
 const THETA = 0.05;
+// a fixture is "live" only while its ticks are fresh; a settled match's last tick is hours old, so
+// past this staleness window we drop it from Live mode (it stays available under Replay).
+const LIVE_MAX_AGE = 10 * 60 * 1000;
 const STREAM_BLOB =
   (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mohbmvajroqizlfaarjk.supabase.co") +
   "/storage/v1/object/public/desk-archives/live-stream.json";
 
 interface StreamFix { fid: string; teams: string; txline: [number, number][]; market: [number, number][] }
 interface Row { key: string; label: string; fair: number | null; pm: number | null }
+
+const lastTick = (f: StreamFix) =>
+  Math.max(f.txline.length ? f.txline[f.txline.length - 1][0] : 0, f.market.length ? f.market[f.market.length - 1][0] : 0);
 
 function stepAt(arr: [number, number][], ts: number): number | null {
   let v: number | null = null;
@@ -52,7 +58,9 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
     return () => { on = false; clearInterval(iv); };
   }, [mode]);
 
-  const liveFx = fixtures?.find((f) => f.fid === liveFid) ?? fixtures?.[0];
+  // only fixtures still ticking count as live; settled matches drop out (they live under Replay)
+  const liveFixtures = useMemo(() => (fixtures ?? []).filter((f) => Date.now() - lastTick(f) < LIVE_MAX_AGE), [fixtures]);
+  const liveFx = liveFixtures.find((f) => f.fid === liveFid) ?? liveFixtures[0];
   const liveRows: Row[] = useMemo(() => {
     if (!liveFx) return [];
     const tsSet = new Set<number>();
@@ -116,9 +124,9 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
           <span className="text-xs text-faint">connecting to the detector…</span>
         ) : liveFx ? (
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            {(fixtures?.length ?? 0) > 1 && (
+            {liveFixtures.length > 1 && (
               <select value={liveFid} onChange={(e) => setLiveFid(e.target.value)} className="rounded border border-ink-600 bg-transparent px-2 py-1 text-fg">
-                {fixtures!.map((f) => (<option key={f.fid} value={f.fid} className="bg-ink-800">{f.teams}</option>))}
+                {liveFixtures.map((f) => (<option key={f.fid} value={f.fid} className="bg-ink-800">{f.teams}</option>))}
               </select>
             )}
             <span className="serif text-sm text-paper">{liveFx.teams}</span>
@@ -132,7 +140,7 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
             )}
           </div>
         ) : (
-          <span className="text-xs text-faint">no match in-play right now · the feed fills at kickoff</span>
+          <span className="text-xs text-faint">waiting for next match · the feed fills at kickoff</span>
         )}
       </div>
 
@@ -141,7 +149,7 @@ export default function LiveStream({ matches }: { matches: PickoffMatch[] }) {
           <span>time</span><span>TxLINE fair</span><span>market</span><span className="text-right">gap</span>
         </div>
         {rows.length === 0 ? (
-          <p className="text-faint">{mode === "live" ? "waiting for the first tick…" : "press play to stream the match…"}</p>
+          <p className="text-faint">{mode === "live" ? (liveFx ? "waiting for the first tick…" : "waiting for the next match to kick off…") : "press play to stream the match…"}</p>
         ) : (
           <ul>
             {rows.map((r) => {

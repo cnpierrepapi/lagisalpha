@@ -164,6 +164,11 @@ export default function ProofLedger({
 }) {
   const [theta, setTheta] = useState<"5" | "10">("5");
   const withEdge = matches.filter((m) => (m.divergences?.[theta]?.length ?? 0) > 0);
+  // per-match cards, ranked by ROI so the strongest matches lead
+  const rankedMatches = useMemo(
+    () => [...withEdge].sort((a, b) => (kellyRoiOf(b.divergences?.[theta] ?? []) ?? -1) - (kellyRoiOf(a.divergences?.[theta] ?? []) ?? -1)),
+    [withEdge, theta],
+  );
   // Always derive the pooled stat client-side so a stale blob (missing tpReturn) can never NaN the
   // page; overlay the published stat (which carries the bootstrap CIs) on top when present.
   const p = useMemo(() => {
@@ -220,7 +225,7 @@ export default function ProofLedger({
             {/* WHY KELLY — evidence, not assertion: same signal + same Kelly bets, two exits */}
             <div className="mt-3 rounded border border-ink-700 bg-ink-900/40 p-4">
               <p className="label">why Kelly sizing, and why take-profit — the data, not our word</p>
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <p className={`serif text-xl ${p.kellyRoi >= 0 ? "text-amber" : "text-muted"}`}>{roi(p.kellyRoi)}</p>
                   <p className="text-xs text-muted">Kelly bets, take profit when the line reaches fair</p>
@@ -228,10 +233,6 @@ export default function ProofLedger({
                 <div>
                   <p className={`serif text-xl ${(p.kellyRoiRes ?? 0) >= 0 ? "text-amber" : "text-loss"}`}>{roi(p.kellyRoiRes ?? 0)}</p>
                   <p className="text-xs text-muted">the SAME Kelly bets, held to the final result instead</p>
-                </div>
-                <div>
-                  <p className="serif text-xl text-loss">wiped out</p>
-                  <p className="text-xs text-muted">flat stake, full compounding: one bad call to $0</p>
                 </div>
               </div>
               <p className="mt-2 text-xs text-faint">
@@ -241,22 +242,15 @@ export default function ProofLedger({
               </p>
             </div>
 
-            <p className="mt-2 text-xs text-faint">
-              Reach = the prediction market price later travelled to TxLINE&apos;s fair (the delay closing).
-              ROI = the compounding return of Kelly-sized bets that exit at TxLINE&apos;s fair on reach, else
-              mark out at the close; never held to resolution. It is concentrated: a couple of high-volume
-              matches carry most of it, so treat it as a pilot that firms up as matches accrue. Sizing and
-              slippage past the size shown are yours, not part of the signal.
-            </p>
           </>
         ) : (
           <p className="mt-2 text-sm text-faint">No divergence past {theta}pp yet.</p>
         )}
       </div>
 
-      {/* PER-MATCH — the same entries as /edge, each expandable to its on-chain fills */}
+      {/* PER-MATCH — sorted by ROI (best first), each expandable to its on-chain fills */}
       <div className="grid grid-cols-1 gap-5">
-        {withEdge.map((m) => (
+        {rankedMatches.map((m) => (
           <MatchCard key={m.fid} m={m} theta={theta} />
         ))}
       </div>

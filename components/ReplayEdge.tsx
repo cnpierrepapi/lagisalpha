@@ -166,7 +166,6 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
           <span className="label">why Kelly + take-profit:</span>
           <span><span className={pooled.kellyRoi >= 0 ? "text-amber" : "text-muted"}>{roiFmt(pooled.kellyRoi)}</span> <span className="text-xs text-muted">take profit at fair</span></span>
           <span><span className={(pooled.kellyRoiRes ?? 0) >= 0 ? "text-amber" : "text-loss"}>{roiFmt(pooled.kellyRoiRes ?? 0)}</span> <span className="text-xs text-muted">same bets, held to the result</span></span>
-          <span><span className="text-loss">wiped out</span> <span className="text-xs text-muted">flat stake, full compounding</span></span>
         </div>
 
         <p className="mt-3 text-xs text-faint">
