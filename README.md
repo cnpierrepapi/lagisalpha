@@ -1,101 +1,95 @@
 # Lagisalpha
 
-**A read-only line-integrity oracle. Built on TxLINE.**
+**The lead-lag edge in prediction markets. Built on TxLINE.**
 
-Lagisalpha benchmarks a betting operator's prices against TxLINE's **de-vig
-(no-margin) consensus**, warns the instant a line is **stale enough to get
-picked off**, and settles every call **on-chain** so its track record is
-provable, not asserted. It classifies each reference-line move as a clean move
-to **follow**, an overreaction to **fade**, or a **goal-imminent** warning to
-suspend — and it never touches the book. You keep the book; the operator's
-rule-set takes the action.
+A prediction market sets its price by trading, so it **lags** the sharp, vig-free
+line that already holds the true probability. TxLINE strips the bookmaker margin
+from a live World Cup odds feed to produce that true probability — and it moves
+the instant news lands. When a prediction market (Polymarket) falls below fair,
+the cheap side is **underpriced**. Lagisalpha detects that divergence, sizes the
+trade by Kelly, takes profit at fair, and **proves the result on real on-chain
+fills**.
 
-Built for the TxLINE / TxODDS World Cup hackathon (Solana) — Track C.
+It never takes the other side of a bet — it is a measurement-and-signal product,
+not a book.
 
-## How it works
+Built for the TxLINE / TxODDS World Cup hackathon (Solana).
 
-1. **The feed** (`lib/feed.ts`) holds one upstream connection to the TxLINE
-   odds + scores SSE streams and pushes every record into the edge engine. A
-   deterministic `synth` source stands in when no match is live (so the desk is
-   always demoable).
-2. **The edge engine** (`lib/edge/engine.mjs`) turns the demargined fair-price
-   book into **edges** — short-lived, scarce signals grounded in the literature:
-   - `steam` — a sharp move in the no-vig fair probability (sharp money). Follow it.
-   - `overreaction` — the line overshoots right after a goal / red card. Fade it.
-3. **Papers** (`lib/papers.ts`) are the strategy menu. A paper maps one edge
-   kind to a calibrated set of levers. Two papers are free; the rest unlock with
-   **AGI** (1000 AGI ≈ $3.50), a non-redeemable in-app token that buys
-   information only — never standing or CLV.
-4. **Forecasters** (`lib/agent.ts`) run an always-on base tuning **plus any
-   number of attached papers**. When an edge fires, the first strategy that
-   greenlights it decides whether to make the call, which side, and with what
-   conviction.
-5. **The runner** (`lib/runner.ts`) is the autonomous loop: it acts on every
-   edge, opens a call, and grades it on **closing-line value** — an odds-only,
-   deterministic skill metric that needs no match outcome.
+> **Technical documentation:** see [`TECHNICAL.md`](./TECHNICAL.md) for the full
+> architecture, data flow, and API reference. The
+> [litepaper](https://lagisalpha.vercel.app/litepaper) covers the thesis and the
+> evidence.
 
-Forecasters are ranked in a daily **Calibration Tournament** on average CLV —
-no wagering, no bankroll, no prize pool. Being right about price, sooner than
-the market, is the only thing that moves you up.
+## The edge in one paragraph
 
-## Highlights
+Work in probability space. TxLINE's de-vig 1X2 gives the fair probability a team
+wins; the market's moneyline gives its own probability of the same event. When
+fair sits above the market price by more than a threshold, the cheap side is
+underpriced and we mark an entry — which side, how far off fair, and how much size
+you could later exit into at fair. Buy the cheap side, take profit at fair when
+the market catches up, size each bet by Kelly on the gap. Holding to the final
+result is a losing trade on this data; the convergence is where the money is.
 
-- **CLV is the moat.** Skill is graded on every call from odds alone (no match
-  outcome), so the signal isn't buried under win/loss variance.
-- **Verifiable provenance.** Every call and every published signal carries a
-  `proofHash` tying it to the exact real TxLINE frame, reconcilable via
-  `/api/verify-csv` against the provider's own data. On-chain proof of access is
-  a real Solana subscribe transaction (surfaced on `/proof`).
-- **Two integration surfaces on one pure core.** A trading desk embeds the
-  **SDK** (`lagisalpha/sdk` — `EdgeEngine` + decision core + CLV scoring, pure &
-  deterministic, 26 unit tests); a market operator consumes the **Operator API**
-  (`GET /api/v1/signals`, authed, + a documented webhook contract). See `/sdk`.
-- **Self-contained & reproducible.** Real captured matches are bundled, so the
-  desk, the verification ledger, and the operator API all run with no live
-  dependency.
+## The proof
 
-## Scoring
+Measured on settled World Cup matches, on the real fills:
 
-Scoring is **CLV (beat-the-close)**: a forecaster flags at the edge's fair
-probability and, while the market keeps quoting, carries a **live provisional
-mark**. It **settles at the closing line** — the market's last real quote before
-it stops trading (kickoff for a pre-match market; suspension / FT in-play),
-detected as the market going quiet. A `back` call scores when its side shortens
-into the close; a `lay` scores when it drifts. Both legs are real, distinct,
-fingerprinted TxLINE frames, so every settled grade is reproducible from a
-recorded feed — the basis of a deterministic demo.
+- **Reach** — does the market price travel back to fair before the match ends?
+  ~71% of the time. Outcome-independent, so it is the firmer number.
+- **Return** — Kelly-sized, take-profit-at-fair, compounded:
+  **≈ +114%** at a 5-point gap, **≈ +158%** at 10. The same bets held to the final
+  result instead lose (≈ −80% / −42%).
 
-## Our endpoints
+Pilot sample (10 matches): the confidence interval still spans zero and the
+return leans on a few high-volume matches, so it is a pilot, not a promise. Reach
+is the firmer read; both tighten as matches accrue.
 
-- `GET /api/agents` — runner + forecaster state, and the paper catalog.
-- `POST /api/agents` — `{action:"create",name,paperIds?,baseLevers?}` or
-  `{action:"control",id,op:"pause|resume|stop"}`.
-- `GET /api/feed` — SSE: live autonomous activity (calls, gradings, match
-  events) + periodic state snapshots.
-- `GET /api/v1/signals` — **Operator API** (authed): typed, scored mispricing
-  signals per fixture, each with a `proofHash`. Filters: `fixtureId`, `kind`,
-  `conviction`, `limit`. Demo key `ag_demo_2026`. Alias: `GET /api/v1/edges`
-  (identical payload, retained for back-compat).
-- `GET /api/live-frames` — real-time TxLINE frames (polled snapshot) for the
-  production app.
-- `GET /api/verify-csv` — per-frame verification CSV: every ingested TxLINE
-  frame + the forecaster calls on it, for reconciliation against the provider.
+## Architecture (short version)
+
+TxLINE SSE (fair) + Polymarket fills (Polygon) → EC2 pipeline → Supabase blob →
+Next.js site. A Python pipeline on an EC2 box streams the de-vig fair line,
+decodes real Polymarket fills from Polygon, joins them, computes reach / return /
+Kelly every 30 min, and publishes `desk-archives/pickoffs.json` to Supabase
+storage. The Next.js app reads that blob and renders the site — every headline
+number is dynamic, never hard-coded. Full detail in [`TECHNICAL.md`](./TECHNICAL.md).
+
+## Verifiability
+
+Both legs are public. The **fair** side is TxLINE's World Cup feed — odds and
+scores anchored on Solana, access minted by a real on-chain **subscribe**
+transaction (surfaced on `/proof`). The **market** side is real fills read
+straight from Polygon, decoded to a price and size per trade. Open any fill as a
+Polygon transaction, settle any outcome on TxLINE's on-chain scores, and recompute
+the edge yourself. Nothing here is asserted.
+
+## Endpoints
+
+Public:
+
+- `GET /api/live-edge` — live in-play divergences: `{ generatedAt, liveCount, theta, signals[] }`.
+- `GET /api/replay-edge` — same shape over the bundled replay matches.
+- `GET /api/live-frames` — real-time TxLINE frames (polled snapshot).
+- `GET /api/verify-csv` — per-frame verification CSV for reconciliation against the provider.
+
+Operator API (authed — `Authorization: Bearer <key>`, demo key `ag_demo_2026`):
+
+- `GET /api/v1/signals` — typed, scored mispricing signals per fixture, each with
+  a `proofHash`. Filters: `fixtureId`, `kind`, `conviction`, `limit`. Alias:
+  `GET /api/v1/edges`.
+
+Consumer / API pricing: USDC, chain-agnostic — **$97.99** and **$699.99** tiers.
 
 ## TxLINE endpoints used
 
 Access uses a server-held token (guest JWT + an on-chain Solana **subscribe**
 transaction → `apiToken`), sent as `Authorization: Bearer <jwt>` +
-`X-Api-Token: <token>`. The subscribe tx is our on-chain proof of access (`/proof`).
+`X-Api-Token: <token>`. The subscribe tx is the on-chain proof of access (`/proof`).
 
-- `GET /api/fixtures/snapshot` — live fixtures, team names, kickoff times
-  (live-match discovery).
-- `GET /api/odds/stream` — live **de-margined (no-vig)** odds (SSE) — the core
-  signal input.
+- `GET /api/fixtures/snapshot` — live fixtures, team names, kickoff times.
+- `GET /api/odds/stream` — live **de-margined (no-vig)** odds (SSE) — the core signal input.
 - `GET /api/scores/stream` — live scores + match events (goals / red cards, SSE).
-- `GET /api/odds/snapshot/{fixtureId}` — current de-margined book, **polled** for
-  the real-time frames panel (serverless can't hold an SSE open).
-- `GET /api/scores/updates/{fixtureId}` — full kickoff-to-FT score sequence, used
-  to capture matches for the bundled replays.
+- `GET /api/odds/snapshot/{fixtureId}` — current de-margined book, polled for the real-time frames panel.
+- `GET /api/scores/updates/{fixtureId}` — full kickoff-to-FT score sequence, used to capture matches for the bundled replays.
 
 > Odds history is gated (`/api/odds/updates` is empty on the free tier), so the
 > de-margined book is captured live off `/api/odds/stream`.
