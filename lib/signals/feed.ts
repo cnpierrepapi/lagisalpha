@@ -36,15 +36,20 @@ export function kellyFraction(fair: number, entry: number): number {
 // A settled-match divergence entry -> canonical Signal (replay mode). Entry/fair are already stored in
 // the bought side's frame by the pipeline, so no reframing here.
 export function entryToSignal(m: PickoffMatch, e: DivergenceEntry): Signal {
+  // `e.entry` is the bought side's price, but `e.fair` is stored in the YES frame; for a NO bet those
+  // are different frames, so the side-frame fair (the take-profit target) is entry + gap, where `e.gap`
+  // is the abs side-frame edge. Using e.fair directly makes NO bets look like no-edge. Always derive the
+  // side fair from the gap so entry, fair, and gap stay in one frame and reconcile with the box.
+  const sideFair = e.entry + Math.abs(e.gap);
   return {
     fid: String(m.fid),
     teams: m.teams,
     side: e.side,
     entry: e.entry,
-    fair: e.fair,
-    tpTarget: e.fair,
-    gapPp: Math.round(e.gap * 100 * 10) / 10,
-    suggestedKellyF: kellyFraction(e.fair, e.entry),
+    fair: sideFair,
+    tpTarget: sideFair,
+    gapPp: Math.round(Math.abs(e.gap) * 100 * 10) / 10,
+    suggestedKellyF: kellyFraction(sideFair, e.entry),
     sizeAtFair: e.usd,
     ts: e.t,
     reached: e.reached,
