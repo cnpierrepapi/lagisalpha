@@ -1,6 +1,6 @@
 // POST /api/keys/claim — redeem a USDC payment for an API key.
 //   body: { txId, tier: "month" | "lifetime", chain: "svm" | "evm", wallet? }
-//   $69.99 USDC = 30-day key, $349.99 USDC = lifetime key. Returns the raw key exactly once.
+//   $97.99 USDC = 30-day key, $699.99 USDC = lifetime key. Returns the raw key exactly once.
 import { NextResponse } from "next/server";
 import { verifyPayment, type Chain } from "@/lib/payments";
 import { issueKey, txAlreadyRedeemed, type Tier } from "@/lib/api-keys";

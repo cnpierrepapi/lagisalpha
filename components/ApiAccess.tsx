@@ -2,11 +2,11 @@
 
 // MANUAL USDC CHECKOUT — pay USDC to the Solana or EVM address, paste the transaction id, claim.
 // No wallet connection, no KYC: the claim route verifies the transfer amount on-chain and issues a
-// key. $69.99/month, $349.99 lifetime, on whichever rail (SVM or EVM) the buyer prefers.
+// key. $97.99/month, $699.99 lifetime, on whichever rail (SVM or EVM) the buyer prefers.
 
 import { useState } from "react";
 
-const PRICE: Record<"month" | "lifetime", string> = { month: "$69.99", lifetime: "$349.99" };
+const PRICE: Record<"month" | "lifetime", string> = { month: "$97.99", lifetime: "$699.99" };
 
 export default function ApiAccess({ svmRecipient, evmRecipient }: { svmRecipient: string; evmRecipient: string }) {
   const [tier, setTier] = useState<"month" | "lifetime">("month");

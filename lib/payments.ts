@@ -10,8 +10,8 @@ export const EVM_RECIPIENT = (process.env.EVM_RECIPIENT || "0x77Ff22f9413463e7Bf
 
 // Prices in USDC; MIN_BASE is the on-chain threshold in base units (6dp) with a 2-cent tolerance
 // for rounding/fees so a legitimate payment is never rejected.
-export const PRICE_USDC: Record<Tier, number> = { month: 69.99, lifetime: 349.99 };
-const MIN_BASE: Record<Tier, number> = { month: 69_970_000, lifetime: 349_970_000 };
+export const PRICE_USDC: Record<Tier, number> = { month: 97.99, lifetime: 699.99 };
+const MIN_BASE: Record<Tier, number> = { month: 97_970_000, lifetime: 699_970_000 };
 
 const SVM_RPC = process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com";
 const USDC_MINT_SVM = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
