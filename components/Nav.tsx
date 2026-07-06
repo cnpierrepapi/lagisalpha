@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Trader-facing IA. Edge (/edge) is the product: the live divergence detector plus the
-// replay of the edge on real matches. Proof (/proof) is the track record. Litepaper (/litepaper)
-// is the writeup. The old operator surfaces (Desk, Sandbox, SDK, Papers) are retired/unlinked.
+// Trader-facing IA. Launch (/launch) is the flagship: the paper-trading terminal. Edge (/edge) is the
+// live divergence detector plus the replay on real matches. Proof (/proof) is the track record.
+// Litepaper (/litepaper) is the writeup. The old operator surfaces (Desk, Sandbox, SDK, Papers) are retired.
 const LINKS = [
+  { href: "/launch", label: "Launch" },
   { href: "/edge", label: "Edge" },
   { href: "/live", label: "Live" },
   { href: "/proof", label: "Proof" },
