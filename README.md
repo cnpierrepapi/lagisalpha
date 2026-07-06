@@ -4,13 +4,13 @@
 
 A prediction market sets its price by trading, so it **lags** the sharp, vig-free
 line that already holds the true probability. TxLINE strips the bookmaker margin
-from a live World Cup odds feed to produce that true probability — and it moves
+from a live World Cup odds feed to produce that true probability - and it moves
 the instant news lands. When a prediction market (Polymarket) falls below fair,
 the cheap side is **underpriced**. Lagisalpha detects that divergence, sizes the
 trade by Kelly, takes profit at fair, and **proves the result on real on-chain
 fills**.
 
-It never takes the other side of a bet — it is a measurement-and-signal product,
+It never takes the other side of a bet - it is a measurement-and-signal product,
 not a book.
 
 Built for the TxLINE / TxODDS World Cup hackathon (Solana).
@@ -25,7 +25,7 @@ Built for the TxLINE / TxODDS World Cup hackathon (Solana).
 Work in probability space. TxLINE's de-vig 1X2 gives the fair probability a team
 wins; the market's moneyline gives its own probability of the same event. When
 fair sits above the market price by more than a threshold, the cheap side is
-underpriced and we mark an entry — which side, how far off fair, and how much size
+underpriced and we mark an entry - which side, how far off fair, and how much size
 you could later exit into at fair. Buy the cheap side, take profit at fair when
 the market catches up, size each bet by Kelly on the gap. Holding to the final
 result is a losing trade on this data; the convergence is where the money is.
@@ -34,9 +34,9 @@ result is a losing trade on this data; the convergence is where the money is.
 
 Measured on settled World Cup matches, on the real fills:
 
-- **Reach** — does the market price travel back to fair before the match ends?
+- **Reach** - does the market price travel back to fair before the match ends?
   ~71% of the time. Outcome-independent, so it is the firmer number.
-- **Return** — Kelly-sized, take-profit-at-fair, compounded:
+- **Return** - Kelly-sized, take-profit-at-fair, compounded:
   **≈ +114%** at a 5-point gap, **≈ +158%** at 10. The same bets held to the final
   result instead lose (≈ −80% / −42%).
 
@@ -50,12 +50,12 @@ TxLINE SSE (fair) + Polymarket fills (Polygon) → EC2 pipeline → Supabase blo
 Next.js site. A Python pipeline on an EC2 box streams the de-vig fair line,
 decodes real Polymarket fills from Polygon, joins them, computes reach / return /
 Kelly every 30 min, and publishes `desk-archives/pickoffs.json` to Supabase
-storage. The Next.js app reads that blob and renders the site — every headline
+storage. The Next.js app reads that blob and renders the site - every headline
 number is dynamic, never hard-coded. Full detail in [`TECHNICAL.md`](./TECHNICAL.md).
 
 ## Verifiability
 
-Both legs are public. The **fair** side is TxLINE's World Cup feed — odds and
+Both legs are public. The **fair** side is TxLINE's World Cup feed - odds and
 scores anchored on Solana, access minted by a real on-chain **subscribe**
 transaction (surfaced on `/proof`). The **market** side is real fills read
 straight from Polygon, decoded to a price and size per trade. Open any fill as a
@@ -66,18 +66,18 @@ the edge yourself. Nothing here is asserted.
 
 Public:
 
-- `GET /api/live-edge` — live in-play divergences: `{ generatedAt, liveCount, theta, signals[] }`.
-- `GET /api/replay-edge` — same shape over the bundled replay matches.
-- `GET /api/live-frames` — real-time TxLINE frames (polled snapshot).
-- `GET /api/verify-csv` — per-frame verification CSV for reconciliation against the provider.
+- `GET /api/live-edge` - live in-play divergences: `{ generatedAt, liveCount, theta, signals[] }`.
+- `GET /api/replay-edge` - same shape over the bundled replay matches.
+- `GET /api/live-frames` - real-time TxLINE frames (polled snapshot).
+- `GET /api/verify-csv` - per-frame verification CSV for reconciliation against the provider.
 
-Operator API (authed — `Authorization: Bearer <key>`, demo key `ag_demo_2026`):
+Operator API (authed - `Authorization: Bearer <key>`, demo key `ag_demo_2026`):
 
-- `GET /api/v1/signals` — typed, scored mispricing signals per fixture, each with
+- `GET /api/v1/signals` - typed, scored mispricing signals per fixture, each with
   a `proofHash`. Filters: `fixtureId`, `kind`, `conviction`, `limit`. Alias:
   `GET /api/v1/edges`.
 
-Consumer / API pricing: USDC, chain-agnostic — **$97.99** and **$699.99** tiers.
+Consumer / API pricing: USDC, chain-agnostic - **$97.99** and **$699.99** tiers.
 
 ## TxLINE endpoints used
 
@@ -85,11 +85,11 @@ Access uses a server-held token (guest JWT + an on-chain Solana **subscribe**
 transaction → `apiToken`), sent as `Authorization: Bearer <jwt>` +
 `X-Api-Token: <token>`. The subscribe tx is the on-chain proof of access (`/proof`).
 
-- `GET /api/fixtures/snapshot` — live fixtures, team names, kickoff times.
-- `GET /api/odds/stream` — live **de-margined (no-vig)** odds (SSE) — the core signal input.
-- `GET /api/scores/stream` — live scores + match events (goals / red cards, SSE).
-- `GET /api/odds/snapshot/{fixtureId}` — current de-margined book, polled for the real-time frames panel.
-- `GET /api/scores/updates/{fixtureId}` — full kickoff-to-FT score sequence, used to capture matches for the bundled replays.
+- `GET /api/fixtures/snapshot` - live fixtures, team names, kickoff times.
+- `GET /api/odds/stream` - live **de-margined (no-vig)** odds (SSE) - the core signal input.
+- `GET /api/scores/stream` - live scores + match events (goals / red cards, SSE).
+- `GET /api/odds/snapshot/{fixtureId}` - current de-margined book, polled for the real-time frames panel.
+- `GET /api/scores/updates/{fixtureId}` - full kickoff-to-FT score sequence, used to capture matches for the bundled replays.
 
 > Odds history is gated (`/api/odds/updates` is empty on the free tier), so the
 > de-margined book is captured live off `/api/odds/stream`.
@@ -100,7 +100,7 @@ transaction → `apiToken`), sent as `Authorization: Bearer <jwt>` +
 | --- | --- |
 | `FEED_MODE` | `replay` (bundled real captures, default), `live` (TxLINE streams), or `synth` (deterministic stand-in). |
 | `TXLINE_API_BASE` / `TXLINE_JWT` / `TXLINE_API_TOKEN` | Server-held TxLINE token (guest JWT + on-chain subscribe). |
-| `TXLINE_SIGNUP_TX` / `TXLINE_CLUSTER` | Solana subscribe tx + cluster — the on-chain proof of access shown on `/proof`. |
+| `TXLINE_SIGNUP_TX` / `TXLINE_CLUSTER` | Solana subscribe tx + cluster - the on-chain proof of access shown on `/proof`. |
 | `OPERATOR_API_KEYS` | Comma-separated keys for the Operator API (`/api/v1/signals`, alias `/api/v1/edges`); the demo key always works. |
 | `REPLAY_SPEED` | Match-seconds per wall-second for replay mode (default 30). |
 

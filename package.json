@@ -2,7 +2,7 @@
   "name": "lagisalpha",
   "version": "0.1.0",
   "private": true,
-  "description": "Autonomous forecasters whose strategy is a research paper, graded on closing-line value. Built on the TxLINE World Cup data layer.",
+  "description": "Measures the lead-lag delay between prediction markets and TxLINE's vig-free line. When a market lags fair, the cheap side is underpriced; Kelly-sized take-profit bets are proven on real on-chain fills.",
   "type": "module",
   "exports": {
     ".": "./sdk/index.mjs",

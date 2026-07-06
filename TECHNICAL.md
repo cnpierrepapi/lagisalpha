@@ -1,4 +1,4 @@
-# Lagisalpha — Technical Documentation
+# Lagisalpha - Technical Documentation
 
 > The engineering companion to the [litepaper](https://lagisalpha.vercel.app/litepaper).
 > The litepaper explains *why the edge is real*; this document explains *how the
@@ -14,7 +14,7 @@ sharp, vig-free reference line.
 TxLINE strips the bookmaker margin from a live World Cup odds feed to produce the
 *true* probability, which moves the instant news lands. A prediction market
 (Polymarket) reprices only when someone trades, so it sits **behind** that true
-probability — and the lagging side is temporarily underpriced. Lagisalpha detects
+probability - and the lagging side is temporarily underpriced. Lagisalpha detects
 that divergence, sizes the trade by Kelly, takes profit at fair, and proves the
 result on **real on-chain fills**.
 
@@ -44,7 +44,7 @@ Next.js site.
                  /  ·  /proof  ·  /edge  ·  /litepaper  ·  /sdk
 ```
 
-### A. Data plane — the EC2 worker box
+### A. Data plane - the EC2 worker box
 
 Host `54.229.238.5` (eu-west-1, user `ec2-user`), systemd services + cron:
 
@@ -78,7 +78,7 @@ refreshed every 30 min). Shape:
 }
 ```
 
-### C. Presentation plane — Next.js on Vercel
+### C. Presentation plane - Next.js on Vercel
 
 `lagisalpha.vercel.app` reads the Supabase blob and renders:
 
@@ -90,7 +90,7 @@ refreshed every 30 min). Shape:
 | `/litepaper` | The written thesis (+ downloadable PDF). |
 | `/sdk` | Integration surface: SDK + Operator API. |
 
-Headline numbers are pulled from the blob via `lib/site-stats.ts` — never
+Headline numbers are pulled from the blob via `lib/site-stats.ts` - never
 hard-coded.
 
 ---
@@ -110,13 +110,13 @@ hard-coded.
 
 Measured on the bundled/settled World Cup matches, against real Polygon fills.
 
-- **Reach** — from the entry, does the market price travel to fair before the
+- **Reach** - from the entry, does the market price travel to fair before the
   match ends? (~71% observed.) Outcome-independent, so it is the firmer number.
-- **Return** — buy the cheap side, take profit at fair when the market catches
+- **Return** - buy the cheap side, take profit at fair when the market catches
   up. Sized by Kelly on the gap, `f = gap / (1 − price)`, compounded across every
   call:
   - **θ 5pp: ≈ +114% Kelly ROI** · **θ 10pp: ≈ +158%**
-  - The same bets **held to the final result lose** (≈ −80% / −42%) — convergence
+  - The same bets **held to the final result lose** (≈ −80% / −42%) - convergence
     is where the money is; the outcome is a coin-flip that only adds variance.
 
 **Honesty bound.** Pilot sample (10 matches). The confidence interval still spans
@@ -130,7 +130,7 @@ firmer read; both tighten as matches accrue.
 - **Fair side:** TxLINE World Cup feed, odds + scores anchored on Solana; access
   minted by a real on-chain **subscribe** transaction (surfaced on `/proof`).
   Scores settle on-chain.
-- **Market side:** raw Polymarket fills read from Polygon — open any fill as a
+- **Market side:** raw Polymarket fills read from Polygon - open any fill as a
   Polygon transaction and recompute the price and size yourself.
 - Nothing is asserted: every published number recomputes from public data.
 
@@ -142,18 +142,18 @@ Public (no auth):
 
 | Endpoint | Returns |
 | --- | --- |
-| `GET /api/live-edge` | `{ generatedAt, liveCount, theta, signals[] }` — live in-play divergences. |
+| `GET /api/live-edge` | `{ generatedAt, liveCount, theta, signals[] }` - live in-play divergences. |
 | `GET /api/replay-edge` | Same shape, over the bundled replay matches. |
 | `GET /api/live-frames` | Real-time TxLINE frames (polled snapshot). |
 | `GET /api/verify-csv` | Per-frame verification CSV for reconciliation against the provider. |
 
-Operator API (authed — `Authorization: Bearer <key>`; demo key `ag_demo_2026`):
+Operator API (authed - `Authorization: Bearer <key>`; demo key `ag_demo_2026`):
 
 | Endpoint | Returns |
 | --- | --- |
 | `GET /api/v1/signals` | Typed, scored mispricing signals per fixture, each with a `proofHash`. Filters: `fixtureId`, `kind`, `conviction`, `limit`. Self-describing envelope (`version`, `source`, `product`, `proof`, `fixtureCount`, `signalCount`). Alias: `/api/v1/edges`. |
 
-Consumer/API pricing: USDC, chain-agnostic — **$97.99** and **$699.99** tiers.
+Consumer/API pricing: USDC, chain-agnostic - **$97.99** and **$699.99** tiers.
 
 ---
 
