@@ -21,6 +21,7 @@ export interface Signal {
   sizeAtFair: number;   // $ exit liquidity available at/through fair (0 if it never reached)
   ts: number;           // unix seconds of the entry
   reached?: boolean;    // replay only: did the market travel to fair before FT
+  clv?: number;         // replay only: closing-line value in prob (close - entry); marks out no-reach trades
   tx?: string;          // replay only: a Polygon fill tx that settled it (verifiable)
 }
 
@@ -47,6 +48,7 @@ export function entryToSignal(m: PickoffMatch, e: DivergenceEntry): Signal {
     sizeAtFair: e.usd,
     ts: e.t,
     reached: e.reached,
+    clv: e.clv,
     tx: e.fills?.[0]?.tx,
   };
 }
