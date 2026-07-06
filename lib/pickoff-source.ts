@@ -40,11 +40,12 @@ export interface DivergenceEntry {
   clv?: number; // closing-line value in prob points: (your side's implied at close) − (price paid)
   fills?: DivergenceFill[]; // the actual Polygon fills that summed to `usd` (top 6 by size)
 }
-// Per-theta signal metrics. clvAvg = the SURFACED metric: average closing-line value per call, in
-// prob points (lower-variance than resolution-based edge). aggEdgePct/tpReturn kept for back-compat.
-export interface EdgeStat { theta: number; n: number; reachRate: number; winRate: number; aggEdgePct: number; tpReturn: number; clvAvg: number; usd: number }
-// Pooled across matches, with MATCH-LEVEL bootstrap 90% CIs (honest N). clvCi90 = CI on clvAvg.
-export interface PooledStat { theta: number; n: number; reachRate: number; aggEdgePct: number; tpReturn: number; clvAvg: number; usd: number; ci90: [number, number] | null; tpCi90?: [number, number] | null; clvCi90?: [number, number] | null }
+// Per-theta signal metrics. kellyRoi = the SURFACED metric: compounding return of Kelly-sized bets
+// (f = gap/(1-entry)) exited at fair on reach, else at the close — never resolution. reachRate is
+// the firm read. aggEdgePct/tpReturn/clvAvg kept for back-compat.
+export interface EdgeStat { theta: number; n: number; reachRate: number; winRate: number; aggEdgePct: number; tpReturn: number; clvAvg: number; kellyRoi: number; usd: number }
+// Pooled across matches. kellyRoiRes = the same Kelly bets HELD TO RESOLUTION (the losing contrast).
+export interface PooledStat { theta: number; n: number; reachRate: number; aggEdgePct: number; tpReturn: number; clvAvg: number; kellyRoi: number; kellyRoiRes?: number; usd: number; ci90: [number, number] | null; tpCi90?: [number, number] | null; clvCi90?: [number, number] | null; kellyCi90?: [number, number] | null }
 export interface PickoffMatch {
   fid: string; slug: string; teams: string; kick: number; ft: number;
   all: PickoffStats; inplay: PickoffStats; top_pickoffs: PickoffFill[];

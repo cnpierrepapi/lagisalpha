@@ -10,8 +10,24 @@ import type { PickoffMatch, DivergenceEntry, PooledStat } from "@/lib/pickoff-so
 import { polygonTx } from "@/lib/pickoff-source";
 
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();
-const pp = (x: number) => (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "pp";
+const roi = (x: number) => (x >= 0 ? "+" : "") + (x * 100).toFixed(0) + "%";
 const clock = (t: number, kick: number) => `${Math.max(0, Math.floor((t * 1000 - kick) / 60000))}'`;
+
+// Kelly-sized bankroll multiplier per call: f = gap/(1-entry), exit at fair on reach else at close.
+const kmult = (e: DivergenceEntry) => {
+  const d = 1 - e.entry;
+  const f = d > 0 ? Math.max(0, Math.min(1, e.gap / d)) : 0;
+  const r = e.entry > 0 ? (e.reached ? e.gap : e.clv ?? 0) / e.entry : 0;
+  return 1 + f * r;
+};
+// the same Kelly bet held to resolution (the losing contrast, for the evidence callout)
+const kmres = (e: DivergenceEntry) => {
+  const d = 1 - e.entry;
+  const f = d > 0 ? Math.max(0, Math.min(1, e.gap / d)) : 0;
+  const r = e.win ? (1 - e.entry) / e.entry : -1;
+  return 1 + f * r;
+};
+const kellyRoiOf = (divs: DivergenceEntry[]) => (divs.length ? divs.reduce((p, e) => p * kmult(e), 1) - 1 : null);
 
 function EntryRows({ divs, kick }: { divs: DivergenceEntry[]; kick: number }) {
   const [open, setOpen] = useState<number | null>(null);
@@ -26,8 +42,7 @@ function EntryRows({ divs, kick }: { divs: DivergenceEntry[]; kick: number }) {
             <th className="py-1 font-normal">TxLINE fair</th>
             <th className="py-1 font-normal">gap</th>
             <th className="py-1 font-normal">size avail.</th>
-            <th className="py-1 font-normal">reached</th>
-            <th className="py-1 font-normal">won</th>
+            <th className="py-1 font-normal">reached fair</th>
             <th className="py-1 font-normal">on-chain</th>
           </tr>
         </thead>
@@ -49,12 +64,11 @@ function EntryRows({ divs, kick }: { divs: DivergenceEntry[]; kick: number }) {
                   <td className="py-1.5 text-muted">{(e.gap * 100).toFixed(1)}pp</td>
                   <td className="py-1.5 text-fg">{usd(e.usd ?? 0)}</td>
                   <td className={`py-1.5 ${e.reached ? "text-amber" : "text-faint"}`}>{e.reached ? "✓" : "✗"}</td>
-                  <td className={`py-1.5 ${e.win ? "text-amber" : "text-faint"}`}>{e.win ? "✓" : "✗"}</td>
                   <td className="py-1.5 text-faint">{canOpen ? (on ? "hide ▲" : `${fills.length} fills ▾`) : "—"}</td>
                 </tr>
                 {on && (
                   <tr className="border-t border-ink-800 bg-ink-900/40">
-                    <td colSpan={9} className="px-3 py-2">
+                    <td colSpan={8} className="px-3 py-2">
                       <p className="mb-1 text-[11px] text-faint">
                         the fills that sat at the stale price and sum to {usd(e.usd ?? 0)}; each is a Polygon
                         transaction you can open and confirm the cheap side really traded there.
@@ -105,7 +119,7 @@ function MatchCard({ m, theta }: { m: PickoffMatch; theta: "5" | "10" }) {
   const size = divs.reduce((s, e) => s + (e.usd ?? 0), 0);
   // derive from the entries so a stale per-match surface can't NaN the card
   const reachRate = divs.length ? divs.filter((e) => e.reached).length / divs.length : null;
-  const clvAvg = divs.length ? divs.reduce((s, e) => s + (e.clv ?? 0), 0) / divs.length : null;
+  const kellyRoi = kellyRoiOf(divs);
   return (
     <div className="card p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -122,8 +136,8 @@ function MatchCard({ m, theta }: { m: PickoffMatch; theta: "5" | "10" }) {
           <p className="text-xs text-muted">reached TxLINE</p>
         </div>
         <div>
-          <p className={`serif text-2xl ${clvAvg != null && clvAvg >= 0 ? "text-amber" : "text-muted"}`}>{clvAvg != null ? pp(clvAvg) : "—"}</p>
-          <p className="text-xs text-muted">CLV per call</p>
+          <p className={`serif text-2xl ${kellyRoi != null && kellyRoi >= 0 ? "text-amber" : "text-muted"}`}>{kellyRoi != null ? roi(kellyRoi) : "—"}</p>
+          <p className="text-xs text-muted">ROI · Kelly, take-profit</p>
         </div>
         <div>
           <p className="serif text-2xl text-fg">{usd(size)}</p>
@@ -153,16 +167,16 @@ export default function ProofLedger({
   // Always derive the pooled stat client-side so a stale blob (missing tpReturn) can never NaN the
   // page; overlay the published stat (which carries the bootstrap CIs) on top when present.
   const p = useMemo(() => {
-    let n = 0, reach = 0, cost = 0, win = 0, size = 0, tp = 0, clv = 0;
+    let n = 0, reach = 0, cost = 0, win = 0, size = 0, tp = 0, clv = 0, kTp = 1, kRes = 1;
     for (const m of withEdge) for (const e of m.divergences?.[theta] ?? []) {
       n++; reach += e.reached ? 1 : 0; cost += e.entry; win += e.win; size += e.usd ?? 0;
       tp += e.reached ? e.gap : e.win - e.entry; clv += e.clv ?? 0;
+      kTp *= kmult(e); kRes *= kmres(e);
     }
-    const derived = { theta: Number(theta) / 100, n, reachRate: n ? reach / n : 0, aggEdgePct: cost ? (win - cost) / cost : 0, tpReturn: cost ? tp / cost : 0, clvAvg: n ? clv / n : 0, usd: size, ci90: null as [number, number] | null, tpCi90: null as [number, number] | null, clvCi90: null as [number, number] | null };
+    const derived = { theta: Number(theta) / 100, n, reachRate: n ? reach / n : 0, aggEdgePct: cost ? (win - cost) / cost : 0, tpReturn: cost ? tp / cost : 0, clvAvg: n ? clv / n : 0, kellyRoi: n ? kTp - 1 : 0, kellyRoiRes: n ? kRes - 1 : 0, usd: size, ci90: null as [number, number] | null };
     const pubp = pooled?.[theta];
-    return pubp ? { ...derived, ...pubp, clvAvg: pubp.clvAvg ?? derived.clvAvg, clvCi90: pubp.clvCi90 ?? null } : derived;
+    return pubp ? { ...derived, ...pubp, kellyRoi: pubp.kellyRoi ?? derived.kellyRoi, kellyRoiRes: pubp.kellyRoiRes ?? derived.kellyRoiRes } : derived;
   }, [withEdge, theta, pooled]);
-  const ci = (c: [number, number] | null) => (c ? `${pp(c[0])} … ${pp(c[1])}` : "—");
 
   return (
     <div className="space-y-6">
@@ -190,8 +204,8 @@ export default function ProofLedger({
                 <p className="text-xs text-muted">book reached TxLINE</p>
               </div>
               <div className="card p-4">
-                <p className={`serif text-2xl ${p.clvAvg >= 0 ? "text-amber" : "text-muted"}`}>{pp(p.clvAvg)}</p>
-                <p className="text-xs text-muted">CLV per call · 90% CI {ci(p.clvCi90 ?? null)}</p>
+                <p className={`serif text-2xl ${p.kellyRoi >= 0 ? "text-amber" : "text-muted"}`}>{roi(p.kellyRoi)}</p>
+                <p className="text-xs text-muted">ROI · Kelly-sized, take-profit at fair</p>
               </div>
               <div className="card p-4">
                 <p className="serif text-2xl text-fg">{p.n}</p>
@@ -202,12 +216,37 @@ export default function ProofLedger({
                 <p className="text-xs text-muted">size available off fair</p>
               </div>
             </div>
+
+            {/* WHY KELLY — evidence, not assertion: same signal + same Kelly bets, two exits */}
+            <div className="mt-3 rounded border border-ink-700 bg-ink-900/40 p-4">
+              <p className="label">why Kelly sizing, and why take-profit — the data, not our word</p>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <p className={`serif text-xl ${p.kellyRoi >= 0 ? "text-amber" : "text-muted"}`}>{roi(p.kellyRoi)}</p>
+                  <p className="text-xs text-muted">Kelly bets, take profit when the line reaches fair</p>
+                </div>
+                <div>
+                  <p className={`serif text-xl ${(p.kellyRoiRes ?? 0) >= 0 ? "text-amber" : "text-loss"}`}>{roi(p.kellyRoiRes ?? 0)}</p>
+                  <p className="text-xs text-muted">the SAME Kelly bets, held to the final result instead</p>
+                </div>
+                <div>
+                  <p className="serif text-xl text-loss">wiped out</p>
+                  <p className="text-xs text-muted">flat stake, full compounding: one bad call to $0</p>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-faint">
+                Same {p.n} calls, same edge. Kelly sizes each bet to the gap, f = gap / (1 − price), so it never
+                over-bets into ruin; the convergence is where the money is, and holding to the outcome throws it
+                away on a coin-flip. These are the pooled numbers on the real fills, recomputed as each match settles.
+              </p>
+            </div>
+
             <p className="mt-2 text-xs text-faint">
               Reach = the prediction market price later travelled to TxLINE&apos;s fair (the delay closing).
-              CLV per call = closing-line value: your side&apos;s implied probability at the market&apos;s
-              close minus the price you paid, averaged over every call. It grades the line moving, not the
-              final score, so it carries none of the resolution coin-flip; the 90% CI is a match-level
-              bootstrap and tightens as matches accrue. Sizing and slippage are yours, not part of the signal.
+              ROI = the compounding return of Kelly-sized bets that exit at TxLINE&apos;s fair on reach, else
+              mark out at the close; never held to resolution. It is concentrated: a couple of high-volume
+              matches carry most of it, so treat it as a pilot that firms up as matches accrue. Sizing and
+              slippage past the size shown are yours, not part of the signal.
             </p>
           </>
         ) : (

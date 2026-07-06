@@ -4,16 +4,30 @@
 // Grades the SIGNAL, not a trader's P&L: TxLINE's vig-free fair leads, the prediction market lags,
 // and when the gap opens past theta the cheap side is underpriced. Each row is one call: when it
 // fired, which side was cheap, how big the gap, the price you paid vs fair, the size that sat there,
-// and whether the gap CLOSED (reached) and the side WON at resolution. Sizing and slippage are the
-// consumer's problem, so there is no stake or P&L here by design. Computed on the FULL-resolution
-// fills published in the blob, not a coarse tape.
+// and whether the gap CLOSED (reached fair). The headline metric is the Kelly-sized, take-profit-at-
+// fair ROI. Computed on the FULL-resolution fills published in the blob, not a coarse tape.
 
 import { useMemo, useState } from "react";
 import type { PickoffMatch, DivergenceEntry, PooledStat } from "@/lib/pickoff-source";
 
 const pct = (n: number) => (n * 100).toFixed(0) + "%";
-const ppv = (n: number) => (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "pp";
+const roiFmt = (n: number) => (n >= 0 ? "+" : "") + (n * 100).toFixed(0) + "%";
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();
+
+// Kelly-sized bankroll multipliers: f = gap/(1-entry); take-profit exits at fair on reach, else the
+// close; the resolution variant holds to the final result (the losing contrast).
+const kmult = (e: DivergenceEntry) => {
+  const d = 1 - e.entry;
+  const f = d > 0 ? Math.max(0, Math.min(1, e.gap / d)) : 0;
+  const r = e.entry > 0 ? (e.reached ? e.gap : e.clv ?? 0) / e.entry : 0;
+  return 1 + f * r;
+};
+const kmres = (e: DivergenceEntry) => {
+  const d = 1 - e.entry;
+  const f = d > 0 ? Math.max(0, Math.min(1, e.gap / d)) : 0;
+  const r = e.win ? (1 - e.entry) / e.entry : -1;
+  return 1 + f * r;
+};
 
 // "Portugal v Croatia" -> "POR v CRO"
 function code(teams: string): string {
@@ -79,7 +93,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
     if (sort === "gap") arr.sort((a, b) => b.gap - a.gap);
     else if (sort === "size") arr.sort((a, b) => b.usd - a.usd);
     else if (sort === "match") arr.sort((a, b) => a.teams.localeCompare(b.teams) || a.minute - b.minute);
-    else arr.sort((a, b) => b.win - a.win || Number(b.reached) - Number(a.reached) || b.gap - a.gap);
+    else arr.sort((a, b) => Number(b.reached) - Number(a.reached) || b.gap - a.gap);
     return arr;
   }, [filtered, sort]);
 
@@ -90,14 +104,13 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
   const pooled = useMemo(() => {
     // always derive from the matches so a stale blob (missing tpReturn) can never NaN the header;
     // overlay the published stat (carries the bootstrap CIs) when present.
-    let n = 0, reach = 0, cost = 0, win = 0, size = 0, tp = 0, clv = 0;
+    let n = 0, reach = 0, size = 0, kTp = 1, kRes = 1;
     for (const mm of withEdge) for (const e of mm.divergences?.[theta] ?? []) {
-      n++; reach += e.reached ? 1 : 0; cost += e.entry; win += e.win; size += e.usd ?? 0;
-      tp += e.reached ? e.gap : e.win - e.entry; clv += e.clv ?? 0;
+      n++; reach += e.reached ? 1 : 0; size += e.usd ?? 0; kTp *= kmult(e); kRes *= kmres(e);
     }
-    const derived = { theta: Number(theta) / 100, n, reachRate: n ? reach / n : 0, aggEdgePct: cost ? (win - cost) / cost : 0, tpReturn: cost ? tp / cost : 0, clvAvg: n ? clv / n : 0, usd: size, ci90: null as [number, number] | null, tpCi90: null as [number, number] | null, clvCi90: null as [number, number] | null };
+    const derived = { theta: Number(theta) / 100, n, reachRate: n ? reach / n : 0, kellyRoi: n ? kTp - 1 : 0, kellyRoiRes: n ? kRes - 1 : 0, usd: size };
     const pubp = pub?.[theta];
-    return pubp ? { ...derived, ...pubp, clvAvg: pubp.clvAvg ?? derived.clvAvg, clvCi90: pubp.clvCi90 ?? null } : derived;
+    return pubp ? { ...derived, ...pubp, kellyRoi: pubp.kellyRoi ?? derived.kellyRoi, kellyRoiRes: pubp.kellyRoiRes ?? derived.kellyRoiRes } : derived;
   }, [withEdge, theta, pub]);
 
   if (!withEdge.length) {
@@ -139,20 +152,30 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
             <p className="text-xs text-muted">reached TxLINE (the delay closes)</p>
           </div>
           <div>
-            <p className={`serif text-3xl ${pooled.clvAvg >= 0 ? "text-amber" : "text-muted"}`}>{ppv(pooled.clvAvg)}</p>
-            <p className="text-xs text-muted">CLV per call{pooled.clvCi90 ? ` · 90% CI ${ppv(pooled.clvCi90[0])}…${ppv(pooled.clvCi90[1])}` : ""}</p>
+            <p className={`serif text-3xl ${pooled.kellyRoi >= 0 ? "text-amber" : "text-muted"}`}>{roiFmt(pooled.kellyRoi)}</p>
+            <p className="text-xs text-muted">ROI · Kelly-sized, take-profit at fair</p>
           </div>
           <div>
             <p className="serif text-3xl text-fg">{pooled.n}</p>
             <p className="text-xs text-muted">calls · {usd(pooled.usd)} size available</p>
           </div>
         </div>
+
+        {/* WHY KELLY — evidence, not assertion */}
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded border border-ink-700 bg-ink-900/40 px-4 py-3 text-sm">
+          <span className="label">why Kelly + take-profit:</span>
+          <span><span className={pooled.kellyRoi >= 0 ? "text-amber" : "text-muted"}>{roiFmt(pooled.kellyRoi)}</span> <span className="text-xs text-muted">take profit at fair</span></span>
+          <span><span className={(pooled.kellyRoiRes ?? 0) >= 0 ? "text-amber" : "text-loss"}>{roiFmt(pooled.kellyRoiRes ?? 0)}</span> <span className="text-xs text-muted">same bets, held to the result</span></span>
+          <span><span className="text-loss">wiped out</span> <span className="text-xs text-muted">flat stake, full compounding</span></span>
+        </div>
+
         <p className="mt-3 text-xs text-faint">
-          Reach = did the prediction market price travel to TxLINE&apos;s line before full time. CLV per call =
-          closing-line value: your side&apos;s implied probability at the market&apos;s close minus the price
-          you paid, averaged over every call. It grades the line moving, not the final score, so it carries
-          none of the resolution coin-flip; the CI is a match-level bootstrap and tightens as matches accrue.
-          Size available = the book that sat at the stale price; how much to take is yours.
+          Reach = did the prediction market price travel to TxLINE&apos;s line before full time. ROI = the
+          compounding return of Kelly-sized bets (f = gap / (1 − price)) that exit at TxLINE&apos;s fair on
+          reach, else mark out at the close; never held to resolution. Same signal, same bets: taking profit
+          on convergence pays; holding to the result loses on a coin-flip, and betting flat with full
+          compounding goes to zero. It is concentrated in a few high-volume matches, so treat it as a pilot
+          that firms up as matches accrue. Size available = the book that sat at the stale price.
         </p>
       </div>
 
@@ -173,7 +196,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
             {sortBtn("gap", "gap")}
             {sortBtn("size", "size")}
             {sortBtn("match", "match")}
-            {sortBtn("outcome", "outcome")}
+            {sortBtn("outcome", "reached")}
           </div>
         </div>
 
@@ -184,7 +207,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
               <div key={c.key} className={`rounded border ${on ? "border-amber/40 bg-amber/5" : "border-ink-700 hover:border-ink-500"}`}>
                 <button
                   onClick={() => setOpen(on ? null : c.key)}
-                  className="grid w-full grid-cols-[minmax(0,7rem)_4rem_1fr_minmax(0,6rem)_minmax(0,5rem)_2rem_2rem] items-center gap-2 px-3 py-2 text-left text-sm"
+                  className="grid w-full grid-cols-[minmax(0,7rem)_4rem_1fr_minmax(0,6rem)_minmax(0,5rem)_2rem] items-center gap-2 px-3 py-2 text-left text-sm"
                 >
                   <span className="min-w-0">
                     <span className="font-mono text-fg">{c.code}</span>
@@ -200,7 +223,6 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
                   <span className="font-mono text-xs text-muted">{c.entry.toFixed(2)} → {c.fairSide.toFixed(2)}</span>
                   <span className="font-mono text-xs text-muted">{usd(c.usd)}</span>
                   <span className={c.reached ? "text-amber" : "text-faint"} title={c.reached ? "reached fair" : "never reached fair"}>{c.reached ? "✓" : "✗"}</span>
-                  <span className={c.win ? "text-amber" : "text-faint"} title={c.win ? "won at resolution" : "lost at resolution"}>{c.win ? "✓" : "✗"}</span>
                 </button>
                 {on && (
                   <div className="border-t border-ink-700 px-3 py-2 text-xs text-muted">
@@ -209,8 +231,7 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
                     <span className="font-mono text-amber">{c.fairSide.toFixed(3)}</span>, a{" "}
                     <span className="text-amber">{(c.gap * 100).toFixed(1)}pp</span> gap on the cheap side.{" "}
                     <span className="font-mono">{usd(c.usd)}</span> sat there. The price{" "}
-                    {c.reached ? <span className="text-amber">reached fair</span> : <span className="text-faint">never reached fair</span>}{" "}
-                    and the side {c.win ? <span className="text-amber">won</span> : <span className="text-faint">lost</span>} at resolution.
+                    {c.reached ? <span className="text-amber">reached fair</span> : <span className="text-faint">never reached fair</span>}.
                   </div>
                 )}
               </div>
@@ -222,7 +243,6 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
         <div className="mt-2 flex flex-wrap gap-4 text-xs text-faint">
           <span><span className="text-amber">▮</span> gap on the cheap side</span>
           <span>reach ✓ = price travelled to fair</span>
-          <span>won ✓ = the bought side settled in the money</span>
           <span className="ml-auto">{sorted.length} calls · click a row to read it</span>
         </div>
       </div>
