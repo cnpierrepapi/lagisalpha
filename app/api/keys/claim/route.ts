@@ -8,7 +8,28 @@ import { issueKey, txAlreadyRedeemed, type Tier } from "@/lib/api-keys";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Per-IP limiter: each claim attempt costs up to 5 upstream RPC calls, so cap the hot loop.
+// In-memory, so per compute instance — instances are shared across concurrent requests, which
+// covers the realistic single-client abuse case; a distributed attacker is out of scope here.
+const WINDOW_MS = 3_600_000;
+const MAX_PER_WINDOW = 10;
+const attempts = new Map<string, number[]>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const hits = (attempts.get(ip) || []).filter((t) => now - t < WINDOW_MS);
+  if (hits.length >= MAX_PER_WINDOW) { attempts.set(ip, hits); return true; }
+  hits.push(now);
+  attempts.set(ip, hits);
+  if (attempts.size > 5000) attempts.clear(); // bound the map under address churn
+  return false;
+}
+
 export async function POST(req: Request) {
+  const ip = (req.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim();
+  if (rateLimited(ip)) {
+    return NextResponse.json({ error: "too many claim attempts — try again later" }, { status: 429 });
+  }
   const body = await req.json().catch(() => ({}));
   const txId = String(body.txId || body.txSig || "").trim();
   const tier = body.tier as Tier;

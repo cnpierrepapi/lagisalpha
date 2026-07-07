@@ -148,7 +148,7 @@ transaction → `apiToken`), sent as `Authorization: Bearer <jwt>` +
 | `FEED_MODE` | `replay` (bundled real captures, default), `live` (TxLINE streams), or `synth` (deterministic stand-in). |
 | `TXLINE_API_BASE` / `TXLINE_JWT` / `TXLINE_API_TOKEN` | Server-held TxLINE token (guest JWT + on-chain subscribe). |
 | `TXLINE_SIGNUP_TX` / `TXLINE_CLUSTER` | Solana subscribe tx + cluster - the on-chain proof of access shown on `/proof`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; lets the claim route append issued `las_` API keys (sha256-hashed) to `desk-archives/api-keys.json`. The Signal API validates against that public hashed blob. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; the claim route appends issued `las_` API keys (sha256-hashed) to the private `desk-private/api-keys.json` store, and the Signal API validates against it with the same credential. Nothing about the key store is world-readable. |
 | `REPLAY_SPEED` | Match-seconds per wall-second for replay mode (default 30). |
 
 ## Develop

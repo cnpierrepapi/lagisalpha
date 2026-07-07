@@ -31,16 +31,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
-.vercel
-
 # raw match captures (build input for scripts/import_replays.mjs).
 # The shipped, bundled artifact is lib/replays.json (committed); the multi-MB
 # raw recordings are local-only.
 /captures
 captures_live/
 
-.vercel
-
 # python bytecode
 __pycache__/
 *.pyc
+
+# internal strategy docs — local-only, not part of the public product repo
+TODO.md
+REFRAME.md
+/research/

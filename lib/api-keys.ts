@@ -1,15 +1,21 @@
-// API KEY STORE — issued on Solana payment, gates the paid edge endpoints.
+// API KEY STORE — issued on USDC payment, gates the paid edge endpoints.
 //
-// Keys are stored HASHED (sha256) in desk-archives/api-keys.json, so the blob is safe even though
-// the bucket is public-read: validation hashes the presented key and looks it up; only the claim
-// route (server, service-role) can append. The raw key is shown to the buyer exactly once.
+// Records live in the PRIVATE desk-private bucket (service-role reads/writes only). Keys are stored
+// sha256-hashed, but the records also carry buyer metadata (txSig, wallet, tier) that must not be
+// publicly enumerable, so nothing about the store is world-readable. The raw key is shown to the
+// buyer exactly once, at claim time.
+//
+// The store is one JSON array in object storage, which has no compare-and-swap: two simultaneous
+// claims could read the same array and the later write would drop the earlier record. Claims are
+// therefore serialized in-instance (one queue) and every write is read back and verified, retrying
+// the append if it lost a cross-instance race.
 
 import crypto from "node:crypto";
 
 const SUPA = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
 const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const PUBLIC_URL = `${SUPA}/storage/v1/object/public/desk-archives/api-keys.json`;
-const WRITE_URL = `${SUPA}/storage/v1/object/desk-archives/api-keys.json`;
+const READ_URL = `${SUPA}/storage/v1/object/authenticated/desk-private/api-keys.json`;
+const WRITE_URL = `${SUPA}/storage/v1/object/desk-private/api-keys.json`;
 
 export type Tier = "month" | "lifetime";
 export interface KeyRec {
@@ -25,8 +31,12 @@ export interface KeyRec {
 const sha = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
 
 async function readKeys(): Promise<KeyRec[]> {
+  if (!SRK) return [];
   try {
-    const r = await fetch(`${PUBLIC_URL}?t=${Date.now()}`, { cache: "no-store" });
+    const r = await fetch(READ_URL, {
+      headers: { Authorization: `Bearer ${SRK}`, apikey: SRK },
+      cache: "no-store",
+    });
     if (r.ok) {
       const d = await r.json();
       if (Array.isArray(d)) return d as KeyRec[];
@@ -47,38 +57,71 @@ async function writeKeys(keys: KeyRec[]): Promise<boolean> {
   return r.ok;
 }
 
-export async function txAlreadyRedeemed(txSig: string): Promise<boolean> {
+// Validation cache: authed endpoints hash-and-look-up on every request, and the key set changes
+// only when a key is claimed, so a short TTL saves a storage round-trip per API call.
+const CACHE_MS = 60_000;
+let cache: { keys: KeyRec[]; at: number } | null = null;
+
+async function cachedKeys(): Promise<KeyRec[]> {
+  if (cache && Date.now() - cache.at < CACHE_MS) return cache.keys;
   const keys = await readKeys();
+  cache = { keys, at: Date.now() };
+  return keys;
+}
+
+export async function txAlreadyRedeemed(txSig: string): Promise<boolean> {
+  const keys = await readKeys(); // fresh read — this guards a payment, never trust the cache
   return keys.some((k) => k.txSig === txSig);
 }
 
+// Serialize claims within this instance; cross-instance races are caught by the read-back below.
+let claimQueue: Promise<unknown> = Promise.resolve();
+
 // Issue a new key for a verified payment. Returns the RAW key (shown once) + the record.
 export async function issueKey(tier: Tier, txSig: string, wallet?: string, chain?: string): Promise<{ key: string; rec: KeyRec }> {
-  const keys = await readKeys();
-  if (keys.some((k) => k.txSig === txSig)) throw new Error("tx already redeemed");
-  const key = "las_" + crypto.randomBytes(24).toString("hex");
-  const now = Date.now();
-  const rec: KeyRec = {
-    keyHash: sha(key),
-    tier,
-    createdAt: now,
-    expiresAt: tier === "lifetime" ? null : now + 30 * 86400000,
-    txSig,
-    wallet,
-    chain,
+  const run = async (): Promise<{ key: string; rec: KeyRec }> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const keys = await readKeys();
+      if (keys.some((k) => k.txSig === txSig)) throw new Error("tx already redeemed");
+      const key = "las_" + crypto.randomBytes(24).toString("hex");
+      const now = Date.now();
+      const rec: KeyRec = {
+        keyHash: sha(key),
+        tier,
+        createdAt: now,
+        expiresAt: tier === "lifetime" ? null : now + 30 * 86400000,
+        txSig,
+        wallet,
+        chain,
+      };
+      keys.push(rec);
+      if (!(await writeKeys(keys))) throw new Error("could not persist key");
+      const check = await readKeys();
+      if (check.some((k) => k.keyHash === rec.keyHash)) {
+        cache = null;
+        return { key, rec };
+      }
+      // a concurrent writer clobbered the append — re-read and try again
+    }
+    throw new Error("could not persist key (storage contention) — your payment is safe, retry the claim");
   };
-  keys.push(rec);
-  const ok = await writeKeys(keys);
-  if (!ok) throw new Error("could not persist key");
-  return { key, rec };
+  const p = claimQueue.then(run, run);
+  claimQueue = p.catch(() => {});
+  return p;
 }
 
-// Validate a presented key: exists and not expired. Reads the public (hashed) blob, no secret needed.
+// Validate a presented key: exists and not expired.
 export async function validateKey(key?: string | null): Promise<KeyRec | null> {
   if (!key) return null;
   const h = sha(key);
-  const keys = await readKeys();
-  const rec = keys.find((k) => k.keyHash === h);
+  const keys = await cachedKeys();
+  let rec = keys.find((k) => k.keyHash === h);
+  if (!rec) {
+    // could be a key claimed seconds ago through another instance — one fresh look before rejecting
+    const fresh = await readKeys();
+    cache = { keys: fresh, at: Date.now() };
+    rec = fresh.find((k) => k.keyHash === h);
+  }
   if (!rec) return null;
   if (rec.expiresAt != null && Date.now() > rec.expiresAt) return null;
   return rec;
