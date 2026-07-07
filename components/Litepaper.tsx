@@ -10,6 +10,7 @@ const SECTIONS = [
   ["06", "How to trade it"],
   ["07", "What we do not claim"],
   ["08", "What we found"],
+  ["09", "Roadmap: 75 leagues, forecasting done honestly"],
 ] as const;
 
 function Section({
@@ -198,6 +199,40 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
           flags converges to fair <span className="text-amber">84%</span> of the time versus{" "}
           <span className="text-fg">75%</span> without. All of this is on {stats.matchWord} settled matches,
           in-sample; it is a promising pilot, not a settled result.
+        </p>
+      </Section>
+
+      <Section id="s09" num="09" title="Roadmap: 75 leagues, forecasting done honestly">
+        <p>
+          <span className="text-fg">Scale the measurement.</span> TxLINE carries the demargined consensus
+          for around 75 leagues, and the lag is structural: every prediction market reprices by trading, so
+          it sits behind a fast, vig-free reference in any league that has one. The same divergence
+          detection runs per league and per market, and the first deliverable is a{" "}
+          <span className="text-fg">lag profile</span> for each: how wide the average dislocation opens, how
+          long it takes to converge, and how much size sits in the window. That map, which leagues lag
+          longest, is itself the product, and every league gets the same public calibration ledger this
+          pilot has.
+        </p>
+        <p>
+          <span className="text-fg">Model the outcome as unknown.</span> We killed the sharp-movement
+          detector, but the flaw was the grading, not the ambition. Scoring a shift by &quot;did that team
+          win&quot; assumes the winner is knowable from history and lets late, goal-driven shifts grade
+          themselves. The honest frame is Bayesian: the pre-match de-vig consensus is the prior, each early
+          odds shift updates a posterior over the result, and the model is scored on calibration (Brier and
+          log score) across thousands of matches in 75 leagues, never on hit-rate over twelve. This is the
+          approach of Robberechts, Van Haaren and Davis,{" "}
+          <span className="text-fg">&quot;A Bayesian Approach to In-Game Win Probability in Soccer&quot;</span>{" "}
+          (KDD 2021): treat the in-play outcome as uncertain throughout, seed the prior from pre-match
+          strength, update sequentially, and judge the posterior, with the dynamic-prior lineage going back
+          to Rue and Salvesen (2000).
+        </p>
+        <p>
+          <span className="text-fg">Where the two meet.</span> The test that matters is whether an
+          early-shift posterior moves before the traded market does. If it does, the lead-lag gains a
+          forward leg on top of the post-goal reactive one; if it does not, we will publish that, the same
+          way we published the coin flip. Either answer sharpens the signal API: per-league divergence
+          feeds, portfolio Kelly across simultaneous matches, and new markets (cards, corners) as TxLINE
+          streams them de-vigged.
         </p>
       </Section>
 
