@@ -166,13 +166,23 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
       <Section id="s08" num="08" title="What we found">
         <p>
           The obvious idea is a sharp-movement detector: flag significant TxLINE odds shifts and track
-          whether they call the result. We built it and it does not hold - a significant fair shift by the
-          45th minute called the winner <span className="text-muted">58%</span> of the time, a coin flip. The
-          edge is not the line moving; it is the market being slow to follow it. A goal is new information:
-          TxLINE reprices it instantly, but a prediction market only moves when someone trades, so for a
-          window the cheap side sits below fair. That lead-lag converges about{" "}
+          whether they call the result. We built it and killed it twice. Graded early, a significant fair
+          shift by the 45th minute called the winner <span className="text-muted">58%</span> of the time, a
+          coin flip. Graded whenever a big shift fires (10pp inside a minute, any time in the match) it looks
+          strong at <span className="text-muted">83%</span>, but that number is hollow: a rule that ignores
+          the shift entirely and just backs whichever team the fair currently rates higher makes the
+          <span className="text-fg"> identical call in 12 of 12 matches</span>, with the identical score.
+          Nine of twelve shifts sit within two minutes of a goal, so the shift is the goal being repriced;
+          all of the predictive content is in the level of the fair, none is in the move itself. The
+          forecast has no alpha.
+        </p>
+        <p>
+          The edge is not the line moving; it is the market being slow to follow it. A goal is new
+          information: TxLINE reprices it instantly, but a prediction market only moves when someone trades,
+          so for a window the cheap side sits below fair. That lead-lag converges about{" "}
           <span className="text-amber">{stats.reachPct}%</span> of the time, and it is our strongest, most
-          proven signal.
+          proven signal. The line move carries no forecast; the lag in the market&apos;s reaction to it is
+          the entire product.
         </p>
         <p>
           We also know which lags to trust. Every payable lag is a post-goal YES lag, so we keep them all and

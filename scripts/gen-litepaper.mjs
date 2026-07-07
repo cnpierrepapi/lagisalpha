@@ -128,7 +128,10 @@ p(
 
 h1("8. What we found");
 p(
-  `The obvious idea is a sharp-movement detector: flag significant TxLINE odds shifts and track whether they call the result. We built it and it does not hold: a significant fair shift by the 45th minute called the winner about 58% of the time, a coin flip. The edge is not the line moving; it is the market being slow to follow it. A goal is new information: TxLINE reprices it instantly, but a prediction market only moves when someone trades, so for a window the cheap side sits below fair. That lead-lag converges about ${s.reachPct}% of the time, and it is our strongest, most proven signal.`,
+  `The obvious idea is a sharp-movement detector: flag significant TxLINE odds shifts and track whether they call the result. We built it and killed it twice. Graded early, a significant fair shift by the 45th minute called the winner about 58% of the time, a coin flip. Graded whenever a big shift fires (10pp inside a minute, any time in the match) it looks strong at 83%, but that number is hollow: a rule that ignores the shift entirely and just backs whichever team the fair currently rates higher makes the identical call in 12 of 12 matches, with the identical score. Nine of twelve shifts sit within two minutes of a goal, so the shift is the goal being repriced; all of the predictive content is in the level of the fair, none is in the move itself. The forecast has no alpha.`,
+);
+p(
+  `The edge is not the line moving; it is the market being slow to follow it. A goal is new information: TxLINE reprices it instantly, but a prediction market only moves when someone trades, so for a window the cheap side sits below fair. That lead-lag converges about ${s.reachPct}% of the time, and it is our strongest, most proven signal. The line move carries no forecast; the lag in the market's reaction to it is the entire product.`,
 );
 p(
   "We also know which lags to trust. Every payable lag is a post-goal YES lag, so we keep them all and cut only two buy-NO cases. A giant NO (25pp or more) is not a fresh-information lag but the market pricing something the de-vig does not, and it rarely converges back. A late NO (after the 80th minute) has no window left to converge, and one goal or a closed-out favourite ends it. It is the mechanism, not a fit.",
