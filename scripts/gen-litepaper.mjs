@@ -13,7 +13,7 @@ const BLOB = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mohbmvajroqizlfaa
   "/storage/v1/object/public/desk-archives/pickoffs.json";
 
 async function getStats() {
-  const fb = { reachPct: 71, roiPct: 114, roi10Pct: 158, resLoss: 80, res10Loss: 42, matchCount: 10, matchWord: "ten" };
+  const fb = { reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83, matchCount: 12, matchWord: "twelve" };
   try {
     const d = await (await fetch(BLOB)).json();
     const p5 = d?.pooled?.["5"], p10 = d?.pooled?.["10"], mc = d?.matchCount ?? d?.matches?.length ?? 0;
@@ -22,8 +22,8 @@ async function getStats() {
       reachPct: Math.round(p5.reachRate * 100),
       roiPct: Math.round(p5.kellyRoi * 100),
       roi10Pct: p10 ? Math.round(p10.kellyRoi * 100) : fb.roi10Pct,
-      resLoss: Math.abs(Math.round(p5.kellyRoiRes * 100)),
-      res10Loss: p10 ? Math.abs(Math.round((p10.kellyRoiRes ?? 0) * 100)) : fb.res10Loss,
+      resPct: Math.round(p5.kellyRoiRes * 100),
+      res10Pct: p10 ? Math.round((p10.kellyRoiRes ?? 0) * 100) : fb.res10Pct,
       matchCount: mc, matchWord: numWord(mc),
     };
   } catch {
@@ -84,7 +84,7 @@ p(
   `Two tests, on ${s.matchWord} settled matches, on the real fills. Reach: from the entry, does the market price travel to the fair before the match ends. It does about ${s.reachPct}% of the time, and the move often takes minutes, so a short holding window hides it. Reach does not depend on who eventually wins, so it is the firmer number.`,
 );
 p(
-  `Return: the trade is to buy the cheap side and take profit at fair when the market catches up. Sized by Kelly on the gap, f = gap / (1 - price), and compounded across every call, that returned about plus ${s.roiPct}% at a 5 point gap and plus ${s.roi10Pct}% at 10. The same bets held to the final result instead lost about ${s.resLoss}% and ${s.res10Loss}%: the convergence is where the money is, the outcome is a coin-flip that only adds variance. The return is concentrated, a couple of high-volume matches carry most of it, so it is a pilot, not a promise.`,
+  `Return: the trade is to buy the cheap side and take profit at fair when the market catches up. Sized by Kelly on the gap, f = gap / (1 - price), and compounded across every call, that returned about plus ${s.roiPct}% at a 5 point gap and plus ${s.roi10Pct}% at 10. The same bets held to the final result instead returned about ${s.resPct >= 0 ? "plus " : "minus "}${Math.abs(s.resPct)}% and ${s.res10Pct >= 0 ? "plus " : "minus "}${Math.abs(s.res10Pct)}%, far short of taking profit at fair: the convergence is where the money is, and holding to the outcome leaves most of it on the table. The return is concentrated, a couple of high-volume matches carry most of it, so it is a pilot, not a promise.`,
 );
 
 h1("5. The data, verifiable both sides");

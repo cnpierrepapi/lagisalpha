@@ -118,9 +118,10 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
           fair when the market catches up. Sized by Kelly on the gap, f = gap / (1 - price), and compounded
           across every call, that returned about <span className="text-amber">+{stats.roiPct}%</span> at a 5
           point gap and <span className="text-amber">+{stats.roi10Pct}%</span> at 10. The same bets held to
-          the final result instead lost about {stats.resLossPct}% and {stats.res10LossPct}%: the convergence
-          is where the money is, the outcome is a coin-flip that only adds variance. The return is
-          concentrated, a couple of high-volume matches carry most of it, so it is a pilot, not a promise.
+          the final result instead returned about {stats.resPct >= 0 ? "+" : ""}{stats.resPct}% and{" "}
+          {stats.res10Pct >= 0 ? "+" : ""}{stats.res10Pct}%, far short of taking profit at fair: the
+          convergence is where the money is, and holding to the outcome leaves most of it on the table. The
+          return is concentrated, a couple of high-volume matches carry most of it, so it is a pilot, not a promise.
         </p>
       </Section>
 

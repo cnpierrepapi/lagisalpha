@@ -231,12 +231,13 @@ export default function ProofLedger({
               </div>
               <p className="mt-2 text-xs text-faint">
                 Kelly sizes each bet to the gap, f = gap / (1 − price), so it never over-bets into ruin; the
-                convergence is where the money is, and holding to the outcome throws it away on a coin-flip. We
-                also filter the call set to what actually converges: <span className="text-muted">giant gaps ≥ 25pp</span> are
-                usually a spiked or stale fair that never comes back, and a <span className="text-muted">buy-NO after the 80th minute</span> is
-                a late-game dud (its reach rate falls and its average return goes negative). Excluded calls are
-                still shown above, tagged ⊘, so nothing is hidden. These are the pooled numbers on the real
-                fills, recomputed as each match settles.
+                convergence is where the money is, and holding to the outcome leaves most of it on the table on a
+                coin-flip. We filter only the buy-NO side, where the losses concentrate: a <span className="text-muted">buy-NO ≥ 25pp</span> is
+                an oversized NO lag that rarely comes back, and a <span className="text-muted">buy-NO after the 80th minute</span> is
+                a late-game dud (its reach rate falls and its average return turns negative). Every YES call
+                counts, including the giant post-goal lags that pay the most. Excluded calls are still shown
+                above, tagged ⊘, so nothing is hidden. These are the pooled numbers on the real fills,
+                recomputed as each match settles.
               </p>
             </div>
           </>

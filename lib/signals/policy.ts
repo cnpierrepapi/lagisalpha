@@ -1,20 +1,21 @@
 // SIGNAL POLICY — the single rule for which divergence calls count as tradeable signals, and the
 // Kelly math used everywhere (site headline, /proof, /edge, the paper engine, the CLI, Telegram).
 //
-// Derived empirically from the call set (see the filter analysis): full Kelly, but two exclusions that
-// remove calls with no real edge:
-//   1. GIANT GAPS (>= 25pp): the largest "lags" are usually a spiked/stale fair that never converges;
-//      that band has the lowest reach rate and the worst losses.
+// Derived empirically from the call set (see the filter analysis): full Kelly, and two exclusions that
+// BOTH fall on the buy-NO side, because the losses are side-asymmetric (NO calls carry systematically
+// negative closing value; the giant lags that convert sit on the YES side, right after a goal):
+//   1. GIANT BUY-NO (side "no", gap >= 25pp): an oversized NO lag rarely comes back; the huge YES lags
+//      that pay are kept, only the NO giants are cut.
 //   2. LATE BUY-NO (side "no", after minute 80): betting a team will NOT win, that late, is a dud
-//      (reach drops ~71% -> ~64%, negative average return) - one goal or a closed-out favourite kills it.
-// Everything else is included and Kelly-sized: f = gap / (1 - entry), clamped [0,1].
+//      (reach drops ~71% -> ~64%, average return goes negative) - one goal or a closed-out favourite kills it.
+// Every YES call is included, and any NO call before 80' under 25pp. All are Kelly-sized: f = gap/(1-entry), clamped [0,1].
 
 import type { DivergenceEntry } from "@/lib/pickoff-source";
 
-export const GAP_MAX = 0.25;        // exclude divergences at/above 25pp
-export const NO_DUD_MINUTE = 80;    // exclude buy-NO calls after this match minute
+export const GAP_MAX = 0.25;        // exclude a buy-NO at/above 25pp
+export const NO_DUD_MINUTE = 80;    // exclude a buy-NO after this match minute
 
-export type ExclusionReason = "giant_gap" | "late_no" | null;
+export type ExclusionReason = "giant_no" | "late_no" | null;
 
 /** Match minute of a call, or null when the kickoff time is unknown. */
 export function entryMinute(kick: number | undefined, tSeconds: number): number | null {
@@ -22,11 +23,12 @@ export function entryMinute(kick: number | undefined, tSeconds: number): number 
   return (tSeconds * 1000 - kick) / 60000;
 }
 
-/** Why a call is excluded from the signal set, or null if it is a valid signal. */
+/** Why a call is excluded from the signal set, or null if it is a valid signal. Only buy-NO is ever cut. */
 export function exclusionReason(e: DivergenceEntry, kick?: number): ExclusionReason {
-  if (Math.abs(e.gap) >= GAP_MAX) return "giant_gap";
+  if (e.side !== "no") return null; // every YES call is a signal, including giant post-goal lags
+  if (Math.abs(e.gap) >= GAP_MAX) return "giant_no";
   const min = entryMinute(kick, e.t);
-  if (e.side === "no" && min != null && min > NO_DUD_MINUTE) return "late_no";
+  if (min != null && min > NO_DUD_MINUTE) return "late_no";
   return null;
 }
 
@@ -35,8 +37,8 @@ export function isIncluded(e: DivergenceEntry, kick?: number): boolean {
 }
 
 export const REASON_LABEL: Record<Exclude<ExclusionReason, null>, string> = {
-  giant_gap: "excluded: gap ≥ 25pp (giant-gap outlier, rarely converges)",
-  late_no: "excluded: buy-NO after 80’ (late-NO dud)",
+  giant_no: "excluded: buy-NO ≥ 25pp — an oversized NO lag rarely converges (the giant lags that pay are the YES side, after a goal)",
+  late_no: "excluded: buy-NO after 80’ — a late NO is a dud (reach falls, average return turns negative)",
 };
 
 /** Kelly bankroll multiplier for one call, take-profit at fair on reach else marked out at close. */

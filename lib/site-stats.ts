@@ -18,15 +18,15 @@ export interface SiteStats {
   reachPct: number; // pooled reach rate at >=5pp, whole %
   roiPct: number; // pooled Kelly take-profit ROI at >=5pp, whole %
   roi10Pct: number; // same at >=10pp
-  resLossPct: number; // how much the SAME bets lost held to resolution at >=5pp (positive magnitude)
-  res10LossPct: number; // same at >=10pp
+  resPct: number; // pooled Kelly ROI of the SAME bets held to resolution at >=5pp (SIGNED, the contrast)
+  res10Pct: number; // same at >=10pp
   matchCount: number;
   matchWord: string;
   hasData: boolean;
 }
 
 const FALLBACK: SiteStats = {
-  reachPct: 78, roiPct: 181, roi10Pct: 181, resLossPct: 95, res10LossPct: 95,
+  reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83,
   matchCount: 12, matchWord: "twelve", hasData: false,
 };
 
@@ -41,8 +41,8 @@ export async function getSiteStats(): Promise<SiteStats> {
     reachPct: Math.round(s5.reachRate * 100),
     roiPct: Math.round(s5.kellyRoi * 100),
     roi10Pct: s10.n ? Math.round(s10.kellyRoi * 100) : Math.round(s5.kellyRoi * 100),
-    resLossPct: Math.abs(Math.round(s5.kellyRoiRes * 100)),
-    res10LossPct: s10.n ? Math.abs(Math.round(s10.kellyRoiRes * 100)) : Math.abs(Math.round(s5.kellyRoiRes * 100)),
+    resPct: Math.round(s5.kellyRoiRes * 100),
+    res10Pct: s10.n ? Math.round(s10.kellyRoiRes * 100) : Math.round(s5.kellyRoiRes * 100),
     matchCount,
     matchWord: numWord(matchCount),
     hasData: true,
