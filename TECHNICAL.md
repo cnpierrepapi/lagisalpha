@@ -136,6 +136,35 @@ firmer read; both tighten as matches accrue.
 
 ---
 
+## Predictive findings — beyond the lag (pilot, n=12)
+
+The hackathon brief floated a **Sharp Movement Detector**: an agent that watches TxLINE
+odds every 60s, flags significant shifts, and tracks whether they predicted the match
+outcome. We built past it. We tested the naive version, found it does **not** work, and
+then used the Polymarket fill data to find the signal that does.
+
+All figures are on the pilot sample (12 settled World Cup matches, outcomes balanced 6/6).
+They are in-sample and need out-of-sample confirmation as matches accrue.
+
+- **Odds shifts alone do not predict the winner.** A significant TxLINE fair shift by the
+  45th minute called the result **58%** of the time (7/12) - essentially a coin flip. The
+  sharp line moving is not, by itself, an edge.
+- **Volume-to-divergence ratio does.** Cross the TxLINE fair with the Polymarket fills:
+  for each side, take the traded volume per point of divergence (usd / gap). The side with
+  the higher ratio won **83%** of the time (10/12, binomial p ≈ 0.019). Divergence backed
+  by real money marks the winner; divergence with little volume behind it is the market
+  cheaply fading a side, and it usually loses (the same effect appears inverted: the side
+  with the *most* raw divergence won only 17%).
+- **Goal-imminent alerts flag better divergences.** TxLINE `high_danger_possession` makes a
+  goal by that team ~**4x** more likely within 2 minutes (4.6% vs 1.1% baseline). And a
+  divergence preceded by such an alert converged to fair **84%** of the time vs **75%**
+  without one - a soft confidence cue on top of the lag edge.
+
+The point: the naive "sharp move" signal is a dud on its own; the edge appears only when
+the TxLINE fair and the Polymarket order flow are read together.
+
+---
+
 ## 6. API surface
 
 Public (no auth):

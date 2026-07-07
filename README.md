@@ -32,17 +32,39 @@ result is a losing trade on this data; the convergence is where the money is.
 
 ## The proof
 
-Measured on settled World Cup matches, on the real fills:
+Measured on settled World Cup matches, on the real fills, under the signal policy
+(full Kelly; only buy-NO duds excluded - see below):
 
 - **Reach** - does the market price travel back to fair before the match ends?
-  ~71% of the time. Outcome-independent, so it is the firmer number.
-- **Return** - Kelly-sized, take-profit-at-fair, compounded:
-  **≈ +114%** at a 5-point gap, **≈ +158%** at 10. The same bets held to the final
-  result instead lose (≈ −80% / −42%).
+  **~79%** of the time. Outcome-independent, so it is the firmer number.
+- **Return** - Kelly-sized, take-profit-at-fair, compounded across the included
+  signals. Take-profit far exceeds holding to the final result; the convergence is
+  where the money is. See `/proof` for the live pooled figure.
 
-Pilot sample (10 matches): the confidence interval still spans zero and the
-return leans on a few high-volume matches, so it is a pilot, not a promise. Reach
-is the firmer read; both tighten as matches accrue.
+Pilot sample (12 matches): the return leans on a few high-volume matches, so it is
+a pilot, not a promise. Reach is the firmer read; both tighten as matches accrue.
+
+**Signal policy.** Every YES call counts, including the giant post-goal lags that pay
+most. We exclude only two buy-NO duds: a **buy-NO ≥ 25pp** (an oversized NO lag rarely
+converges) and a **buy-NO after the 80th minute** (reach falls, average return turns
+negative). The maths is computed the same way on the box and the site.
+
+## What we found (pilot, n=12)
+
+The brief floated a **Sharp Movement Detector** - flag significant TxLINE odds shifts and
+see if they predict the outcome. We tested it, found the naive version does not work, and
+used the Polymarket fills to find the one that does:
+
+- **Odds shifts alone: 58%** (7/12) at predicting the winner - a coin flip.
+- **Volume-to-divergence ratio: 83%** (10/12, p ≈ 0.019). Cross the TxLINE fair with the
+  Polymarket order flow: the side with more traded volume per point of divergence wins.
+  Divergence backed by money marks the winner; divergence with none is the market cheaply
+  fading a side, and it loses.
+- **Goal-imminent alerts:** a TxLINE `high_danger_possession` makes a goal by that team
+  ~**4x** more likely within 2 minutes, and a divergence it flags converged **84%** vs
+  **75%** without one.
+
+In-sample on 12 matches; treat as a promising pilot, not a settled result.
 
 ## Architecture (short version)
 
