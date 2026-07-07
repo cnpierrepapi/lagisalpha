@@ -9,25 +9,11 @@
 
 import { useMemo, useState } from "react";
 import type { PickoffMatch, DivergenceEntry, PooledStat } from "@/lib/pickoff-source";
+import { isIncluded, pooledStats } from "@/lib/signals/policy";
 
 const pct = (n: number) => (n * 100).toFixed(0) + "%";
 const roiFmt = (n: number) => (n >= 0 ? "+" : "") + (n * 100).toFixed(0) + "%";
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();
-
-// Kelly-sized bankroll multipliers: f = gap/(1-entry); take-profit exits at fair on reach, else the
-// close; the resolution variant holds to the final result (the losing contrast).
-const kmult = (e: DivergenceEntry) => {
-  const d = 1 - e.entry;
-  const f = d > 0 ? Math.max(0, Math.min(1, e.gap / d)) : 0;
-  const r = e.entry > 0 ? (e.reached ? e.gap : e.clv ?? 0) / e.entry : 0;
-  return 1 + f * r;
-};
-const kmres = (e: DivergenceEntry) => {
-  const d = 1 - e.entry;
-  const f = d > 0 ? Math.max(0, Math.min(1, e.gap / d)) : 0;
-  const r = e.win ? (1 - e.entry) / e.entry : -1;
-  return 1 + f * r;
-};
 
 // "Portugal v Croatia" -> "POR v CRO"
 function code(teams: string): string {
@@ -53,7 +39,7 @@ interface Call {
   win: number;
 }
 
-export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffMatch[]; pooled?: Record<string, PooledStat> }) {
+export default function ReplayEdge({ matches }: { matches: PickoffMatch[]; pooled?: Record<string, PooledStat> }) {
   const withEdge = matches.filter((m) => m.edge && Object.keys(m.edge).length);
   const [theta, setTheta] = useState<"5" | "10">("5");
   const [sort, setSort] = useState<Sort>("gap");
@@ -65,7 +51,8 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
     const out: Call[] = [];
     for (const m of withEdge) {
       const kickSec = Math.floor(m.kick / 1000);
-      const divs: DivergenceEntry[] = m.divergences?.[theta] ?? [];
+      // the feed shows only INCLUDED signals (policy filters giant-gap and late-NO duds)
+      const divs: DivergenceEntry[] = (m.divergences?.[theta] ?? []).filter((e) => isIncluded(e, m.kick));
       divs.forEach((e, i) => {
         out.push({
           key: `${m.fid}-${i}`,
@@ -99,19 +86,12 @@ export default function ReplayEdge({ matches, pooled: pub }: { matches: PickoffM
 
   const maxGap = useMemo(() => Math.max(0.05, ...filtered.map((c) => c.gap)), [filtered]);
 
-  // pooled across every match at the chosen theta — prefer the published stat (carries the bootstrap
-  // CI); fall back to a client-side pool if the blob predates it.
-  const pooled = useMemo(() => {
-    // always derive from the matches so a stale blob (missing tpReturn) can never NaN the header;
-    // overlay the published stat (carries the bootstrap CIs) when present.
-    let n = 0, reach = 0, size = 0, kTp = 1, kRes = 1;
-    for (const mm of withEdge) for (const e of mm.divergences?.[theta] ?? []) {
-      n++; reach += e.reached ? 1 : 0; size += e.usd ?? 0; kTp *= kmult(e); kRes *= kmres(e);
-    }
-    const derived = { theta: Number(theta) / 100, n, reachRate: n ? reach / n : 0, kellyRoi: n ? kTp - 1 : 0, kellyRoiRes: n ? kRes - 1 : 0, usd: size };
-    const pubp = pub?.[theta];
-    return pubp ? { ...derived, ...pubp, kellyRoi: pubp.kellyRoi ?? derived.kellyRoi, kellyRoiRes: pubp.kellyRoiRes ?? derived.kellyRoiRes } : derived;
-  }, [withEdge, theta, pub]);
+  // pooled over the INCLUDED calls only (policy applied), derived client-side so a stale blob can't NaN
+  // the header. The published pooled stat is not overlaid: the policy filter makes us the source.
+  const pooled = useMemo(
+    () => pooledStats(withEdge.map((mm) => ({ divs: mm.divergences?.[theta] ?? [], kick: mm.kick }))),
+    [withEdge, theta],
+  );
 
   if (!withEdge.length) {
     return <div className="card p-5 text-sm text-faint">The calls publish after the pipeline runs. Check back shortly.</div>;

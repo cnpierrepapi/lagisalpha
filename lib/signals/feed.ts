@@ -8,6 +8,7 @@
 
 import { getPickoffs, getLiveEdge, getLiveStream } from "@/lib/pickoff-source";
 import type { PickoffLedger, PickoffMatch, DivergenceEntry, LiveSignal } from "@/lib/pickoff-source";
+import { isIncluded, entryMinute, GAP_MAX } from "@/lib/signals/policy";
 
 export interface Signal {
   fid: string;          // TxLINE fixture id (the market key; token-id mapping comes in a later phase)
@@ -20,6 +21,7 @@ export interface Signal {
   suggestedKellyF: number; // Kelly fraction of bankroll: gap/(1-entry), clamped [0,1]
   sizeAtFair: number;   // $ exit liquidity available at/through fair (0 if it never reached)
   ts: number;           // unix seconds of the entry
+  minute?: number;      // match minute of the call (for display / late-NO policy)
   reached?: boolean;    // replay only: did the market travel to fair before FT
   clv?: number;         // replay only: closing-line value in prob (close - entry); marks out no-reach trades
   tx?: string;          // replay only: a Polygon fill tx that settled it (verifiable)
@@ -52,6 +54,7 @@ export function entryToSignal(m: PickoffMatch, e: DivergenceEntry): Signal {
     suggestedKellyF: kellyFraction(sideFair, e.entry),
     sizeAtFair: e.usd,
     ts: e.t,
+    minute: entryMinute(m.kick, e.t) ?? undefined,
     reached: e.reached,
     clv: e.clv,
     tx: e.fills?.[0]?.tx,
@@ -103,10 +106,12 @@ export async function getLiveSignals(): Promise<{ generatedAt: number; live: boo
   const live = await getLiveEdge();
   const diverged = (live?.signals ?? []).filter((s) => s.diverged);
   const isLive = (live?.liveCount ?? 0) > 0;
+  // policy (live): drop giant-gap outliers here; the late-NO rule needs a kickoff time the live feed
+  // does not carry, so it is enforced on the settled ledger where the minute is known.
   return {
     generatedAt: live?.generatedAt ?? Date.now(),
     live: isLive,
-    signals: isLive ? diverged.map(liveToSignal) : [],
+    signals: isLive ? diverged.map(liveToSignal).filter((s) => s.gapPp < GAP_MAX * 100) : [],
   };
 }
 
@@ -114,7 +119,8 @@ export async function getLiveSignals(): Promise<{ generatedAt: number; live: boo
 export function getReplaySignals(led: PickoffLedger | null, fid: string, theta: "5" | "10" = "5"): Signal[] {
   const m = led?.matches.find((x) => String(x.fid) === fid);
   if (!m) return [];
-  return (m.divergences?.[theta] ?? []).map((e) => entryToSignal(m, e));
+  // policy: only the included calls are tradeable signals (giant-gap and late-NO duds are dropped)
+  return (m.divergences?.[theta] ?? []).filter((e) => isIncluded(e, m.kick)).map((e) => entryToSignal(m, e));
 }
 
 export { getPickoffs };
