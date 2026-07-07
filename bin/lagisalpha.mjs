@@ -52,6 +52,13 @@ const COLORS = { sys: "33", sig: "37", fill: "90", win: "32", loss: "31", muted:
 const paint = (t, c) => (NO_COLOR || !COLORS[c] ? t : `\x1b[${COLORS[c]}m${t}\x1b[0m`);
 const money = (n) => "$" + Math.round(n).toLocaleString();
 const pen = (n) => (n >= 0 ? "+" : "") + n;
+// volume-to-divergence winner hint (pilot n=12, in-sample): the side with more real money per point of
+// divergence tends to win. A late, directional read, kept caveated.
+function winnerHintText(h) {
+  const x = h.margin != null && Number.isFinite(h.margin) ? `${h.margin.toFixed(1)}x` : "far";
+  const mn = h.atMin != null ? `${h.atMin}' ` : "";
+  return `🏆 ${mn}likely winner: ${h.teamName} — volume-per-divergence ${x} ahead (pilot n=12, in-sample)`;
+}
 const host = {
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   async fetchJson(path, key) {
@@ -83,14 +90,21 @@ async function doReplay(arg) {
   if (!m) return emit(`unknown match "${arg}". type 'matches' to list.`, "loss");
   emit(`replay ${m.teams} — ${m.count} signals — bankroll ${money(state.bankroll)}`, "sys");
   const s = newSession(state.bankroll);
-  // merge goal-imminent alerts (high-danger pressure that preceded a goal) into the timeline
+  // merge goal-imminent alerts (high-danger pressure that preceded a goal) and the volume-to-divergence
+  // winner hint (a late, directional read on the match winner) into the timeline
   const items = [
     ...m.signals.map((x) => ({ ts: x.ts, kind: "sig", sig: x })),
     ...(m.goalWatch ?? []).map((w) => ({ ts: w.ts, kind: "watch", w })),
+    ...(m.winnerHint ? [{ ts: m.winnerHint.ts ?? Infinity, kind: "winner", h: m.winnerHint }] : []),
   ].sort((a, b) => a.ts - b.ts);
   for (const it of items) {
     if (it.kind === "watch") {
       emit(`⚠ ${it.w.min}' goal watch: ${it.w.team} — high-danger pressure${it.w.pressure > 1 ? ` (x${it.w.pressure})` : ""}, watch the line`, "warn");
+      await host.sleep(300);
+      continue;
+    }
+    if (it.kind === "winner") {
+      emit(winnerHintText(it.h), "warn");
       await host.sleep(300);
       continue;
     }
@@ -122,6 +136,7 @@ async function doLive() {
   }
   if (!q || q.live === false || !(q.signals || []).length) return emit("no matches live right now — try:  replay", "muted");
   emit(`live: ${q.signals.length} open divergence(s) — paper bankroll ${money(state.bankroll)}`, "sys");
+  if (q.winnerHint) emit(winnerHintText(q.winnerHint), "warn");
   const s = newSession(state.bankroll);
   for (const sig of q.signals) {
     const pos = openPosition(s, sig);

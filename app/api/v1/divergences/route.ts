@@ -47,6 +47,7 @@ export async function GET(req: Request) {
       teams: m.teams,
       theta: themeParam,
       signals: getReplaySignals(led, fid, themeParam),
+      winnerHint: (m as unknown as { winnerHint?: unknown }).winnerHint ?? null,
     });
   }
 

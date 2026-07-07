@@ -22,7 +22,10 @@ export async function GET() {
       const gw = ((m as unknown as { goalWatch?: Array<{ min: number; ts: number; teamName: string; pressure: number; ledToGoal: boolean }> }).goalWatch ?? [])
         .filter((w) => w.ledToGoal)
         .map((w) => ({ min: w.min, ts: w.ts, team: w.teamName, pressure: w.pressure }));
-      return { fid: String(m.fid), code: code(m.teams), teams: m.teams, count: signals.length, signals, goalWatch: gw };
+      // volume-to-divergence winner hint (pilot n=12, in-sample) — a directional read on the match
+      // winner, computed by the box in compute_edge.py; null when it abstains.
+      const winnerHint = (m as unknown as { winnerHint?: unknown }).winnerHint ?? null;
+      return { fid: String(m.fid), code: code(m.teams), teams: m.teams, count: signals.length, signals, goalWatch: gw, winnerHint };
     })
     .filter((m) => m.count > 0)
     .sort((a, b) => b.count - a.count);
