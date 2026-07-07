@@ -116,7 +116,7 @@ def compute(fid):
                         ents.append({"t":ms//1000,"side":"yes" if sgn>0 else "no",
                                      "entry":round(paid,4),"fair":round(fv,4),
                                      "gap":round(abs(gap),4),"reached":reached,"win":win,"usd":round(usd),
-                                     "clv":round(clv,4),"incl":(not((sgn<=0) and (abs(gap)>=0.25 or (ms-mm["kick"])/60000.0>80))),"fills":efills})
+                                     "clv":round(clv,4),"incl":True,"fills":efills})  # no exclusion filter: every call counts
                     if gap*sgn<theta*0.5: armed[sgn]=True
             ms+=STEP
         inc=[e for e in ents if e.get("incl",True)]; n=len(inc); reach=sum(e["reached"] for e in inc)
@@ -165,7 +165,7 @@ def prod(vals):
     return p
 
 def agg(entries):
-    entries=[e for e in entries if e.get("incl",True)]  # SIGNAL POLICY: pooled over included calls only
+    entries=[e for e in entries if e.get("incl",True)]  # incl is always True now (no exclusion filter); kept for old-blob compat
     n=len(entries)
     if not n: return {"n":0,"reachRate":0,"aggEdgePct":0,"tpReturn":0,"clvAvg":0,"kellyRoi":0,"kellyRoiRes":0,"usd":0}
     cost=sum(e["entry"] for e in entries); win=sum(e["win"] for e in entries)

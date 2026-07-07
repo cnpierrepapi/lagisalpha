@@ -9,7 +9,7 @@
 
 import { useMemo, useState } from "react";
 import type { PickoffMatch, DivergenceEntry, PooledStat } from "@/lib/pickoff-source";
-import { isIncluded, pooledStats } from "@/lib/signals/policy";
+import { pooledStats } from "@/lib/signals/policy";
 
 const pct = (n: number) => (n * 100).toFixed(0) + "%";
 const roiFmt = (n: number) => (n >= 0 ? "+" : "") + (n * 100).toFixed(0) + "%";
@@ -52,8 +52,8 @@ export default function ReplayEdge({ matches }: { matches: PickoffMatch[]; poole
     const out: Call[] = [];
     for (const m of withEdge) {
       const kickSec = Math.floor(m.kick / 1000);
-      // the feed shows only INCLUDED signals (policy filters giant-gap and late-NO duds)
-      const divs: DivergenceEntry[] = (m.divergences?.[theta] ?? []).filter((e) => isIncluded(e, m.kick));
+      // the feed shows EVERY call — no exclusion filter, the record rolls unfiltered
+      const divs: DivergenceEntry[] = m.divergences?.[theta] ?? [];
       divs.forEach((e, i) => {
         out.push({
           key: `${m.fid}-${i}`,
@@ -88,8 +88,7 @@ export default function ReplayEdge({ matches }: { matches: PickoffMatch[]; poole
 
   const maxGap = useMemo(() => Math.max(0.05, ...filtered.map((c) => c.gap)), [filtered]);
 
-  // pooled over the INCLUDED calls only (policy applied), derived client-side so a stale blob can't NaN
-  // the header. The published pooled stat is not overlaid: the policy filter makes us the source.
+  // pooled over EVERY call, derived client-side so a stale blob can't NaN the header.
   const pooled = useMemo(
     () => pooledStats(withEdge.map((mm) => ({ divs: mm.divergences?.[theta] ?? [], kick: mm.kick }))),
     [withEdge, theta],

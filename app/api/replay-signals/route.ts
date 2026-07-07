@@ -1,4 +1,4 @@
-// GET /api/replay-signals  (public) — the included signal set per settled match, for the paper terminal
+// GET /api/replay-signals  (public) — every signal per settled match (unfiltered), for the paper terminal
 // (web + CLI) to replay. Live signals are the paid product (/api/v1/divergences?status=live); replay is
 // the open demo. Cached so it does not hammer the blob.
 import { NextResponse } from "next/server";

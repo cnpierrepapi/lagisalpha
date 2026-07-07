@@ -70,11 +70,11 @@ refreshed every 30 min). Shape:
 ```jsonc
 {
   "generatedAt": 1783345200000,       // ms epoch of last publish
-  "matchCount": 12,
+  "matchCount": 13,
   "totals": { "usd": 52151680, "ge5pp_usd": 6588751, "ge10pp_usd": 5151326, "fills": 211012 },
-  "pooled": {                          // under the signal policy (included calls only); recomputed live
-    "5":  { "kellyRoi": 11.60, "reachRate": 0.795, "kellyRoiRes": 0.83, "usd": 52151680, "n": 39, ... },
-    "10": { "kellyRoi": 11.89, "reachRate": 0.833, "kellyRoiRes": 5.60, "usd": 30359332, "n": 24, ... }
+  "pooled": {                          // over EVERY call (no exclusion filter); recomputed live
+    "5":  { "kellyRoi": -0.31, "reachRate": 0.718, "kellyRoiRes": -0.98, "usd": 67000000, "n": 71, ... },
+    "10": { "kellyRoi": -0.10, "reachRate": 0.682, "kellyRoiRes": -0.93, "usd": 41000000, "n": 44, ... }
   },
   "matches": [ /* per-match reach/return + winnerHint (graded live, draw = pending) */ ]
 }
@@ -113,18 +113,19 @@ hard-coded.
 Measured on the bundled/settled World Cup matches, against real Polygon fills.
 
 - **Reach** - from the entry, does the market price travel to fair before the
-  match ends? **~79%** under the signal policy. Outcome-independent, so it is the
-  firmer number.
+  match ends? **~72%** over every call, none excluded. Outcome-independent, so it
+  is the firmer number.
 - **Return** - buy the cheap side, take profit at fair when the market catches up.
   Sized by Kelly on the gap, `f = gap / (1 − price)`, compounded across every
-  included call. Take-profit-at-fair far exceeds holding the same bets to the final
+  call. Take-profit-at-fair far exceeds holding the same bets to the final
   result: the convergence is where the money is, the outcome only adds variance.
   See `/proof` for the current pooled Kelly ROI - it is recomputed live from the
-  blob, never hard-coded here.
+  blob, never hard-coded here, and published as-is (the uncurated full-Kelly
+  compound is volatile at pilot size and can sit negative).
 
-**Honesty bound.** Pilot sample (12 matches). The confidence interval still spans
-zero, and the return is concentrated in a few high-volume matches. Reach is the
-firmer read; both tighten as matches accrue.
+**Honesty bound.** Pilot sample (13 matches). The confidence interval still spans
+zero, and the compounded return swings on a few giant calls. Reach is the firmer
+read; both tighten as matches accrue.
 
 ---
 
@@ -139,24 +140,25 @@ firmer read; both tighten as matches accrue.
 
 ---
 
-## What we found (pilot, n=12)
+## What we found (pilot)
 
 The hackathon brief floated a **Sharp Movement Detector**: an agent that watches TxLINE
 odds every 60s, flags significant shifts, and tracks whether they predicted the match
 outcome. We built it, found it is a coin flip, and did one better.
 
-All figures are on the pilot sample (12 settled World Cup matches). In-sample; they need
-out-of-sample confirmation as matches accrue.
+All figures are from the pilot sample (the shift and goal-imminent analyses used the first
+12 settled World Cup matches; reach recomputes live as matches accrue). In-sample; they need
+out-of-sample confirmation.
 
 - **Odds shifts alone do not call the winner.** A significant TxLINE fair shift by the 45th
   minute called the result **58%** of the time (7/12) - essentially a coin flip. The sharp
   line moving is not, by itself, an edge.
 - **The lead-lag is the edge.** A goal is new information: TxLINE reprices it instantly, a
   prediction market only moves when someone trades, so for a window the cheap side sits below
-  fair and converges **~79%** of the time. And we know which lags to trust: every payable lag
-  is a post-goal YES lag, so the signal policy keeps them all and cuts only two buy-NO duds (a
-  giant NO ≥ 25pp that is not a fresh-information lag, and a late NO after 80' with no window
-  left to converge). Mechanism, not a fit.
+  fair and converges **~72%** of the time. The record rolls unfiltered: every call the detector
+  fires is published and scored - either side, any size, any minute, each side named by its
+  team - and Kelly sizing is the only risk control. (An earlier signal policy cut two classes
+  of buy-NO call; that filter is retired.)
 - **Goal-imminent alerts flag better divergences.** TxLINE `high_danger_possession` makes a
   goal by that team ~**4x** more likely within 2 minutes (4.6% vs 1.1% baseline), and a
   divergence preceded by such an alert converged to fair **84%** vs **75%** without one - a

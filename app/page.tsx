@@ -150,10 +150,11 @@ export default async function Home() {
           <p className="mt-2 max-w-2xl text-sm text-muted">
             A prediction market can only move its price by trading, so it is always a step behind the sharp,
             vig-free line. In the seconds around a goal the market sits below fair and the cheap side is
-            there for the taking. That is not a one-off: across {stats.matchCount} matches the gap closed{" "}
-            <span className="text-fg">{stats.reachPct}%</span> of the time, and taking profit at fair, sized
-            by Kelly on the gap, returned <span className="text-fg">+{stats.roiPct}%</span> and grew the
-            wider the gap. Find the divergence, take the cheap side, and ride it to the fair.
+            there for the taking. That is not a one-off: across {stats.matchCount} matches, every call
+            published and none filtered, the gap closed <span className="text-fg">{stats.reachPct}%</span> of
+            the time. The trade is the convergence, not the outcome: exit at fair, Kelly-sized on the gap;
+            the same bets held to the final result hand the convergence profit back. Find the divergence,
+            take the cheap side, and ride it to the fair.
           </p>
         </div>
       </section>
@@ -191,12 +192,10 @@ export default async function Home() {
             time. It is our strongest, most proven signal.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-muted">
-            And we know which lags to trust. Every payable lag is a post-goal <span className="text-fg">YES</span>{" "}
-            lag, so we keep them all and cut only two buy-NO cases: a <span className="text-fg">giant NO</span>{" "}
-            (25pp or more), which is not a fresh-information lag but the market pricing something the de-vig
-            does not, and rarely comes back; and a <span className="text-fg">late NO</span> (after the 80th
-            minute), where there is no time left to converge and one goal or a closed-out favourite ends it.
-            It is the mechanism, not a fit.
+            And the record rolls on its own. Every divergence the detector fires is published and scored:
+            either side, any size, any minute, each side named by its team. There is no exclusion filter and
+            no curated subset. Kelly sizing on the gap is the only risk control, and the ledger on /proof
+            recomputes as each match settles. The mechanism, with nothing cut out of it.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div className="card p-5">

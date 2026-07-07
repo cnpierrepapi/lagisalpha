@@ -47,9 +47,8 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
           A prediction market sets its price by trading, so it lags the sharp, vig-free line that already
           holds the true probability. When it falls below fair, the cheap side is underpriced; across{" "}
           {stats.matchWord} settled World Cup matches it travelled back to fair about {stats.reachPct}% of the
-          time, and Kelly-sized bets that took profit at fair compounded to roughly +{stats.roiPct}% at a 5
-          point gap. This is the writeup: why the edge exists, how we measure it on the real fills, and how
-          honest the numbers are.
+          time, on every call the detector fired, none filtered out. This is the writeup: why the edge
+          exists, how we measure it on the real fills, and how honest the numbers are.
         </p>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <a
@@ -118,12 +117,15 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
         <p>
           <span className="text-fg">Return</span>: the trade is to buy the cheap side and take profit at
           fair when the market catches up. Sized by Kelly on the gap, f = gap / (1 - price), and compounded
-          across every call, that returned about <span className="text-amber">+{stats.roiPct}%</span> at a 5
-          point gap and <span className="text-amber">+{stats.roi10Pct}%</span> at 10. The same bets held to
-          the final result instead returned about {stats.resPct >= 0 ? "+" : ""}{stats.resPct}% and{" "}
-          {stats.res10Pct >= 0 ? "+" : ""}{stats.res10Pct}%, far short of taking profit at fair: the
-          convergence is where the money is, and holding to the outcome leaves most of it on the table. The
-          return is concentrated, a couple of high-volume matches carry most of it, so it is a pilot, not a promise.
+          across every call with nothing excluded, that stands at about{" "}
+          <span className="text-amber">{stats.roiPct >= 0 ? "+" : ""}{stats.roiPct}%</span> at a 5 point gap
+          and <span className="text-amber">{stats.roi10Pct >= 0 ? "+" : ""}{stats.roi10Pct}%</span> at 10.
+          The same bets held to the final result instead returned about {stats.resPct >= 0 ? "+" : ""}
+          {stats.resPct}% and {stats.res10Pct >= 0 ? "+" : ""}{stats.res10Pct}%: whichever exit you pick,
+          the convergence leg is where the money is, and holding to the outcome does far worse. The
+          compounded number is volatile and concentrated, a couple of high-volume matches carry it and a
+          single giant call can swing it, which is what an uncurated full-Kelly record looks like at pilot
+          size. Reach is the firmer read; the return is published as-is and moves as each match settles.
         </p>
       </Section>
 
@@ -186,12 +188,11 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
           the entire product.
         </p>
         <p>
-          We also know which lags to trust. Every payable lag is a post-goal YES lag, so we keep them all and
-          cut only two buy-NO cases. A <span className="text-fg">giant NO</span> (25pp or more) is not a
-          fresh-information lag but the market pricing something the de-vig does not, and it rarely converges
-          back. A <span className="text-fg">late NO</span> (after the 80th minute) has no window left to
-          converge, and one goal or a closed-out favourite ends it (reach falls, the average return turns
-          negative). It is the mechanism, not a fit.
+          And the record rolls on its own. Every divergence the detector fires is published and scored:
+          either side, any size, any minute of the match, each side named by its team. There is no exclusion
+          filter and no curated subset; Kelly sizing on the gap is the only risk control. An earlier version
+          cut two classes of buy-NO call, and we retired that filter: the mechanism is shown whole, with the
+          calls that hurt it left in.
         </p>
         <p>
           Separately, a TxLINE high-danger possession makes a goal by that team about {" "}

@@ -5,14 +5,13 @@
 // /proof answers "and here are the on-chain fills that prove the cheap side really sat there."
 // Click any entry to expand its fills; each `verify ↗` is a real tx you can open on Polygonscan.
 //
-// Every call is shown for transparency, but only the ones the signal policy INCLUDES count toward ROI
-// and reach. Excluded calls (giant-gap >=25pp, or late buy-NO after 80') carry an "excluded" tag and are
-// dimmed. See lib/signals/policy.ts.
+// EVERY call counts: there is no exclusion filter. The record rolls on its own — either side, any
+// size, any minute — and Kelly sizing is the only risk control. See lib/signals/policy.ts.
 
 import { Fragment, useMemo, useState } from "react";
 import type { PickoffMatch, DivergenceEntry, PooledStat } from "@/lib/pickoff-source";
 import { polygonTx } from "@/lib/pickoff-source";
-import { isIncluded, exclusionReason, REASON_LABEL, kmultTp, kmultRes, pooledStats, matchKellyRoi } from "@/lib/signals/policy";
+import { pooledStats, matchKellyRoi } from "@/lib/signals/policy";
 
 const usd = (n: number) => "$" + Math.round(n).toLocaleString();
 const roi = (x: number) => (x >= 0 ? "+" : "") + (x * 100).toFixed(0) + "%";
@@ -44,24 +43,14 @@ function EntryRows({ divs, kick, teams }: { divs: DivergenceEntry[]; kick: numbe
             const on = open === i;
             const fills = e.fills ?? [];
             const canOpen = fills.length > 0;
-            const reason = exclusionReason(e, kick);
-            const excluded = reason !== null;
             return (
               <Fragment key={i}>
                 <tr
                   onClick={() => canOpen && setOpen(on ? null : i)}
-                  className={`border-t border-ink-700 ${excluded ? "opacity-45" : ""} ${canOpen ? "cursor-pointer" : ""} ${on ? "bg-amber/10" : canOpen ? "hover:bg-ink-800/60" : ""}`}
-                  title={excluded ? REASON_LABEL[reason] : undefined}
+                  className={`border-t border-ink-700 ${canOpen ? "cursor-pointer" : ""} ${on ? "bg-amber/10" : canOpen ? "hover:bg-ink-800/60" : ""}`}
                 >
                   <td className="py-1.5 text-muted">{clock(e.t, kick)}</td>
-                  <td className="py-1.5 text-fg">
-                    {teamOf(e.side)}
-                    {excluded && (
-                      <span className="ml-1.5 rounded bg-ink-700 px-1 py-0.5 text-[10px] text-faint" title={REASON_LABEL[reason]}>
-                        ⊘ excluded
-                      </span>
-                    )}
-                  </td>
+                  <td className="py-1.5 text-fg">{teamOf(e.side)}</td>
                   <td className="py-1.5 text-muted">{e.entry.toFixed(3)}</td>
                   <td className="py-1.5 text-fg">{(e.side === "yes" ? e.fair : 1 - e.fair).toFixed(3)}</td>
                   <td className="py-1.5 text-muted">{(Math.abs(e.gap) * 100).toFixed(1)}pp</td>
@@ -120,11 +109,9 @@ function EntryRows({ divs, kick, teams }: { divs: DivergenceEntry[]; kick: numbe
 
 function MatchCard({ m, theta }: { m: PickoffMatch; theta: "5" | "10" }) {
   const divs = m.divergences?.[theta] ?? [];
-  const included = divs.filter((e) => isIncluded(e, m.kick));
-  const excludedCount = divs.length - included.length;
-  const size = included.reduce((s, e) => s + (e.usd ?? 0), 0);
-  const reachRate = included.length ? included.filter((e) => e.reached).length / included.length : null;
-  const kellyRoi = matchKellyRoi(divs, m.kick);
+  const size = divs.reduce((s, e) => s + (e.usd ?? 0), 0);
+  const reachRate = divs.length ? divs.filter((e) => e.reached).length / divs.length : null;
+  const kellyRoi = matchKellyRoi(divs);
   return (
     <div className="card p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -133,8 +120,8 @@ function MatchCard({ m, theta }: { m: PickoffMatch; theta: "5" | "10" }) {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <p className="serif text-2xl text-fg">{included.length}</p>
-          <p className="text-xs text-muted">signals{excludedCount ? ` · ${excludedCount} excluded` : ""}</p>
+          <p className="serif text-2xl text-fg">{divs.length}</p>
+          <p className="text-xs text-muted">signals</p>
         </div>
         <div>
           <p className="serif text-2xl text-amber">{reachRate != null ? (reachRate * 100).toFixed(0) + "%" : "—"}</p>
@@ -150,7 +137,7 @@ function MatchCard({ m, theta }: { m: PickoffMatch; theta: "5" | "10" }) {
         </div>
       </div>
 
-      <p className="label mt-5">every call · click to open the on-chain fills · ⊘ = excluded, not a signal</p>
+      <p className="label mt-5">every call · click to open the on-chain fills</p>
       {divs.length > 0 ? (
         <EntryRows divs={divs} kick={m.kick} teams={m.teams} />
       ) : (
@@ -169,13 +156,12 @@ export default function ProofLedger({
 }) {
   const [theta, setTheta] = useState<"5" | "10">("5");
   const withEdge = matches.filter((m) => (m.divergences?.[theta]?.length ?? 0) > 0);
-  // per-match cards, ranked by included-only ROI so the strongest matches lead
+  // per-match cards, ranked by ROI so the strongest matches lead
   const rankedMatches = useMemo(
-    () => [...withEdge].sort((a, b) => (matchKellyRoi(b.divergences?.[theta] ?? [], b.kick) ?? -1) - (matchKellyRoi(a.divergences?.[theta] ?? [], a.kick) ?? -1)),
+    () => [...withEdge].sort((a, b) => (matchKellyRoi(b.divergences?.[theta] ?? []) ?? -1) - (matchKellyRoi(a.divergences?.[theta] ?? []) ?? -1)),
     [withEdge, theta],
   );
-  // Pooled over INCLUDED calls only, derived client-side (a stale blob can never NaN the page). The
-  // published pooled stat is not overlaid: the policy filter is applied here, so we are the source.
+  // Pooled over EVERY call, derived client-side (a stale blob can never NaN the page).
   const p = useMemo(
     () => pooledStats(withEdge.map((m) => ({ divs: m.divergences?.[theta] ?? [], kick: m.kick }))),
     [withEdge, theta],
@@ -212,7 +198,7 @@ export default function ProofLedger({
               </div>
               <div className="card p-4">
                 <p className="serif text-2xl text-fg">{p.n}</p>
-                <p className="text-xs text-muted">signals (excl. filtered)</p>
+                <p className="text-xs text-muted">signals · every call, unfiltered</p>
               </div>
               <div className="card p-4">
                 <p className="serif text-2xl text-fg">{usd(p.usd)}</p>
@@ -220,9 +206,9 @@ export default function ProofLedger({
               </div>
             </div>
 
-            {/* WHY KELLY + THE FILTER — evidence, not assertion */}
+            {/* THE FULL RECORD, NO FILTER — evidence, not assertion */}
             <div className="mt-3 rounded border border-ink-700 bg-ink-900/40 p-4">
-              <p className="label">why Kelly sizing, why take-profit, and what we filter out</p>
+              <p className="label">the full record: every call, Kelly-sized, nothing curated</p>
               <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <p className={`serif text-xl ${p.kellyRoi >= 0 ? "text-amber" : "text-muted"}`}>{roi(p.kellyRoi)}</p>
@@ -234,14 +220,14 @@ export default function ProofLedger({
                 </div>
               </div>
               <p className="mt-2 text-xs text-faint">
-                Kelly sizes each bet to the gap, f = gap / (1 − price), so it never over-bets into ruin; the
-                convergence is where the money is, and holding to the outcome leaves most of it on the table on a
-                coin-flip. We filter only the buy-NO side, where the losses concentrate: a <span className="text-muted">buy-NO ≥ 25pp</span> is
-                an oversized NO lag that rarely comes back, and a <span className="text-muted">buy-NO after the 80th minute</span> is
-                a late-game dud (its reach rate falls and its average return turns negative). Every YES call
-                counts, including the giant post-goal lags that pay the most. Excluded calls are still shown
-                above, tagged ⊘, so nothing is hidden. These are the pooled numbers on the real fills,
-                recomputed as each match settles.
+                Nothing is filtered out: every divergence the detector fires is published and scored, either
+                side, any size, any minute. Kelly is the only risk control — each bet is sized to its gap,
+                f = gap / (1 − price), so no single call can ruin the account. The firm result is the reach
+                rate: the market travels to TxLINE&apos;s fair on roughly {(p.reachRate * 100).toFixed(0)}% of
+                calls, and exiting there beats holding the same bets to the final result by a wide margin
+                (the coin-flip outcome gives the convergence profit back). The compounded ROI is volatile
+                and concentrated in a few matches — it is the raw product of every call, shown as-is, and it
+                moves as each new match settles. Pilot sample; recomputed from the real fills.
               </p>
             </div>
           </>

@@ -19,15 +19,14 @@ export async function GET(req: Request) {
 
   const led = await getPickoffs();
   const matches = led?.matches ?? [];
-  // recomputed under the signal policy (excludes giant-gap >=25pp and late buy-NO >80'), so it matches
-  // /proof and the paper terminal exactly.
+  // recomputed over EVERY call (no exclusion filter), so it matches /proof and the paper terminal exactly.
   const pooled = {
     "5": pooledStats(matches.map((m) => ({ divs: m.divergences?.["5"] ?? [], kick: m.kick }))),
     "10": pooledStats(matches.map((m) => ({ divs: m.divergences?.["10"] ?? [], kick: m.kick }))),
   };
   return NextResponse.json({
-    policy: { fullKelly: true, excludeGapPp: 25, excludeLateNoAfterMinute: 80 },
+    policy: { fullKelly: true, exclusions: "none" },
     pooled,
-    matches: matches.map((m) => ({ fid: String(m.fid), teams: m.teams, kellyRoi5: matchKellyRoi(m.divergences?.["5"] ?? [], m.kick) })),
+    matches: matches.map((m) => ({ fid: String(m.fid), teams: m.teams, kellyRoi5: matchKellyRoi(m.divergences?.["5"] ?? []) })),
   });
 }

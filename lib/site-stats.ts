@@ -1,7 +1,7 @@
 // SITE STATS — the headline numbers (reach rate, Kelly take-profit ROI, the resolution contrast,
-// match count). Recomputed live from the ledger under the SIGNAL POLICY (lib/signals/policy.ts), so the
-// homepage, litepaper, and PDF show exactly what /proof shows: the included calls only, giant-gap and
-// late-NO duds filtered out. Falls back to last-known values if the blob is briefly unavailable.
+// match count). Recomputed live from the ledger over EVERY call (no exclusion filter — the record rolls
+// unfiltered; lib/signals/policy.ts), so the homepage, litepaper, and PDF show exactly what /proof
+// shows. Falls back to last-known values if the blob is briefly unavailable.
 
 import { getPickoffs } from "@/lib/pickoff-source";
 import { pooledStats } from "@/lib/signals/policy";
@@ -32,8 +32,8 @@ export interface SiteStats {
 }
 
 const FALLBACK: SiteStats = {
-  reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83,
-  matchCount: 12, matchWord: "twelve",
+  reachPct: 72, roiPct: -31, roi10Pct: -10, resPct: -98, res10Pct: -93,
+  matchCount: 13, matchWord: "thirteen",
   whFired: 7, whGraded: 5, whCorrect: 5, whPending: 2, hasData: false,
 };
 

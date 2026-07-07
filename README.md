@@ -46,24 +46,24 @@ result is a losing trade on this data; the convergence is where the money is.
 
 ## The proof
 
-Measured on settled World Cup matches, on the real fills, under the signal policy
-(full Kelly; only buy-NO duds excluded - see below):
+Measured on settled World Cup matches, on the real fills, over **every call the
+detector fired - no exclusion filter, nothing curated**:
 
 - **Reach** - does the market price travel back to fair before the match ends?
-  **~79%** of the time. Outcome-independent, so it is the firmer number.
-- **Return** - Kelly-sized, take-profit-at-fair, compounded across the included
-  signals. Take-profit far exceeds holding to the final result; the convergence is
-  where the money is. See `/proof` for the live pooled figure.
+  **~72%** of the time. Outcome-independent, so it is the firmer number.
+- **Return** - Kelly-sized, take-profit-at-fair, compounded across every call.
+  Take-profit far exceeds holding to the final result; the convergence is where
+  the money is. The compounded figure is volatile at pilot size and published
+  as-is on `/proof`, where it recomputes as each match settles.
 
-Pilot sample (12 matches): the return leans on a few high-volume matches, so it is
-a pilot, not a promise. Reach is the firmer read; both tighten as matches accrue.
+Pilot sample (13 matches): the compounded return swings on a few giant calls, so it
+is a pilot, not a promise. Reach is the firmer read; both tighten as matches accrue.
 
-**Signal policy.** Every YES call counts, including the giant post-goal lags that pay
-most. We exclude only two buy-NO duds: a **buy-NO ≥ 25pp** (an oversized NO lag rarely
-converges) and a **buy-NO after the 80th minute** (reach falls, average return turns
-negative). The maths is computed the same way on the box and the site.
+**Signal policy.** Every call counts: either side, any size, any minute, each side
+named by its team. Kelly sizing on the gap, f = gap/(1 - price), is the only risk
+control. The maths is computed the same way on the box and the site.
 
-## What we found (pilot, n=12)
+## What we found (pilot)
 
 The brief floated a **Sharp Movement Detector** - flag significant TxLINE odds shifts and
 see if they call the result. We built it, found it is a coin flip, and did one better:
@@ -72,9 +72,8 @@ see if they call the result. We built it, found it is a coin flip, and did one b
   moving is not the edge.
 - **The lead-lag is.** A goal is new information: TxLINE reprices it instantly, a prediction
   market only moves when someone trades, so for a window the cheap side sits below fair and
-  converges **~79%** of the time. It is our strongest, most proven signal. We know which lags
-  to trust, too (see the signal policy above): every payable lag is a post-goal YES lag, so we
-  keep them all and cut only the two buy-NO duds. Mechanism, not a fit.
+  converges **~72%** of the time. It is our strongest, most proven signal, and the record
+  rolls unfiltered: every call is published and scored, with the calls that hurt it left in.
 - **Goal-imminent alerts:** a TxLINE `high_danger_possession` makes a goal by that team
   ~**4x** more likely within 2 minutes, and a divergence it flags converged **84%** vs
   **75%** without one.

@@ -25,7 +25,7 @@ function winnerTally(matches) {
 }
 
 async function getStats() {
-  const fb = { reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83, matchCount: 12, matchWord: "twelve",
+  const fb = { reachPct: 72, roiPct: -31, roi10Pct: -10, resPct: -98, res10Pct: -93, matchCount: 13, matchWord: "thirteen",
     whFired: 7, whGraded: 5, whCorrect: 5, whPending: 2 };
   try {
     const d = await (await fetch(BLOB)).json();
@@ -73,7 +73,7 @@ doc
   .font("Helvetica")
   .fontSize(9.5)
   .text(
-    `The lead-lag edge in prediction markets. A prediction market sets its price by trading, so it lags the sharp, vig-free line that already holds the true probability. When it falls below fair, the cheap side is underpriced; across ${s.matchWord} settled World Cup matches it travelled back to fair about ${s.reachPct}% of the time, and Kelly-sized bets that took profit at fair compounded to roughly plus ${s.roiPct}% at a 5 point gap. Built on the TxLINE World Cup data layer by Onenept Studios.`,
+    `The lead-lag edge in prediction markets. A prediction market sets its price by trading, so it lags the sharp, vig-free line that already holds the true probability. When it falls below fair, the cheap side is underpriced; across ${s.matchWord} settled World Cup matches it travelled back to fair about ${s.reachPct}% of the time, on every call the detector fired, none filtered out. Built on the TxLINE World Cup data layer by Onenept Studios.`,
     { lineGap: 2 },
   )
   .moveDown(0.5);
@@ -99,7 +99,7 @@ p(
   `Two tests, on ${s.matchWord} settled matches, on the real fills. Reach: from the entry, does the market price travel to the fair before the match ends. It does about ${s.reachPct}% of the time, and the move often takes minutes, so a short holding window hides it. Reach does not depend on who eventually wins, so it is the firmer number.`,
 );
 p(
-  `Return: the trade is to buy the cheap side and take profit at fair when the market catches up. Sized by Kelly on the gap, f = gap / (1 - price), and compounded across every call, that returned about plus ${s.roiPct}% at a 5 point gap and plus ${s.roi10Pct}% at 10. The same bets held to the final result instead returned about ${s.resPct >= 0 ? "plus " : "minus "}${Math.abs(s.resPct)}% and ${s.res10Pct >= 0 ? "plus " : "minus "}${Math.abs(s.res10Pct)}%, far short of taking profit at fair: the convergence is where the money is, and holding to the outcome leaves most of it on the table. The return is concentrated, a couple of high-volume matches carry most of it, so it is a pilot, not a promise.`,
+  `Return: the trade is to buy the cheap side and take profit at fair when the market catches up. Sized by Kelly on the gap, f = gap / (1 - price), and compounded across every call with nothing excluded, that stands at about ${s.roiPct >= 0 ? "plus " : "minus "}${Math.abs(s.roiPct)}% at a 5 point gap and ${s.roi10Pct >= 0 ? "plus " : "minus "}${Math.abs(s.roi10Pct)}% at 10. The same bets held to the final result instead returned about ${s.resPct >= 0 ? "plus " : "minus "}${Math.abs(s.resPct)}% and ${s.res10Pct >= 0 ? "plus " : "minus "}${Math.abs(s.res10Pct)}%: whichever exit you pick, the convergence leg is where the money is, and holding to the outcome does far worse. The compounded number is volatile and concentrated, a couple of high-volume matches carry it and a single giant call can swing it, which is what an uncurated full-Kelly record looks like at pilot size. Reach is the firmer read; the return is published as-is and moves as each match settles.`,
 );
 
 h1("5. The data, verifiable both sides");
@@ -134,7 +134,7 @@ p(
   `The edge is not the line moving; it is the market being slow to follow it. A goal is new information: TxLINE reprices it instantly, but a prediction market only moves when someone trades, so for a window the cheap side sits below fair. That lead-lag converges about ${s.reachPct}% of the time, and it is our strongest, most proven signal. The line move carries no forecast; the lag in the market's reaction to it is the entire product.`,
 );
 p(
-  "We also know which lags to trust. Every payable lag is a post-goal YES lag, so we keep them all and cut only two buy-NO cases. A giant NO (25pp or more) is not a fresh-information lag but the market pricing something the de-vig does not, and it rarely converges back. A late NO (after the 80th minute) has no window left to converge, and one goal or a closed-out favourite ends it. It is the mechanism, not a fit.",
+  "And the record rolls on its own. Every divergence the detector fires is published and scored: either side, any size, any minute of the match, each side named by its team. There is no exclusion filter and no curated subset; Kelly sizing on the gap is the only risk control. An earlier version cut two classes of buy-NO call, and we retired that filter: the mechanism is shown whole, with the calls that hurt it left in.",
 );
 p(
   `Separately, a TxLINE high-danger possession makes a goal by that team about four times more likely within two minutes, and a divergence it flags converges to fair about 84% of the time versus 75% without. All of this is on ${s.matchWord} settled matches, in-sample; it is a promising pilot, not a settled result.`,
@@ -161,4 +161,4 @@ doc
   );
 
 doc.end();
-console.log(`wrote public/lagisalpha-litepaper.pdf (reach ${s.reachPct}%, roi +${s.roiPct}%, ${s.matchCount} matches)`);
+console.log(`wrote public/lagisalpha-litepaper.pdf (reach ${s.reachPct}%, roi ${s.roiPct >= 0 ? "+" : ""}${s.roiPct}%, ${s.matchCount} matches)`);

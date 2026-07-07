@@ -8,7 +8,7 @@
 
 import { getPickoffs, getLiveEdge, getLiveStream } from "@/lib/pickoff-source";
 import type { PickoffLedger, PickoffMatch, DivergenceEntry, LiveSignal } from "@/lib/pickoff-source";
-import { isIncluded, entryMinute, GAP_MAX } from "@/lib/signals/policy";
+import { entryMinute } from "@/lib/signals/policy";
 
 export interface Signal {
   fid: string;          // TxLINE fixture id (the market key; token-id mapping comes in a later phase)
@@ -118,12 +118,12 @@ export async function getLiveSignals(): Promise<{ generatedAt: number; live: boo
   const live = await getLiveEdge();
   const diverged = (live?.signals ?? []).filter((s) => s.diverged);
   const isLive = (live?.liveCount ?? 0) > 0;
-  // policy (live): drop giant-gap outliers here; the late-NO rule needs a kickoff time the live feed
-  // does not carry, so it is enforced on the settled ledger where the minute is known.
+  // no exclusion filter: every divergence the detector fires is a signal (Kelly sizing is the only
+  // risk control), so the live feed passes through unfiltered.
   return {
     generatedAt: live?.generatedAt ?? Date.now(),
     live: isLive,
-    signals: isLive ? diverged.map(liveToSignal).filter((s) => s.gapPp < GAP_MAX * 100) : [],
+    signals: isLive ? diverged.map(liveToSignal) : [],
   };
 }
 
@@ -131,8 +131,8 @@ export async function getLiveSignals(): Promise<{ generatedAt: number; live: boo
 export function getReplaySignals(led: PickoffLedger | null, fid: string, theta: "5" | "10" = "5"): Signal[] {
   const m = led?.matches.find((x) => String(x.fid) === fid);
   if (!m) return [];
-  // policy: only the included calls are tradeable signals (giant-gap and late-NO duds are dropped)
-  return (m.divergences?.[theta] ?? []).filter((e) => isIncluded(e, m.kick)).map((e) => entryToSignal(m, e));
+  // every call is a signal — the record rolls unfiltered
+  return (m.divergences?.[theta] ?? []).map((e) => entryToSignal(m, e));
 }
 
 export { getPickoffs };
