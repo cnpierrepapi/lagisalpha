@@ -12,12 +12,26 @@ const numWord = (n) => WORDS[n] ?? String(n);
 const BLOB = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mohbmvajroqizlfaarjk.supabase.co") +
   "/storage/v1/object/public/desk-archives/pickoffs.json";
 
+function winnerTally(matches) {
+  let whFired = 0, whGraded = 0, whCorrect = 0;
+  for (const m of matches ?? []) {
+    const wh = m?.winnerHint;
+    if (!wh) continue;
+    whFired++;
+    if (wh.correct === true) { whGraded++; whCorrect++; }
+    else if (wh.correct === false) { whGraded++; }
+  }
+  return { whFired, whGraded, whCorrect, whPending: whFired - whGraded };
+}
+
 async function getStats() {
-  const fb = { reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83, matchCount: 12, matchWord: "twelve" };
+  const fb = { reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83, matchCount: 12, matchWord: "twelve",
+    whFired: 7, whGraded: 5, whCorrect: 5, whPending: 2 };
   try {
     const d = await (await fetch(BLOB)).json();
     const p5 = d?.pooled?.["5"], p10 = d?.pooled?.["10"], mc = d?.matchCount ?? d?.matches?.length ?? 0;
-    if (!p5 || !p5.n) return { ...fb, matchCount: mc || fb.matchCount, matchWord: numWord(mc || fb.matchCount) };
+    const wt = winnerTally(d?.matches);
+    if (!p5 || !p5.n) return { ...fb, ...wt, matchCount: mc || fb.matchCount, matchWord: numWord(mc || fb.matchCount) };
     return {
       reachPct: Math.round(p5.reachRate * 100),
       roiPct: Math.round(p5.kellyRoi * 100),
@@ -25,6 +39,7 @@ async function getStats() {
       resPct: Math.round(p5.kellyRoiRes * 100),
       res10Pct: p10 ? Math.round((p10.kellyRoiRes ?? 0) * 100) : fb.res10Pct,
       matchCount: mc, matchWord: numWord(mc),
+      ...wt,
     };
   } catch {
     return fb;
@@ -113,7 +128,7 @@ p(
 
 h1("8. What we found");
 p(
-  "The obvious idea is a sharp-movement detector: flag significant TxLINE odds shifts and track whether they predict the outcome. We tested it and it does not hold: a significant fair shift by the 45th minute called the winner about 58% of the time, no better than chance. The signal only appears when the sharp line is read together with the market's order flow. Crossing TxLINE fair with the Polymarket fills, the side with the higher volume-to-divergence ratio won 83% of the time, ten of twelve, p about 0.019: divergence backed by real money is the winner, divergence with little volume is the market fading a side and is usually right.",
+  `The obvious idea is a sharp-movement detector: flag significant TxLINE odds shifts and track whether they predict the outcome. We tested it and it does not hold: a significant fair shift by the 45th minute called the winner about 58% of the time, no better than chance. The signal only appears when the sharp line is read together with the market's order flow. Crossing TxLINE fair with the Polymarket fills, the side with the higher volume-to-divergence ratio has called ${s.whCorrect} of ${s.whGraded} resolved matches${s.whPending > 0 ? `, with ${s.whPending} still to settle on penalties` : ""}: divergence backed by real money is the winner, divergence with little volume is the market fading a side. The tally updates as matches confirm.`,
 );
 p(
   `Separately, a TxLINE high-danger possession makes a goal by that team about four times more likely within two minutes, and a divergence it flags converges to fair about 84% of the time versus 75% without. All of this is on ${s.matchWord} settled matches, in-sample; it is a promising pilot, not a settled result.`,

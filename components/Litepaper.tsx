@@ -170,9 +170,11 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
           the 45th minute called the winner {" "}
           <span className="text-muted">58%</span> of the time, no better than chance. The signal only appears
           when the sharp line is read together with the market&apos;s order flow. Crossing TxLINE fair with
-          the Polymarket fills, the side with the higher volume-to-divergence ratio won {" "}
-          <span className="text-amber">83%</span> of the time (10 of 12, p ≈ 0.019): divergence backed by real
-          money is the winner, divergence with little volume is the market fading a side and is usually right.
+          the Polymarket fills, the side with the higher volume-to-divergence ratio has called {" "}
+          <span className="text-amber">{stats.whCorrect} of {stats.whGraded}</span> resolved matches
+          {stats.whPending > 0 ? `, with ${stats.whPending} still to settle on penalties` : ""}: divergence
+          backed by real money is the winner, divergence with little volume is the market fading a side. The
+          tally updates as matches confirm.
         </p>
         <p>
           Separately, a TxLINE high-danger possession makes a goal by that team about {" "}

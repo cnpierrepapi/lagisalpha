@@ -185,9 +185,9 @@ export default async function Home() {
             The obvious idea is to watch TxLINE for significant odds shifts and see if they call the result.
             We built that and tested it: odds shifts alone predicted the winner just 58% of the time, a coin
             flip. Then we crossed the sharp line with the Polymarket order flow and found the signal that
-            works: the side with more traded volume per point of divergence won 83% of the time. Divergence
-            backed by money marks the winner; divergence with none is the market cheaply fading a side, and it
-            loses.
+            works: the side with more traded volume per point of divergence has called {stats.whCorrect} of{" "}
+            {stats.whGraded} resolved matches. Divergence backed by money marks the winner; divergence with
+            none is the market cheaply fading a side, and it loses.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div className="card p-5">
@@ -195,8 +195,11 @@ export default async function Home() {
               <p className="mt-2 text-sm text-muted">odds shifts alone at picking the winner, a coin flip</p>
             </div>
             <div className="card p-5">
-              <p className="serif text-3xl text-amber">83%</p>
-              <p className="mt-2 text-sm text-muted">volume-to-divergence ratio at picking the winner, the real signal</p>
+              <p className="serif text-3xl text-amber">{stats.whCorrect}/{stats.whGraded}</p>
+              <p className="mt-2 text-sm text-muted">
+                resolved matches the volume-to-divergence ratio called, the real signal
+                {stats.whPending > 0 ? `; ${stats.whPending} pending penalties` : ""}
+              </p>
             </div>
             <div className="card p-5">
               <p className="serif text-3xl text-amber">~4×</p>

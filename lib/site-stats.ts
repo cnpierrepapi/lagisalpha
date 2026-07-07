@@ -22,12 +22,19 @@ export interface SiteStats {
   res10Pct: number; // same at >=10pp
   matchCount: number;
   matchWord: string;
+  // volume-to-divergence winner hint, graded dynamically against the regulation result. A regulation
+  // draw (extra time / penalties) stays PENDING until the outcome confirms, so nothing is hardcoded.
+  whFired: number;   // matches where the hint fired (>=4x, real volume)
+  whGraded: number;  // of those, decisively resolved (no draw)
+  whCorrect: number; // of the graded, called the winner
+  whPending: number; // fired but awaiting a shootout / extra-time outcome
   hasData: boolean;
 }
 
 const FALLBACK: SiteStats = {
   reachPct: 80, roiPct: 1160, roi10Pct: 1160, resPct: 83, res10Pct: 83,
-  matchCount: 12, matchWord: "twelve", hasData: false,
+  matchCount: 12, matchWord: "twelve",
+  whFired: 7, whGraded: 5, whCorrect: 5, whPending: 2, hasData: false,
 };
 
 export async function getSiteStats(): Promise<SiteStats> {
@@ -37,6 +44,15 @@ export async function getSiteStats(): Promise<SiteStats> {
   const s5 = pooledStats(matches.map((m) => ({ divs: m.divergences?.["5"] ?? [], kick: m.kick })));
   const s10 = pooledStats(matches.map((m) => ({ divs: m.divergences?.["10"] ?? [], kick: m.kick })));
   if (!led || !s5.n) return { ...FALLBACK, matchCount: matchCount || FALLBACK.matchCount, matchWord: numWord(matchCount || FALLBACK.matchCount) };
+  // winner-hint tally, dynamic and penalty-honest (correct === null means pending a shootout / ET)
+  let whFired = 0, whGraded = 0, whCorrect = 0;
+  for (const m of matches) {
+    const wh = (m as unknown as { winnerHint?: { correct?: boolean | null } }).winnerHint;
+    if (!wh) continue;
+    whFired++;
+    if (wh.correct === true) { whGraded++; whCorrect++; }
+    else if (wh.correct === false) { whGraded++; }
+  }
   return {
     reachPct: Math.round(s5.reachRate * 100),
     roiPct: Math.round(s5.kellyRoi * 100),
@@ -45,6 +61,7 @@ export async function getSiteStats(): Promise<SiteStats> {
     res10Pct: s10.n ? Math.round(s10.kellyRoiRes * 100) : Math.round(s5.kellyRoiRes * 100),
     matchCount,
     matchWord: numWord(matchCount),
+    whFired, whGraded, whCorrect, whPending: whFired - whGraded,
     hasData: true,
   };
 }

@@ -39,7 +39,7 @@ def load_match(fid):
         b=((sc.get("Participant2") or {}).get("Total") or {}).get("Goals")
         if a is not None: g1=max(g1,a)
         if b is not None: g2=max(g2,b)
-    return {"fair":fair,"fts":[t for t,_ in fair],"kick":kick,"ft":ft,"win2":1 if g2>g1 else 0}
+    return {"fair":fair,"fts":[t for t,_ in fair],"kick":kick,"ft":ft,"win2":1 if g2>g1 else 0,"g1":g1,"g2":g2}
 
 def pm_series(fid, mm):
     fp=OUT/f"{fid}.fills.jsonl"
@@ -129,6 +129,7 @@ def compute(fid):
                        "tpReturn":round(tpsum/cost,4) if cost else 0,
                        "clvAvg":round(clvsum/n,4) if n else 0,
                        "kellyRoi":round(prod(kelly_mult_tp(e) for e in inc)-1,4) if n else 0}
+    out_edge["regResult"]=[mm.get("g1"),mm.get("g2")]   # regulation goals, for honest winner grading
     # fine 1s change-based replay series: [secFromKick, fair, pm], emit only on a value change
     series=[]; last=None; t=mm["kick"]
     while t<=mm["ft"]:
@@ -253,7 +254,7 @@ def _side_ratio(ents, side):
     gp=sum(abs(e.get("gap",0)) for e in ents if e["side"]==side)
     return (us/gp if gp>0 else None), us
 
-def winner_hint(fid, ents5, kick, teams):
+def winner_hint(fid, ents5, kick, teams, reg=None):
     ts=(teams or "").split(" v ")
     if len(ts)!=2 or not ents5: return None
     r2,u2=_side_ratio(ents5,"yes"); r1,u1=_side_ratio(ents5,"no")
@@ -277,16 +278,23 @@ def winner_hint(fid, ents5, kick, teams):
             fire_ts=e.get("t")
             fire_min=max(0,round((e.get("t",0)*1000-(kick or 0))/60000)) if kick else None
             break
-    p2=None
-    for e in ents5:
-        w=e.get("win")
-        if w is None: continue
-        p2=(w==1) if e["side"]=="yes" else (w==0); break
-    correct=None if p2 is None else ((leader==2 and p2) or (leader==1 and not p2))
+    # Grade against the real regulation scoreline. A decisive result (g1 != g2) resolves the winner;
+    # a draw went to extra time or penalties, which regulation goals cannot settle, so we leave it
+    # PENDING (correct=None) rather than assert a winner. As the pipeline confirms outcomes, pending
+    # matches resolve and the accuracy tally evolves; nothing here is hardcoded.
+    g1=g2=None
+    if reg and len(reg)==2: g1,g2=reg
+    if g1 is None or g2 is None:
+        true_winner=None
+    elif g1>g2: true_winner=1
+    elif g2>g1: true_winner=2
+    else: true_winner=None            # regulation draw -> extra time / penalties -> pending
+    resolved = true_winner is not None
+    correct = (leader==true_winner) if resolved else None
     return {"fid":str(fid), "team":leader, "teamName":ts[leader-1].strip(),
             "margin": None if margin==float("inf") else round(margin,2),
             "atMin":fire_min, "ts":fire_ts, "leaderUsd":round(lu),
-            "correct":correct, "n":12, "inSample":True}
+            "correct":correct, "resolved":resolved, "n":12, "inSample":True}
 
 if __name__=="__main__":
     per={"5":[],"10":[]}
@@ -295,7 +303,7 @@ if __name__=="__main__":
         r=compute(fid)
         if not r: print(fid,"skip",flush=True); continue
         ents,edge,series=r; surf["divergences"]=ents; surf["edge"]=edge; surf["series"]=series
-        surf["winnerHint"]=winner_hint(surf.get("fid"), ents["5"], surf.get("kick"), surf.get("teams"))
+        surf["winnerHint"]=winner_hint(surf.get("fid"), ents["5"], surf.get("kick"), surf.get("teams"), edge.get("regResult"))
         open(f,"w").write(json.dumps(surf,indent=1))
         for k in ("5","10"): per[k].append([e for e in ents[k] if e.get("incl",True)])
         print(surf["teams"][:20], "n",edge["5"]["n"], "reach",edge["5"]["reachRate"], "edge",edge["5"]["aggEdgePct"], "usd",edge["5"]["usd"], flush=True)
