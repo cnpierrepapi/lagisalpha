@@ -25,7 +25,7 @@ function winnerTally(matches) {
 }
 
 async function getStats() {
-  const fb = { reachPct: 72, roiPct: 52, roi10Pct: 66, resPct: -87, res10Pct: -54, matchCount: 13, matchWord: "thirteen",
+  const fb = { reachPct: 76, roiPct: 214, roi10Pct: 295, resPct: -87, res10Pct: -54, matchCount: 13, matchWord: "thirteen",
     whFired: 7, whGraded: 5, whCorrect: 5, whPending: 2 };
   try {
     const d = await (await fetch(BLOB)).json();

@@ -73,8 +73,8 @@ refreshed every 30 min). Shape:
   "matchCount": 13,
   "totals": { "usd": 52151680, "ge5pp_usd": 6588751, "ge10pp_usd": 5151326, "fills": 211012 },
   "pooled": {                          // over EVERY call (no exclusion; Kelly capped at 30%/call); recomputed live
-    "5":  { "kellyRoi": 0.52, "reachRate": 0.718, "kellyRoiRes": -0.87, "usd": 67000000, "n": 71, ... },
-    "10": { "kellyRoi": 0.66, "reachRate": 0.682, "kellyRoiRes": -0.54, "usd": 41000000, "n": 44, ... }
+    "5":  { "kellyRoi": 2.14, "reachRate": 0.761, "kellyRoiRes": -0.87, "usd": 64000000, "n": 71, ... },
+    "10": { "kellyRoi": 2.95, "reachRate": 0.727, "kellyRoiRes": -0.54, "usd": 39000000, "n": 44, ... }
   },
   "matches": [ /* per-match reach/return + winnerHint (graded live, draw = pending) */ ]
 }
@@ -113,7 +113,7 @@ hard-coded.
 Measured on the bundled/settled World Cup matches, against real Polygon fills.
 
 - **Reach** - from the entry, does the market price travel to fair before the
-  match ends? **~72%** over every call, none excluded. Outcome-independent, so it
+  match ends? **~76%** over every call, none excluded. Outcome-independent, so it
   is the firmer number.
 - **Return** - buy the cheap side, take profit at fair when the market catches up.
   Sized by Kelly on the gap, `f = gap / (1 − price)`, **capped at 30% per call**,
@@ -136,6 +136,12 @@ read; both tighten as matches accrue.
   Scores settle on-chain.
 - **Market side:** raw Polymarket fills read from Polygon - open any fill as a
   Polygon transaction and recompute the price and size yourself.
+- **Both legs of every signal are a real fill.** Each divergence carries an
+  `entryFill` (the on-chain trade that set the cheap-side entry) and, when it
+  reached fair, an `exitFill` (the fill **closest to fair**, above a $50 dust
+  floor) - each a Polygon tx on `/proof`. `reached` is *defined* by that exit
+  fill existing, so the reach rate (`/edge`) and the on-chain proofs (`/proof`)
+  come from one source and cannot disagree.
 - Nothing is asserted: every published number recomputes from public data.
 
 ---
@@ -155,7 +161,7 @@ out-of-sample confirmation.
   line moving is not, by itself, an edge.
 - **The lead-lag is the edge.** A goal is new information: TxLINE reprices it instantly, a
   prediction market only moves when someone trades, so for a window the cheap side sits below
-  fair and converges **~72%** of the time. The record rolls unfiltered: every call the detector
+  fair and converges **~76%** of the time. The record rolls unfiltered: every call the detector
   fires is published and scored - either side, any size, any minute, each side named by its
   team - and Kelly sizing (capped at 30% per call) is the only risk control. (An earlier signal
   policy cut two classes of buy-NO call; that filter is retired in favour of the sizing cap.)
