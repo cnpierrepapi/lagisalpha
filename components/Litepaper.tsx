@@ -9,6 +9,7 @@ const SECTIONS = [
   ["05", "The data, verifiable both sides"],
   ["06", "How to trade it"],
   ["07", "What we do not claim"],
+  ["08", "What we found"],
 ] as const;
 
 function Section({
@@ -159,6 +160,26 @@ export default function Litepaper({ stats }: { stats: SiteStats }) {
           reach rate is the firmer read, and both tighten as matches accrue. This measures a delay between
           two markets. It is not a trading strategy, it is not financial advice, and any sizing or slippage
           is your own.
+        </p>
+      </Section>
+
+      <Section id="s08" num="08" title="What we found">
+        <p>
+          The obvious idea is a sharp-movement detector: flag significant TxLINE odds shifts and track
+          whether they predict the outcome. We tested it and it does not hold - a significant fair shift by
+          the 45th minute called the winner {" "}
+          <span className="text-muted">58%</span> of the time, no better than chance. The signal only appears
+          when the sharp line is read together with the market&apos;s order flow. Crossing TxLINE fair with
+          the Polymarket fills, the side with the higher volume-to-divergence ratio won {" "}
+          <span className="text-amber">83%</span> of the time (10 of 12, p ≈ 0.019): divergence backed by real
+          money is the winner, divergence with little volume is the market fading a side and is usually right.
+        </p>
+        <p>
+          Separately, a TxLINE high-danger possession makes a goal by that team about {" "}
+          <span className="text-amber">four times</span> more likely within two minutes, and a divergence it
+          flags converges to fair <span className="text-amber">84%</span> of the time versus{" "}
+          <span className="text-fg">75%</span> without. All of this is on {stats.matchWord} settled matches,
+          in-sample; it is a promising pilot, not a settled result.
         </p>
       </Section>
 

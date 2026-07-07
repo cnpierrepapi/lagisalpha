@@ -174,6 +174,42 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* WE DISPROVED THE OBVIOUS SIGNAL, THEN FOUND THE REAL ONE */}
+      <section className="border-t border-ink-600 bg-ink-850">
+        <div className="mx-auto max-w-7xl px-5 py-14">
+          <p className="label">we were handed a hypothesis. we disproved it, then found the real one.</p>
+          <h2 className="serif mt-2 max-w-3xl text-3xl text-paper">
+            The sharp line moving is not the edge. The money behind it is.
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm text-muted">
+            The obvious idea is to watch TxLINE for significant odds shifts and see if they call the result.
+            We built that and tested it: odds shifts alone predicted the winner just 58% of the time, a coin
+            flip. Then we crossed the sharp line with the Polymarket order flow and found the signal that
+            works: the side with more traded volume per point of divergence won 83% of the time. Divergence
+            backed by money marks the winner; divergence with none is the market cheaply fading a side, and it
+            loses.
+          </p>
+          <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div className="card p-5">
+              <p className="serif text-3xl text-muted">58%</p>
+              <p className="mt-2 text-sm text-muted">odds shifts alone at picking the winner, a coin flip</p>
+            </div>
+            <div className="card p-5">
+              <p className="serif text-3xl text-amber">83%</p>
+              <p className="mt-2 text-sm text-muted">volume-to-divergence ratio at picking the winner, the real signal</p>
+            </div>
+            <div className="card p-5">
+              <p className="serif text-3xl text-amber">~4×</p>
+              <p className="mt-2 text-sm text-muted">a high-danger possession makes a goal that likely; the divergence it flags converges 84% vs 75%</p>
+            </div>
+          </div>
+          <p className="mt-5 text-xs text-faint">
+            On the pilot sample of {stats.matchCount} settled matches, in-sample. A promising signal, not a
+            settled result.
+          </p>
+        </div>
+      </section>
+
       {/* WHY TXLINE */}
       <section className="border-t border-ink-600 bg-ink-850">
         <div className="mx-auto max-w-7xl px-5 py-12">
