@@ -83,7 +83,18 @@ async function doReplay(arg) {
   if (!m) return emit(`unknown match "${arg}". type 'matches' to list.`, "loss");
   emit(`replay ${m.teams} — ${m.count} signals — bankroll ${money(state.bankroll)}`, "sys");
   const s = newSession(state.bankroll);
-  for (const sig of [...m.signals].sort((a, b) => a.ts - b.ts)) {
+  // merge goal-imminent alerts (high-danger pressure that preceded a goal) into the timeline
+  const items = [
+    ...m.signals.map((x) => ({ ts: x.ts, kind: "sig", sig: x })),
+    ...(m.goalWatch ?? []).map((w) => ({ ts: w.ts, kind: "watch", w })),
+  ].sort((a, b) => a.ts - b.ts);
+  for (const it of items) {
+    if (it.kind === "watch") {
+      emit(`⚠ ${it.w.min}' goal watch: ${it.w.team} — high-danger pressure${it.w.pressure > 1 ? ` (x${it.w.pressure})` : ""}, watch the line`, "warn");
+      await host.sleep(300);
+      continue;
+    }
+    const sig = it.sig;
     const pos = openPosition(s, sig);
     if (pos.stake <= 0) { s.trades.pop(); s.seq -= 1; continue; }
     const mn = sig.minute != null ? Math.max(0, Math.round(sig.minute)) + "' " : "";
