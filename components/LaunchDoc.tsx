@@ -95,7 +95,9 @@ live               # paper-trade the live match, if one is in play`}</pre>
           <div className="card p-5">
             <h3 className="text-paper">Telegram alerts</h3>
             <p className="mt-2 text-sm text-muted">
-              Get the signals pushed to Telegram, alerts only or as paper trades on a bankroll you set.
+              Get the signals pushed to Telegram at{" "}
+              <a href="https://t.me/lagisalphabot" className="text-amber hover:text-fg">@lagisalphabot</a>, alerts only
+              or as paper trades on a bankroll you set.
             </p>
           </div>
         </div>

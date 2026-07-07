@@ -20,6 +20,20 @@ Built for the TxLINE / TxODDS World Cup hackathon (Solana).
 > [litepaper](https://lagisalpha.vercel.app/litepaper) covers the thesis and the
 > evidence.
 
+## Paper-trade it
+
+The trader-facing product is a paper-trading terminal over the same signals. No install:
+
+```bash
+npx lagisalpha
+```
+
+Set a bankroll, pick a match, and watch each team's cheap side converge to TxLINE fair as a
+Kelly-sized paper trade with live PnL. Replay is open; live needs a key (`load las_...`). It is
+also on Telegram - **[@lagisalphabot](https://t.me/lagisalphabot)** - as alerts, or paper trades
+on a bankroll you set. Signal only, no real orders. Each call labels the team whose price is
+cheap; the trade is the convergence to fair, not a bet on who wins.
+
 ## The edge in one paragraph
 
 Work in probability space. TxLINE's de-vig 1X2 gives the fair probability a team
@@ -52,19 +66,22 @@ negative). The maths is computed the same way on the box and the site.
 ## What we found (pilot, n=12)
 
 The brief floated a **Sharp Movement Detector** - flag significant TxLINE odds shifts and
-see if they predict the outcome. We tested it, found the naive version does not work, and
-used the Polymarket fills to find the one that does:
+see if they call the result. We built it, found it is a coin flip, and did one better:
 
-- **Odds shifts alone: 58%** (7/12) at predicting the winner - a coin flip.
-- **Volume-to-divergence ratio: 83%** (10/12, p ≈ 0.019). Cross the TxLINE fair with the
-  Polymarket order flow: the side with more traded volume per point of divergence wins.
-  Divergence backed by money marks the winner; divergence with none is the market cheaply
-  fading a side, and it loses.
+- **Odds shifts alone: 58%** (7/12) at calling the result - no better than chance. The line
+  moving is not the edge.
+- **The lead-lag is.** A goal is new information: TxLINE reprices it instantly, a prediction
+  market only moves when someone trades, so for a window the cheap side sits below fair and
+  converges **~79%** of the time. It is our strongest, most proven signal. We know which lags
+  to trust, too (see the signal policy above): every payable lag is a post-goal YES lag, so we
+  keep them all and cut only the two buy-NO duds. Mechanism, not a fit.
 - **Goal-imminent alerts:** a TxLINE `high_danger_possession` makes a goal by that team
   ~**4x** more likely within 2 minutes, and a divergence it flags converged **84%** vs
   **75%** without one.
 
-In-sample on 12 matches; treat as a promising pilot, not a settled result.
+A volume-to-divergence read (more traded money per point of divergence tends to mark the
+winner) rides along in the terminal as an experimental overlay, graded live and penalty-honest;
+we do not lean on it. In-sample on 12 matches; a promising pilot, not a settled result.
 
 ## Architecture (short version)
 
@@ -97,8 +114,9 @@ Signal API (authed - `Authorization: Bearer las_...`; buy a key at `/api`):
 
 - `GET /api/v1/divergences` - the canonical trader signal feed. `?status=live`
   (gated to a live match, else `no matches live`), `?match=<fixtureId>&theta=5|10`
-  (a settled match), or no params (match index). Each signal: `side`, `entry`,
-  `fair` (take-profit target), `gapPp`, `suggestedKellyF`, `sizeAtFair`, `ts`.
+  (a settled match), or no params (match index). Each signal: `side`, `team` (the
+  team whose price is cheap), `entry`, `fair` (take-profit target), `gapPp`,
+  `suggestedKellyF`, `sizeAtFair`, `ts`.
 - `GET /api/v1/fair` - current TxLINE de-vig fair per live fixture. We hold the
   TxLINE token and feed the fair, so a trader needs no TxLINE access of their own.
 - `GET /api/v1/track-record` - pooled reach / Kelly ROI / CI plus per-match edge.

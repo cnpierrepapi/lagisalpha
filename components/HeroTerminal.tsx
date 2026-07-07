@@ -51,6 +51,8 @@ export default function HeroTerminal({ items }: { items: Div[] }) {
         <ul className="space-y-2">
           {shown.map((e, i) => {
             const mkt = e.side === "yes" ? e.entry : 1 - e.entry;
+            // yes = second-named team (participant 2), no = first-named. A label for the cheap side.
+            const team = e.teams.split(/\s+v\s+/i)[e.side === "yes" ? 1 : 0]?.trim() ?? e.side.toUpperCase();
             return (
               <li key={i} className="leading-relaxed">
                 <span className="text-muted">{e.teams}</span>{" "}
@@ -58,7 +60,7 @@ export default function HeroTerminal({ items }: { items: Div[] }) {
                   fair {e.fair.toFixed(2)} · mkt {mkt.toFixed(2)}
                 </span>{" "}
                 <span className="amber">+{(e.gap * 100).toFixed(0)}pp</span>{" "}
-                <span className="text-faint">→</span> <span className="text-fg">buy {e.side.toUpperCase()} cheap</span>
+                <span className="text-faint">→</span> <span className="text-fg">{team}&apos;s side cheap</span>
                 <br />
                 <span className="text-faint">└ ${Math.round(e.usd).toLocaleString()} on the table ·</span>{" "}
                 <span className={e.reached ? "amber" : "text-faint"}>{e.reached ? "travelled back to fair ✓" : "held"}</span>

@@ -40,7 +40,7 @@ export default function LiveEdgePanel() {
               <span className="font-mono text-muted">fair {s.fair.toFixed(3)} · book {s.pm.toFixed(3)}</span>
               <span className={`font-mono ${s.diverged ? "text-amber" : "text-faint"}`}>
                 {s.gapPp > 0 ? "+" : ""}
-                {s.gapPp}pp {s.diverged ? `· DIVERGENCE: buy ${s.side.toUpperCase()} cheap` : "· at the line"}
+                {s.gapPp}pp {s.diverged ? `· ${(s.teams.split(/\s+v\s+/i)[s.side === "yes" ? 1 : 0] ?? s.side.toUpperCase()).trim()}'s side cheap (converges to fair)` : "· at the line"}
               </span>
             </div>
           ))}

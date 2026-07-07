@@ -35,13 +35,14 @@ Next.js site.
   ┌─────────────────────── EC2 box (eu-west-1) ───────────────────────┐
   │  lagisalpha-livestream   agenthesis-worker   poly_pickoff_system  │
   │  poly_live_collector      compute_edge.py     live_edge.py        │
+  │  lagisalpha-telegram (bot)                                        │
   └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
                  Supabase storage:  desk-archives/pickoffs.json
                                    │
                                    ▼
                  Next.js on Vercel  ( lagisalpha.vercel.app )
-                 /  ·  /proof  ·  /edge  ·  /litepaper  ·  /sdk
+                 /  ·  /proof  ·  /edge  ·  /litepaper  ·  /launch
 ```
 
 ### A. Data plane - the EC2 worker box
@@ -56,6 +57,7 @@ Host `54.229.238.5` (eu-west-1, user `ec2-user`), systemd services + cron:
 | `poly_live_collector.py` (cron `*/2`) | Tails the Polymarket Data API for live fills. |
 | `compute_edge.py` (cron `*/30`) | Joins both sides, computes reach / return / Kelly, publishes the result blob. |
 | `live_edge.py` (cron `*/1`) | Emits live in-play divergence signals when a match is running. |
+| `lagisalpha-telegram` (service) | Node long-poll bot ([@lagisalphabot](https://t.me/lagisalphabot)); pushes signals, paper fills, goal-watch and the winner overlay, alerts-only or paper. Self-contained, mirrors the `npx lagisalpha` engine. |
 
 The `*/30` batch also runs `git pull origin master` before harvesting, so the box
 self-updates from this repo each cycle.
@@ -68,13 +70,13 @@ refreshed every 30 min). Shape:
 ```jsonc
 {
   "generatedAt": 1783345200000,       // ms epoch of last publish
-  "matchCount": 10,
-  "totals": { "usd": 59476575, "ge5pp_usd": 6588751, "ge10pp_usd": 5151326, "fills": 211012 },
-  "pooled": {
-    "5":  { "kellyRoi": 1.1448, "reachRate": 0.712, "usd": 45078104, "n": 52, ... },
-    "10": { "kellyRoi": 1.5812, "reachRate": 0.71,  "usd": 27914078, "n": 31, ... }
+  "matchCount": 12,
+  "totals": { "usd": 52151680, "ge5pp_usd": 6588751, "ge10pp_usd": 5151326, "fills": 211012 },
+  "pooled": {                          // under the signal policy (included calls only); recomputed live
+    "5":  { "kellyRoi": 11.60, "reachRate": 0.795, "kellyRoiRes": 0.83, "usd": 52151680, "n": 39, ... },
+    "10": { "kellyRoi": 11.89, "reachRate": 0.833, "kellyRoiRes": 5.60, "usd": 30359332, "n": 24, ... }
   },
-  "matches": [ /* per-match reach/return + top_pickoffs */ ]
+  "matches": [ /* per-match reach/return + winnerHint (graded live, draw = pending) */ ]
 }
 ```
 
@@ -88,7 +90,7 @@ refreshed every 30 min). Shape:
 | `/proof` | Per-match ledger: reach, return, USD size, top pickoffs. Server-rendered. |
 | `/edge` | Live divergences as they fire. |
 | `/litepaper` | The written thesis (+ downloadable PDF). |
-| `/launch` | The pro-trader paper-trading terminal (web + `npx lagisalpha` CLI). |
+| `/launch` | The pro-trader paper-trading terminal: `npx lagisalpha` in any terminal, plus the Telegram bot ([@lagisalphabot](https://t.me/lagisalphabot)). |
 
 Headline numbers are pulled from the blob via `lib/site-stats.ts` - never
 hard-coded.
@@ -111,15 +113,16 @@ hard-coded.
 Measured on the bundled/settled World Cup matches, against real Polygon fills.
 
 - **Reach** - from the entry, does the market price travel to fair before the
-  match ends? (~71% observed.) Outcome-independent, so it is the firmer number.
-- **Return** - buy the cheap side, take profit at fair when the market catches
-  up. Sized by Kelly on the gap, `f = gap / (1 − price)`, compounded across every
-  call:
-  - **θ 5pp: ≈ +114% Kelly ROI** · **θ 10pp: ≈ +158%**
-  - The same bets **held to the final result lose** (≈ −80% / −42%) - convergence
-    is where the money is; the outcome is a coin-flip that only adds variance.
+  match ends? **~79%** under the signal policy. Outcome-independent, so it is the
+  firmer number.
+- **Return** - buy the cheap side, take profit at fair when the market catches up.
+  Sized by Kelly on the gap, `f = gap / (1 − price)`, compounded across every
+  included call. Take-profit-at-fair far exceeds holding the same bets to the final
+  result: the convergence is where the money is, the outcome only adds variance.
+  See `/proof` for the current pooled Kelly ROI - it is recomputed live from the
+  blob, never hard-coded here.
 
-**Honesty bound.** Pilot sample (10 matches). The confidence interval still spans
+**Honesty bound.** Pilot sample (12 matches). The confidence interval still spans
 zero, and the return is concentrated in a few high-volume matches. Reach is the
 firmer read; both tighten as matches accrue.
 
@@ -136,32 +139,33 @@ firmer read; both tighten as matches accrue.
 
 ---
 
-## Predictive findings — beyond the lag (pilot, n=12)
+## What we found (pilot, n=12)
 
 The hackathon brief floated a **Sharp Movement Detector**: an agent that watches TxLINE
 odds every 60s, flags significant shifts, and tracks whether they predicted the match
-outcome. We built past it. We tested the naive version, found it does **not** work, and
-then used the Polymarket fill data to find the signal that does.
+outcome. We built it, found it is a coin flip, and did one better.
 
-All figures are on the pilot sample (12 settled World Cup matches, outcomes balanced 6/6).
-They are in-sample and need out-of-sample confirmation as matches accrue.
+All figures are on the pilot sample (12 settled World Cup matches). In-sample; they need
+out-of-sample confirmation as matches accrue.
 
-- **Odds shifts alone do not predict the winner.** A significant TxLINE fair shift by the
-  45th minute called the result **58%** of the time (7/12) - essentially a coin flip. The
-  sharp line moving is not, by itself, an edge.
-- **Volume-to-divergence ratio does.** Cross the TxLINE fair with the Polymarket fills:
-  for each side, take the traded volume per point of divergence (usd / gap). The side with
-  the higher ratio won **83%** of the time (10/12, binomial p ≈ 0.019). Divergence backed
-  by real money marks the winner; divergence with little volume behind it is the market
-  cheaply fading a side, and it usually loses (the same effect appears inverted: the side
-  with the *most* raw divergence won only 17%).
+- **Odds shifts alone do not call the winner.** A significant TxLINE fair shift by the 45th
+  minute called the result **58%** of the time (7/12) - essentially a coin flip. The sharp
+  line moving is not, by itself, an edge.
+- **The lead-lag is the edge.** A goal is new information: TxLINE reprices it instantly, a
+  prediction market only moves when someone trades, so for a window the cheap side sits below
+  fair and converges **~79%** of the time. And we know which lags to trust: every payable lag
+  is a post-goal YES lag, so the signal policy keeps them all and cuts only two buy-NO duds (a
+  giant NO ≥ 25pp that is not a fresh-information lag, and a late NO after 80' with no window
+  left to converge). Mechanism, not a fit.
 - **Goal-imminent alerts flag better divergences.** TxLINE `high_danger_possession` makes a
-  goal by that team ~**4x** more likely within 2 minutes (4.6% vs 1.1% baseline). And a
-  divergence preceded by such an alert converged to fair **84%** of the time vs **75%**
-  without one - a soft confidence cue on top of the lag edge.
+  goal by that team ~**4x** more likely within 2 minutes (4.6% vs 1.1% baseline), and a
+  divergence preceded by such an alert converged to fair **84%** vs **75%** without one - a
+  soft confidence cue on top of the lag edge.
 
-The point: the naive "sharp move" signal is a dud on its own; the edge appears only when
-the TxLINE fair and the Polymarket order flow are read together.
+A **volume-to-divergence** read (the side with more traded money per point of divergence tends
+to mark the match winner) rides along in the terminal as an experimental overlay. It is graded
+live and penalty-honest - a regulation draw stays pending until the shootout settles - and we
+do not lean on it as a headline claim.
 
 ---
 
@@ -180,7 +184,7 @@ Signal API (authed - `Authorization: Bearer las_...`; buy a key at `/api`):
 
 | Endpoint | Returns |
 | --- | --- |
-| `GET /api/v1/divergences` | The canonical trader signal feed. `?status=live` (gated to a live match, else `no matches live`), `?match=<fixtureId>&theta=5\|10` (settled match), or no params (match index). Each signal: `side`, `entry`, `fair` (take-profit target), `gapPp`, `suggestedKellyF`, `sizeAtFair`, `ts`. |
+| `GET /api/v1/divergences` | The canonical trader signal feed. `?status=live` (gated to a live match, else `no matches live`), `?match=<fixtureId>&theta=5\|10` (settled match), or no params (match index). Each signal: `side`, `team` (the team whose price is cheap), `entry`, `fair` (take-profit target), `gapPp`, `suggestedKellyF`, `sizeAtFair`, `ts`. |
 | `GET /api/v1/fair` | Current TxLINE de-vig fair per live fixture. We hold the TxLINE token and feed the fair, so a trader needs no TxLINE access of their own. |
 | `GET /api/v1/track-record` | Pooled reach / Kelly ROI / CI plus per-match edge. |
 
