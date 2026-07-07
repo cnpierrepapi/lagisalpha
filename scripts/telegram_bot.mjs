@@ -37,7 +37,7 @@ const availableCash = (s) => CENTS(s.bankroll - s.openStake);
 function openPosition(s, sig) {
   const entry = sig.entry;
   const f = Number.isFinite(sig.suggestedKellyF) ? sig.suggestedKellyF : 0;
-  const stake = CENTS(Math.min(availableCash(s), s.bankroll * f));
+  const stake = CENTS(availableCash(s) * f); // Kelly on the FREE balance at entry, not the starting bankroll
   const shares = stake > 0 && entry > 0 ? stake / entry : 0;
   const pos = { id: ++s.seq, fid: sig.fid, teams: sig.teams, side: sig.side, entry, fair: sig.fair, tpTarget: sig.tpTarget ?? sig.fair,
     gapPp: sig.gapPp, f: CENTS(f), stake, shares, ts: sig.ts, minute: sig.minute, status: "open", pnl: 0 };
@@ -201,7 +201,19 @@ async function handleCommand(chatId, text) {
       await pushLiveTo(chatId); break;
     }
     case "/stop": c.live = false; saveState(); await send(chatId, "live pushes OFF."); break;
-    case "/status": await send(chatId, `bankroll ${c.bankroll ? money(c.bankroll) : "—"} · mode ${c.mode} · key ${c.apiKey ? "linked" : "none"} · live ${c.live ? "on" : "off"}`); break;
+    case "/status": {
+      const s = c.session;
+      const open = s ? s.trades.filter((t) => t.status === "open") : [];
+      const lines = s
+        ? [`balance ${money(s.bankroll)} (started ${money(s.bankroll0)}) · free ${money(availableCash(s))} · realized PnL ${pen(money(s.realizedPnl))}`]
+        : [`bankroll ${c.bankroll ? money(c.bankroll) : "—"} (no live paper session yet)`];
+      lines.push(`mode ${c.mode} · key ${c.apiKey ? "linked" : "none"} · live ${c.live ? "on" : "off"}`);
+      if (open.length) {
+        lines.push(`open positions (${open.length}):`);
+        for (const p of open) lines.push(`  ${teamOf(p)} @ ${p.entry.toFixed(3)} -> ${p.tpTarget.toFixed(3)} · stake ${money(p.stake)} (${p.teams})`);
+      }
+      await send(chatId, lines.join("\n")); break;
+    }
     default: if (cmd.startsWith("/")) await send(chatId, `unknown command ${cmd}. /help`); break;
   }
 }

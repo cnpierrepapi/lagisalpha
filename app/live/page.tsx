@@ -17,10 +17,11 @@ export default async function LivePage() {
         <p className="label">live · TxLINE vs the market, tick by tick</p>
         <h1 className="serif mt-2 text-4xl text-paper">Watch the lag open in real time.</h1>
         <p className="mt-3 max-w-2xl text-sm text-muted">
-          Two prices, one clock: TxLINE&apos;s vig-free fair and the market price. In Live mode the detector
-          polls the current match; in Replay mode a settled match plays back on a virtual clock. When the
-          gap opens past the threshold, the row turns orange. That orange is the lead-lag, the cheap side
-          sitting there to be taken.
+          Two prices per side, one clock: each team&apos;s columns show TxLINE&apos;s vig-free fair next to the
+          market price of that team&apos;s side. In Live mode the detector polls the current match; in Replay
+          mode a settled match plays back on a virtual clock. When either side&apos;s market price falls behind
+          its fair, the row turns orange and the cheap-side column names the team. That orange is the
+          lead-lag, the cheap side sitting there to be taken.
         </p>
         <div className="mt-6">
           <LiveStream matches={matches} />

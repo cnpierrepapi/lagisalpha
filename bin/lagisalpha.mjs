@@ -22,7 +22,7 @@ const availableCash = (s) => CENTS(s.bankroll - s.openStake);
 function openPosition(s, sig) {
   const entry = sig.entry;
   const f = Number.isFinite(sig.suggestedKellyF) ? sig.suggestedKellyF : 0;
-  const stake = CENTS(Math.min(availableCash(s), s.bankroll * f));
+  const stake = CENTS(availableCash(s) * f); // Kelly on the FREE balance at entry, not the starting bankroll
   const shares = stake > 0 && entry > 0 ? stake / entry : 0;
   const pos = { id: ++s.seq, fid: sig.fid, teams: sig.teams, side: sig.side, entry, fair: sig.fair, tpTarget: sig.tpTarget ?? sig.fair,
     gapPp: sig.gapPp, f: CENTS(f), stake, shares, ts: sig.ts, minute: sig.minute, status: "open", pnl: 0 };
@@ -72,15 +72,17 @@ const host = {
 };
 
 // ── REPL ─────────────────────────────────────────────────────────────────────────────────────────
-const state = { bankroll: null, apiKey: null };
+const state = { bankroll: null, apiKey: null, session: null, seen: {}, liveOn: false, liveTimer: null, ticking: false };
 function emit(text, cls = "sig") { if (text === "__clear__") { console.clear(); return; } console.log(paint(text, cls)); }
 const HELP = [
   "commands:",
-  "  bankroll <amount>   set your paper bankroll (Kelly sizing, locked)",
+  "  bankroll <amount>   set your paper bankroll (Kelly sizing, locked; resets the live session)",
   "  matches             list the settled matches you can replay",
   "  replay <code|fid>   paper-trade a settled match (omit to pick the biggest)",
   "  load <las_key>      load your API key (needed for live)",
-  "  live                paper-trade the live match, if one is in play",
+  "  live                watch the live feed: paper-fill each divergence, close at fair on convergence",
+  "  stop                stop the live watch (open positions stay; 'live' resumes)",
+  "  status              balance, free cash, realized PnL, open positions",
   "  clear · help · exit",
 ];
 
@@ -128,25 +130,109 @@ async function doReplay(arg) {
   emit(`— done · ${sum.trades} trades · ${sum.wins}W/${sum.losses}L · ROI ${pen(sum.roiPct.toFixed(1))}% · bankroll ${money(s.bankroll)}`, sum.roiPct >= 0 ? "win" : "loss");
 }
 
+// ── live watch loop (mirrors the Telegram bot's watcher) ────────────────────────────────────────
+// Entries: /api/v1/divergences?status=live (gated), deduped per divergence EPISODE (fid:side, cleared
+// when it leaves the list, so a fresh dislocation re-arms). Exits: /api/live-edge (ungated, current
+// pm + fair for every live fixture) — converged when the bought side's price reaches the entry-time
+// tpTarget (exit AT target, the backtest's "reached" rule); marked out at the last seen price once the
+// fixture has been gone from a fresh feed for ~20 min (rides out halftime).
+const LIVE_POLL_MS = 20000;
+const EDGE_STALE_MS = 10 * 60 * 1000;
+const MARKOUT_MISSES = 60;
+
+function exitText(pos) {
+  const tag = pos.exitReason === "converged" ? "converged, exit @ fair" : "match over, marked out @ close";
+  return `${teamOf(pos)}  ${tag} ${pos.exitPrice.toFixed(3)} · PnL ${pen(money(pos.pnl))} · balance ${money(state.session.bankroll)}`;
+}
+
+async function liveTick() {
+  if (state.ticking) return; state.ticking = true;
+  let printed = false;
+  const say = (t, c) => { emit(t, c); printed = true; };
+  try {
+    const q = await host.fetchJson("/api/v1/divergences?status=live", state.apiKey).catch(() => null);
+    if (q?.__err === 401) {
+      say(state.apiKey ? "your key is invalid or expired — live watch off." : "live is a paid feature — watch off.", "loss");
+      say(`  get a key at ${BASE}/api  —  $97.99 USDC / 30 days  ·  $699.99 USDC lifetime  · then:  load las_<key>`, "sys");
+      stopLive(false);
+      return;
+    }
+    if (q) {
+      const sigs = q.live === false ? [] : (q.signals ?? []);
+      const active = new Set(sigs.map((x) => `${x.fid}:${x.side}`));
+      for (const k of Object.keys(state.seen)) if (!active.has(k)) delete state.seen[k];
+      for (const sig of sigs) {
+        const id = `${sig.fid}:${sig.side}`;
+        if (state.seen[id]) continue;
+        state.seen[id] = 1;
+        state.session ||= newSession(state.bankroll);
+        const pos = openPosition(state.session, sig);
+        say(`${sig.teams}  ${teamOf(sig)}'s side cheap @ ${sig.entry.toFixed(3)} -> fair ${sig.fair.toFixed(3)}  (+${sig.gapPp.toFixed(0)}pp to converge)`, "sig");
+        if (pos.stake > 0) say(`  paper fill ${Math.round(pos.shares).toLocaleString()} sh · stake ${money(pos.stake)} (Kelly ${(pos.f * 100).toFixed(0)}% of free ${money(availableCash(state.session) + pos.stake)}) · watching…`, "fill");
+        else { state.session.trades.pop(); state.session.seq -= 1; say("  (no paper fill — balance fully committed to open positions)", "muted"); }
+      }
+      if (q.winnerHint) {
+        const id = `wh:${q.winnerHint.fid}`;
+        if (!state.seen[id]) { state.seen[id] = 1; say(winnerHintText(q.winnerHint), "warn"); }
+      }
+    }
+    // settle open positions against the live edge snapshot
+    const s = state.session;
+    const open = s ? s.trades.filter((t) => t.status === "open") : [];
+    if (open.length) {
+      const edge = await host.fetchJson("/api/live-edge").catch(() => null);
+      const fresh = edge && !edge.__err && Number.isFinite(edge.generatedAt) && Date.now() - edge.generatedAt < EDGE_STALE_MS;
+      if (fresh) {
+        const byFid = new Map((edge.signals ?? []).map((x) => [String(x.fid), x]));
+        for (const pos of open) {
+          const lv = byFid.get(String(pos.fid)) ?? (edge.signals ?? []).find((x) => x.teams === pos.teams);
+          if (lv) {
+            const px = pos.side === "yes" ? lv.pm : 1 - lv.pm;
+            if (!Number.isFinite(px)) continue;
+            pos.lastPx = px; pos.misses = 0;
+            if (px >= pos.tpTarget - 1e-6) { settlePosition(s, pos, pos.tpTarget, "converged"); say(exitText(pos), pos.pnl >= 0 ? "win" : "loss"); }
+          } else if ((pos.misses = (pos.misses ?? 0) + 1) >= MARKOUT_MISSES) {
+            settlePosition(s, pos, pos.lastPx ?? pos.entry, "marked_out");
+            say(exitText(pos), pos.pnl >= 0 ? "win" : "loss");
+          }
+        }
+      }
+    }
+  } catch { /* transient network error — next tick retries */ }
+  finally {
+    state.ticking = false;
+    if (printed && !closed) rl.prompt(true);
+  }
+}
+
+function stopLive(announce = true) {
+  if (state.liveTimer) clearInterval(state.liveTimer);
+  state.liveTimer = null; state.liveOn = false;
+  if (announce) {
+    const open = state.session ? state.session.trades.filter((t) => t.status === "open").length : 0;
+    emit(`live watch OFF${open ? ` · ${open} position(s) still open — 'live' resumes watching them` : ""}`, "sys");
+  }
+}
+
 async function doLive() {
   if (!state.bankroll) return emit("set a bankroll first, e.g.  bankroll 10000", "loss");
-  const q = await host.fetchJson("/api/v1/divergences?status=live", state.apiKey).catch((e) => ({ __err: e?.status }));
-  if (q?.__err === 401) {
-    emit(state.apiKey ? "that key is invalid or expired." : "live is a paid feature.", "loss");
-    emit(`  get a key at ${BASE}/api  —  $97.99 USDC / 30 days  ·  $699.99 USDC lifetime`, "sys");
-    emit("  then:  load las_<key>", "muted");
+  if (state.liveOn) return emit("live watch already on — type 'stop' to end.", "muted");
+  state.liveOn = true;
+  emit(`live watch ON — polling every ${LIVE_POLL_MS / 1000}s: paper fill on each divergence, close at fair on convergence. type 'stop' to end.`, "sys");
+  await liveTick();
+  if (state.liveOn) state.liveTimer = setInterval(liveTick, LIVE_POLL_MS); // first tick may have turned it off (401)
+}
+
+function doStatus() {
+  const s = state.session;
+  if (!s) {
+    emit(`bankroll ${state.bankroll ? money(state.bankroll) : "— (set one: bankroll 10000)"} · no live session yet · key ${state.apiKey ? "loaded" : "none"} · watch ${state.liveOn ? "on" : "off"}`, "sys");
     return;
   }
-  if (!q || q.live === false || !(q.signals || []).length) return emit("no matches live right now — try:  replay", "muted");
-  emit(`live: ${q.signals.length} open divergence(s) — paper bankroll ${money(state.bankroll)}`, "sys");
-  if (q.winnerHint) emit(winnerHintText(q.winnerHint), "warn");
-  const s = newSession(state.bankroll);
-  for (const sig of q.signals) {
-    const pos = openPosition(s, sig);
-    if (pos.stake <= 0) { s.trades.pop(); s.seq -= 1; continue; }
-    emit(`${sig.teams}  ${teamOf(sig)}'s side cheap @ ${sig.entry.toFixed(3)} -> fair ${sig.fair.toFixed(3)}  (+${sig.gapPp.toFixed(0)}pp to converge)`, "sig");
-    emit(`  paper fill ${Math.round(pos.shares).toLocaleString()} sh · stake ${money(pos.stake)} (Kelly ${(pos.f * 100).toFixed(0)}%) · watching…`, "fill");
-  }
+  const open = s.trades.filter((t) => t.status === "open");
+  const sum = summarize(s);
+  emit(`balance ${money(s.bankroll)} (started ${money(s.bankroll0)}) · free ${money(availableCash(s))} · realized PnL ${pen(money(s.realizedPnl))} · ${sum.trades} closed (${sum.wins}W/${sum.losses}L) · watch ${state.liveOn ? "on" : "off"}`, "sys");
+  for (const p of open) emit(`  open: ${teamOf(p)} @ ${p.entry.toFixed(3)} -> ${p.tpTarget.toFixed(3)} · stake ${money(p.stake)} (${p.teams})`, "fill");
 }
 
 async function handle(line) {
@@ -155,15 +241,19 @@ async function handle(line) {
   switch (cmd.toLowerCase()) {
     case "help": case "?": HELP.forEach((l) => emit(l, "muted")); return;
     case "bankroll": { const n = Number(arg.replace(/[$,\s]/g, "")); if (!Number.isFinite(n) || n <= 0) return emit("usage: bankroll 10000", "loss");
-      state.bankroll = n; return emit(`bankroll ${money(n)} · sizing: Kelly (default, locked)`, "sys"); }
+      const hadOpen = state.session?.trades?.some((t) => t.status === "open");
+      state.bankroll = n; state.session = null; state.seen = {};
+      return emit(`bankroll ${money(n)} · sizing: Kelly (default, locked)${hadOpen ? " · previous session (incl. open positions) cleared" : ""}`, "sys"); }
     case "load": { if (!/^las_/.test(arg)) return emit("usage: load las_<key>", "loss"); state.apiKey = arg; return emit(`key loaded (${arg.slice(0, 8)}…) · live unlocked`, "sys"); }
+    case "status": return doStatus();
+    case "stop": return state.liveOn ? stopLive() : emit("live watch is not on.", "muted");
     case "matches": { const data = await host.fetchJson("/api/replay-signals").catch(() => null); const list = data?.matches ?? [];
       if (!list.length) return emit("no replay data available.", "loss"); emit("settled matches (code · signals):", "muted");
       list.forEach((m) => emit(`  ${m.code.padEnd(9)} ${m.teams}  ·  ${m.count} signals`, "sig")); return emit("run:  replay <code>", "muted"); }
     case "replay": return doReplay(arg);
     case "live": return doLive();
     case "clear": return emit("__clear__");
-    case "exit": case "quit": rl.close(); return;
+    case "exit": case "quit": stopLive(false); rl.close(); return;
     default: return emit(`unknown command "${cmd}". type 'help'.`, "loss");
   }
 }
@@ -184,4 +274,4 @@ async function pump() {
   processing = false; if (closed) { emit("bye.", "muted"); process.exit(0); }
 }
 rl.on("line", (line) => { queue.push(line); pump(); });
-rl.on("close", () => { closed = true; if (!processing) { emit("bye.", "muted"); process.exit(0); } });
+rl.on("close", () => { closed = true; stopLive(false); if (!processing) { emit("bye.", "muted"); process.exit(0); } });

@@ -89,12 +89,35 @@ await bot.pushLiveTo(2);
 const noDup = !sent.some((m) => m.text.includes("cheap @"));
 if (noDup) { pass++; console.log("  ✓", "republished divergence (new ts) is not re-opened"); } else { fail++; console.log("  ✗", "republished divergence re-opened a position"); }
 
-// pm reaches the entry-time fair → position closes at tpTarget
+// a SECOND signal while the first is open must Kelly-size on the FREE balance, not the start bankroll:
+// free = 10000 - 2000 = 8000, f = 0.5 → stake $4,000 (the old bankroll-based sizing would say $5,000)
+const liveSig2 = { fid: "888", teams: "Epsilon v Zeta", side: "yes", entry: 0.50, fair: 0.60, tpTarget: 0.60, gapPp: 10, suggestedKellyF: 0.5, sizeAtFair: 0, ts: 1100 };
+LIVE = { live: true, signals: [{ ...liveSig, ts: 1120 }, liveSig2] };
 sent.length = 0;
-await bot.settleOpenFor(2, { generatedAt: Date.now(), signals: [{ fid: "777", teams: "Gamma v Delta", fair: 0.755, pm: 0.762, diverged: false, side: "yes", ts: 2000 }] });
+await bot.pushLiveTo(2);
+has("stake $4,000", "second entry Kelly-sizes on the free balance (sequential compounding)");
+
+// /status reflects the live session: current balance, free cash, open positions
+sent.length = 0;
+await bot.handleCommand(2, "/status");
+has("balance $10,000", "/status shows the session balance");
+has("free $4,000", "/status shows free cash after two fills");
+has("open positions (2)", "/status lists both open positions");
+
+// pm reaches the entry-time fair → positions close at tpTarget
+sent.length = 0;
+await bot.settleOpenFor(2, { generatedAt: Date.now(), signals: [
+  { fid: "777", teams: "Gamma v Delta", fair: 0.755, pm: 0.762, diverged: false, side: "yes", ts: 2000 },
+  { fid: "888", teams: "Epsilon v Zeta", fair: 0.61, pm: 0.62, diverged: false, side: "yes", ts: 2000 },
+] });
 has("converged, exit @ fair 0.760", "convergence settles the open position at tpTarget");
 const openLeft = bot.chat(2).session.trades.some((t) => t.status === "open");
 if (!openLeft) { pass++; console.log("  ✓", "no open positions remain after convergence"); } else { fail++; console.log("  ✗", "position still open after convergence"); }
+
+// /status after settlement shows the UPDATED balance (10000 + 171.43 + 800)
+sent.length = 0;
+await bot.handleCommand(2, "/status");
+has("balance $10,971", "/status shows the updated balance after settlement");
 
 // gap heals (signal leaves the feed) → episode re-arms → a NEW divergence alerts again
 LIVE = { live: true, signals: [] };
