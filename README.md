@@ -50,7 +50,8 @@ Measured on settled World Cup matches, on the real fills, over **every call the
 detector fired - no exclusion filter, nothing curated**:
 
 - **Reach** - does the market price travel back to fair before the match ends?
-  **~76%** of the time. Outcome-independent, so it is the firmer number.
+  Currently **~79%** of the time, recomputed live on `/proof`. Outcome-independent,
+  so it is the firmer number.
 - **Return** - Kelly-sized (capped at 30% per call), take-profit-at-fair,
   compounded across every call. Take-profit far exceeds holding to the final
   result; the convergence is where the money is. The compounded figure is
@@ -76,7 +77,7 @@ see if they call the result. We built it, found it is a coin flip, and did one b
   moving is not the edge.
 - **The lead-lag is.** A goal is new information: TxLINE reprices it instantly, a prediction
   market only moves when someone trades, so for a window the cheap side sits below fair and
-  converges **~76%** of the time. It is our strongest, most proven signal, and the record
+  converges **~79%** of the time. It is our strongest, most proven signal, and the record
   rolls unfiltered: every call is published and scored, with the calls that hurt it left in.
 - **Goal-imminent alerts:** a TxLINE `high_danger_possession` makes a goal by that team
   ~**4x** more likely within 2 minutes, and a divergence it flags converged **84%** vs
@@ -110,6 +111,8 @@ Public:
 
 - `GET /api/live-edge` - live in-play divergences: `{ generatedAt, liveCount, theta, signals[] }`.
 - `GET /api/replay-edge` - same shape over the bundled replay matches.
+- `GET /api/replay-signals` - per-match replay feed with `entryFill`/`exitFill`, goal-watch and winner-hint; powers the open `npx lagisalpha` replay and `/launch`.
+- `GET /api/live-stream` - tick-by-tick TxLINE + Polymarket snapshot behind `/live`.
 - `GET /api/live-frames` - real-time TxLINE frames (polled snapshot).
 - `GET /api/verify-csv` - per-frame verification CSV for reconciliation against the provider.
 

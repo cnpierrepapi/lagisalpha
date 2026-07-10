@@ -68,13 +68,16 @@ Published blob → **Supabase storage**: `desk-archives/pickoffs.json` (~600 KB,
 refreshed every 30 min). Shape:
 
 ```jsonc
+// Illustrative SHAPE only. The pipeline republishes this blob every 30 min and every
+// figure recomputes from public data, so the live values move as matches accrue and
+// fills backfill. Do not read these as current - fetch /proof or the blob for that.
 {
-  "generatedAt": 1783345200000,       // ms epoch of last publish
+  "generatedAt": 1783600000000,       // ms epoch of last publish
   "matchCount": 13,
-  "totals": { "usd": 52151680, "ge5pp_usd": 6588751, "ge10pp_usd": 5151326, "fills": 211012 },
+  "totals": { "usd": 82794732, "ge5pp_usd": 8719638, "ge10pp_usd": 6955212, "fills": 325598 },
   "pooled": {                          // over EVERY call (no exclusion; Kelly capped at 30%/call); recomputed live
-    "5":  { "kellyRoi": 2.14, "reachRate": 0.761, "kellyRoiRes": -0.87, "usd": 64000000, "n": 71, ... },
-    "10": { "kellyRoi": 2.95, "reachRate": 0.727, "kellyRoiRes": -0.54, "usd": 39000000, "n": 44, ... }
+    "5":  { "kellyRoi": 3.93, "reachRate": 0.789, "kellyRoiRes": -0.82, "n": 76, ... },
+    "10": { "kellyRoi": 4.18, "reachRate": 0.75,  "kellyRoiRes": -0.54, "n": 44, ... }
   },
   "matches": [ /* per-match reach/return + winnerHint (graded live, draw = pending) */ ]
 }
@@ -89,6 +92,8 @@ refreshed every 30 min). Shape:
 | `/` | Thesis + **dynamic** headline numbers (reach %, Kelly ROI, match count, size). |
 | `/proof` | Per-match ledger: reach, return, USD size, top pickoffs. Server-rendered. |
 | `/edge` | Live divergences as they fire. |
+| `/live` | Tick-by-tick TxLINE fair vs Polymarket price, both teams named; settled matches fall back to replay. |
+| `/api` | Buy an API key (USDC, chain-agnostic) or claim one of the first 20 free keys. |
 | `/litepaper` | The written thesis (+ downloadable PDF). |
 | `/launch` | The pro-trader paper-trading terminal: `npx lagisalpha` in any terminal, plus the Telegram bot ([@lagisalphabot](https://t.me/lagisalphabot)). |
 
@@ -113,8 +118,8 @@ hard-coded.
 Measured on the bundled/settled World Cup matches, against real Polygon fills.
 
 - **Reach** - from the entry, does the market price travel to fair before the
-  match ends? **~76%** over every call, none excluded. Outcome-independent, so it
-  is the firmer number.
+  match ends? Currently **~79%** over every call, none excluded, and recomputed
+  live on `/proof` as matches accrue. Outcome-independent, so it is the firmer number.
 - **Return** - buy the cheap side, take profit at fair when the market catches up.
   Sized by Kelly on the gap, `f = gap / (1 − price)`, **capped at 30% per call**,
   compounded across every call. Take-profit-at-fair far exceeds holding the same
@@ -161,7 +166,7 @@ out-of-sample confirmation.
   line moving is not, by itself, an edge.
 - **The lead-lag is the edge.** A goal is new information: TxLINE reprices it instantly, a
   prediction market only moves when someone trades, so for a window the cheap side sits below
-  fair and converges **~76%** of the time. The record rolls unfiltered: every call the detector
+  fair and converges **~79%** of the time. The record rolls unfiltered: every call the detector
   fires is published and scored - either side, any size, any minute, each side named by its
   team - and Kelly sizing (capped at 30% per call) is the only risk control. (An earlier signal
   policy cut two classes of buy-NO call; that filter is retired in favour of the sizing cap.)
@@ -185,6 +190,8 @@ Public (no auth):
 | --- | --- |
 | `GET /api/live-edge` | `{ generatedAt, liveCount, theta, signals[] }` - live in-play divergences. |
 | `GET /api/replay-edge` | Same shape, over the bundled replay matches. |
+| `GET /api/replay-signals` | Per-match replay feed (with `entryFill`/`exitFill`, goal-watch, winner-hint) that powers the open `npx lagisalpha` replay and `/launch`. `?match=<fixtureId>&theta=5\|10`, or no params for the match index. |
+| `GET /api/live-stream` | Tick-by-tick TxLINE + Polymarket snapshot behind `/live` (cached, same-origin). |
 | `GET /api/live-frames` | Real-time TxLINE frames (polled snapshot). |
 | `GET /api/verify-csv` | Per-frame verification CSV for reconciliation against the provider. |
 
