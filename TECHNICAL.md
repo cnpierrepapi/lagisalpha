@@ -55,7 +55,7 @@ Host `54.229.238.5` (eu-west-1, user `ec2-user`), systemd services + cron:
 | `agenthesis-worker` (service) | Archives each fixture's full odds/scores sequence → `live/<fixtureId>.json`. |
 | `poly_pickoff_system.py` | Decodes real Polymarket fills from Polygon (NegRisk `OrderFilled` logs, ≤50-block chunks with exact block timestamps, token-bucket rate limiting, per-match checkpoint/resume). |
 | `poly_live_collector.py` (cron `*/2`) | Tails the Polymarket Data API for live fills. |
-| `compute_edge.py` (cron `*/30`) | Joins both sides, computes reach / return / Kelly, publishes the result blob. |
+| `compute_edge.py` (cron `*/30`) | Joins both sides, computes reach / return / Kelly, publishes the result blob. Reads finished archives from a local cache (`~/archive-cache/`); an archive is immutable after full time, so each is downloaded once. |
 | `live_edge.py` (cron `*/1`) | Emits live in-play divergence signals when a match is running. |
 | `lagisalpha-telegram` (service) | Node long-poll bot ([@lagisalphabot](https://t.me/lagisalphabot)); pushes signals, paper fills, goal-watch and the winner overlay, alerts-only or paper. Self-contained, mirrors the `npx lagisalpha` engine. |
 
@@ -82,6 +82,14 @@ refreshed every 30 min). Shape:
   "matches": [ /* per-match reach/return + winnerHint (graded live, draw = pending) */ ]
 }
 ```
+
+Replay data ships **split**: a small `desk-archives/replays-index.json` (fid,
+label, frame count - what the `/live` replay picker lists) plus one
+`desk-archives/replays/<fid>.json` per match (the downsampled odds/scores series,
+~4 MB) for the 12 most-recent matches. A finished match is immutable, so these
+blobs never change once published. The raw full-resolution archives live at
+`desk-archives/live/<fid>.json`, one per fixture, written by the worker at full
+time.
 
 ### C. Presentation plane - Next.js on Vercel
 
@@ -191,6 +199,7 @@ Public (no auth):
 | `GET /api/live-edge` | `{ generatedAt, liveCount, theta, signals[] }` - live in-play divergences. |
 | `GET /api/replay-edge` | Same shape, over the bundled replay matches. |
 | `GET /api/replay-signals` | Per-match replay feed (with `entryFill`/`exitFill`, goal-watch, winner-hint) that powers the open `npx lagisalpha` replay and `/launch`. `?match=<fixtureId>&theta=5\|10`, or no params for the match index. |
+| `GET /api/replay-frames` | The `/live` replay sandbox feed: no params = the match picker (served from the replay index), `?fixtureId=<fid>` = that match's downsampled frame series + goal timeline. CDN-cached with long max-age - a finished match never changes. |
 | `GET /api/live-stream` | Tick-by-tick TxLINE + Polymarket snapshot behind `/live` (cached, same-origin). |
 | `GET /api/live-frames` | Real-time TxLINE frames (polled snapshot). |
 | `GET /api/verify-csv` | Per-frame verification CSV for reconciliation against the provider. |
@@ -216,6 +225,10 @@ Consumer/API pricing: **the first 20 keys are free** (30-day, no payment, hard-c
 - **Data blob:** `https://mohbmvajroqizlfaarjk.supabase.co/storage/v1/object/public/desk-archives/pickoffs.json`
 - **Pipeline:** the EC2 crons above regenerate the blob end-to-end every 30 min
   from live TxLINE SSE + Polygon fills.
+- **Caching contract:** small index blobs (`pickoffs.json`, `replays-index.json`)
+  are fetched server-side with short revalidation; per-match replay blobs are
+  served through CDN-cached routes with long max-age. Finished matches are
+  treated as immutable, so nothing large is ever re-fetched per visitor.
 - **Local:**
 
   ```bash

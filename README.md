@@ -92,9 +92,11 @@ we do not lean on it. In-sample on 12 matches; a promising pilot, not a settled 
 TxLINE SSE (fair) + Polymarket fills (Polygon) → EC2 pipeline → Supabase blob →
 Next.js site. A Python pipeline on an EC2 box streams the de-vig fair line,
 decodes real Polymarket fills from Polygon, joins them, computes reach / return /
-Kelly every 30 min, and publishes `desk-archives/pickoffs.json` to Supabase
-storage. The Next.js app reads that blob and renders the site - every headline
-number is dynamic, never hard-coded. Full detail in [`TECHNICAL.md`](./TECHNICAL.md).
+Kelly every 30 min, and publishes `desk-archives/pickoffs.json` plus a replay
+index and one replay blob per match to Supabase storage. The Next.js app reads
+those blobs and renders the site - every headline number is dynamic, never
+hard-coded, and per-match replay data is served through CDN-cached routes (a
+finished match never changes). Full detail in [`TECHNICAL.md`](./TECHNICAL.md).
 
 ## Verifiability
 
