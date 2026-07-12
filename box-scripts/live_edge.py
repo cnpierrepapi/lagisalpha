@@ -218,7 +218,12 @@ def signal_for(fx):
             sig = detect(fid, teams, mm, trades)
             if sig:
                 return sig
-    return midpoint_fallback(fx)  # no fills / no fair yet → degrade to the midpoint read
+            if trades:
+                # fills are being collected and the fill detector has nothing current: that silence is
+                # real (no divergence episode). Falling to the midpoint here is what leaked quote-based
+                # diverged:true signals (all 5 Norway v England alerts) — a quote is not a fill.
+                return None
+    return midpoint_fallback(fx)  # no fills collected / no fair yet → degrade to the midpoint read
 
 
 def main():

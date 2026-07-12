@@ -193,14 +193,20 @@ async function liveTick() {
     if (q) {
       const sigs = q.live === false ? [] : (q.signals ?? []);
       const active = new Set(sigs.map((x) => `${x.fid}:${x.side}`));
-      for (const k of Object.keys(state.seen)) if (!active.has(k)) delete state.seen[k];
+      // prune ONLY episode keys (fid:side) so the episode re-arms when it leaves the list. Winner-hint
+      // ("wh:") keys must survive the prune — deleting them re-announced the hint every tick.
+      for (const k of Object.keys(state.seen)) if (/:(yes|no)$/.test(k) && !active.has(k)) delete state.seen[k];
       for (const sig of sigs) {
+        // fill-backed only: an entry fire is a REAL fill below fair. A quote (midpoint fallback) has
+        // no entry fill and no exit fill to ever close it — never trade one.
+        if (!sig.entryFill?.tx) continue;
         const id = `${sig.fid}:${sig.side}`;
         if (state.seen[id]) continue;
         state.seen[id] = 1;
         state.session ||= newSession(state.balance ?? state.bankroll); // live continues from the trailing balance
         const pos = openPosition(state.session, sig);
         say(`${sig.teams}  ${teamOf(sig)}'s side cheap @ ${sig.entry.toFixed(3)} -> fair ${sig.fair.toFixed(3)}  (+${sig.gapPp.toFixed(0)}pp to converge)`, "sig");
+        say(`  entry fill @ ${sig.entry.toFixed(3)} · verify ${EXPLORER(sig.entryFill.tx)}`, "muted");
         if (pos.stake > 0) say(`  paper fill ${Math.round(pos.shares).toLocaleString()} sh · stake ${money(pos.stake)} (Kelly ${(pos.f * 100).toFixed(0)}% of free ${money(availableCash(state.session) + pos.stake)}) · watching…`, "fill");
         else { state.session.trades.pop(); state.session.seq -= 1; say("  (no paper fill — balance fully committed to open positions)", "muted"); }
       }
@@ -220,6 +226,14 @@ async function liveTick() {
         for (const pos of open) {
           const lv = byFid.get(String(pos.fid)) ?? (edge.signals ?? []).find((x) => x.teams === pos.teams);
           if (lv) {
+            // prefer the REAL exit fill: a fill that traded at/through the entry-time fair — settle AT
+            // fair with the Polygon tx as proof (mirrors the bot and the /proof recorder)
+            if (lv.exitFill?.tx && lv.side === pos.side) {
+              settlePosition(s, pos, pos.tpTarget, "converged"); state.balance = s.bankroll;
+              say(exitText(pos), pos.pnl >= 0 ? "win" : "loss");
+              say(`  exit fill @ ${Number(lv.exitFill.price).toFixed(3)}${Number.isFinite(lv.exitFill.gapPp) ? ` (+${lv.exitFill.gapPp}pp past fair)` : ""} · verify ${EXPLORER(lv.exitFill.tx)}`, "muted");
+              continue;
+            }
             const px = pos.side === "yes" ? lv.pm : 1 - lv.pm;
             if (!Number.isFinite(px)) continue;
             pos.lastPx = px; pos.misses = 0;
@@ -286,7 +300,12 @@ async function handle(line) {
       const hadOpen = state.session?.trades?.some((t) => t.status === "open");
       state.bankroll = n; state.balance = n; state.session = null; state.seen = {};
       return emit(`bankroll ${money(n)} · sizing: Kelly (default, locked)${hadOpen ? " · previous session (incl. open positions) cleared" : ""}`, "sys"); }
-    case "load": { if (!/^las_/.test(arg)) return emit("usage: load las_<key>", "loss"); state.apiKey = arg; return emit(`key loaded (${arg.slice(0, 8)}…) · live unlocked`, "sys"); }
+    case "load": {
+      if (!/^las_/.test(arg)) return emit("usage: load las_<key>", "loss");
+      // probe the key against the gated endpoint before claiming "unlocked" (mirrors the bot's /link)
+      const probe = await host.fetchJson("/api/v1/divergences?status=live", arg).catch(() => null);
+      if (probe?.__err === 401) return emit(`that key is invalid or expired — get one at ${BASE}/api`, "loss");
+      state.apiKey = arg; return emit(`key loaded (${arg.slice(0, 8)}…) · live unlocked`, "sys"); }
     case "status": return doStatus();
     case "stop": return state.liveOn ? stopLive() : emit("live watch is not on.", "muted");
     case "matches": { const data = await host.fetchJson("/api/replay-signals").catch(() => null); const list = data?.matches ?? [];

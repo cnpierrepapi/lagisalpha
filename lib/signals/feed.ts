@@ -127,10 +127,12 @@ export async function getFairSnapshot(): Promise<{ generatedAt: number; live: bo
 // Live signal feed, gated (D2/task 5): only returns signals while a match is in play.
 export async function getLiveSignals(): Promise<{ generatedAt: number; live: boolean; signals: Signal[] }> {
   const live = await getLiveEdge();
-  const diverged = (live?.signals ?? []).filter((s) => s.diverged);
+  // fill-backed only: a signal is a REAL fill below fair (entry fire) that later exits on a real fill
+  // at/through fair. The detector's midpoint fallback is a quote, not a trade — it has no entry fill,
+  // no episode lifecycle, and nothing to ever close (the Norway v England ghost alerts); it stays out
+  // of the feed. No other exclusion: every fill-backed divergence is a signal, Kelly is the only risk control.
+  const diverged = (live?.signals ?? []).filter((s) => s.diverged && s.entryFill?.tx);
   const isLive = (live?.liveCount ?? 0) > 0;
-  // no exclusion filter: every divergence the detector fires is a signal (Kelly sizing is the only
-  // risk control), so the live feed passes through unfiltered.
   return {
     generatedAt: live?.generatedAt ?? Date.now(),
     live: isLive,

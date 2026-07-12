@@ -101,10 +101,20 @@ await bot.pushLiveTo(2);
 const noDup = !sent.some((m) => m.text.includes("cheap @"));
 if (noDup) { pass++; console.log("  ✓", "republished divergence (new ts) is not re-opened"); } else { fail++; console.log("  ✗", "republished divergence re-opened a position"); }
 
+// a quote-based signal (no real entry fill) must NOT alert or open anything: an entry fire is a fill
+// (777 stays in the feed so its episode does not re-arm mid-test)
+const quoteSig = { fid: "555", teams: "Eta v Theta", side: "yes", entry: 0.30, fair: 0.40, tpTarget: 0.40, gapPp: 10, suggestedKellyF: 0.14, sizeAtFair: 0, ts: 1090 };
+LIVE = { live: true, signals: [{ ...liveSig, ts: 1080 }, quoteSig] };
+sent.length = 0;
+await bot.pushLiveTo(2);
+const noQuote = !sent.some((m) => m.text.includes("Theta"));
+if (noQuote) { pass++; console.log("  ✓", "quote signal without an entry fill is not alerted"); } else { fail++; console.log("  ✗", "quote signal without an entry fill leaked an alert"); }
+
 // a SECOND signal while the first is open must Kelly-size on the FREE balance, not the start bankroll,
 // AND respect the Kelly cap: free = 10000 - 2000 = 8000; suggestedKellyF 0.5 is capped to 0.3, so
 // stake = 8000 * 0.3 = $2,400 (uncapped this would have been $4,000).
-const liveSig2 = { fid: "888", teams: "Epsilon v Zeta", side: "yes", entry: 0.50, fair: 0.60, tpTarget: 0.60, gapPp: 10, suggestedKellyF: 0.5, sizeAtFair: 0, ts: 1100 };
+const liveSig2 = { fid: "888", teams: "Epsilon v Zeta", side: "yes", entry: 0.50, fair: 0.60, tpTarget: 0.60, gapPp: 10, suggestedKellyF: 0.5, sizeAtFair: 0, ts: 1100,
+  entryFill: { t: 1100, price: 0.50, tx: "0xliveentry2" } };
 LIVE = { live: true, signals: [{ ...liveSig, ts: 1120 }, liveSig2] };
 sent.length = 0;
 await bot.pushLiveTo(2);
@@ -143,6 +153,44 @@ LIVE = { live: true, signals: [{ ...liveSig, entry: 0.66, ts: 3000 }] };
 sent.length = 0;
 await bot.pushLiveTo(2);
 has("Delta's side cheap @ 0.660", "healed episode re-arms for a fresh divergence");
+
+// ── ALERTS-MODE episode lifecycle (chat 4): entry fire → exit fire, no paper session ─────────────
+// This is the Norway v England fix: alerts mode used to have NO exit path at all — three entry
+// alerts, zero closes. An announced episode must now close with the real ≥fair exit fill (tx proof),
+// or an honest no-reach message once the fixture leaves the live feed.
+LIVE = { live: true, signals: [] }; // clean feed so chat 4 tracks only its own episodes
+await bot.handleCommand(4, "/link las_testkey");
+await bot.handleCommand(4, "/live");
+const epSig = { fid: "444", teams: "Iota v Kappa", side: "yes", entry: 0.271, fair: 0.410, tpTarget: 0.410, gapPp: 13.9, suggestedKellyF: 0.19, sizeAtFair: 0, ts: 5000_000,
+  entryFill: { t: 5000, price: 0.271, tx: "0xepentry" } };
+LIVE = { live: true, signals: [epSig] };
+sent.length = 0;
+await bot.pushLiveTo(4);
+has("Kappa's side cheap @ 0.271", "alerts mode announces the fill-backed entry");
+has("watching for the exit fill at fair", "alerts mode says an exit fire will follow");
+{ const tracked = Object.keys(bot.chat(4).eps).length === 1;
+  if (tracked) { pass++; console.log("  ✓", "alerts mode tracks the announced episode"); } else { fail++; console.log("  ✗", "episode was not tracked in alerts mode"); } }
+
+// the detector reports the real ≥fair exit fill → the exit fire arrives with the tx proof
+sent.length = 0;
+await bot.settleEpisodesFor(4, { generatedAt: Date.now(), signals: [
+  { fid: "444", teams: "Iota v Kappa", fair: 0.410, pm: 0.42, diverged: false, side: "yes", ts: 5000_000,
+    entryFill: { t: 5000, price: 0.271, tx: "0xepentry" }, exitFill: { t: 5082, price: 0.4125, tx: "0xepexit", gapPp: 0.2 } },
+] });
+has("Kappa converged, exit @ fair 0.410", "alerts-mode exit fire closes at the entry-time fair");
+has("exit fill @ 0.412 (+0.2pp past fair) · verify https://polygonscan.com/tx/0xepexit", "alerts-mode exit fire carries the exit-fill polygonscan link");
+{ const cleared = Object.keys(bot.chat(4).eps).length === 0;
+  if (cleared) { pass++; console.log("  ✓", "converged episode is cleared from the watch list"); } else { fail++; console.log("  ✗", "episode still tracked after its exit fire"); } }
+
+// a second episode that never reaches fair: fixture leaves the feed → honest no-reach close
+LIVE = { live: true, signals: [{ ...epSig, fid: "445", teams: "Lambda v Mu", ts: 6000_000, entryFill: { t: 6000, price: 0.271, tx: "0xepentry2" } }] };
+sent.length = 0;
+await bot.pushLiveTo(4);
+sent.length = 0;
+for (let i = 0; i < 60; i++) await bot.settleEpisodesFor(4, { generatedAt: Date.now(), signals: [] });
+has("never traded at fair 0.410 — episode closed (no reach)", "vanished episode closes honestly as no-reach after the mark-out window");
+{ const cleared = Object.keys(bot.chat(4).eps).length === 0;
+  if (cleared) { pass++; console.log("  ✓", "no-reach episode is cleared from the watch list"); } else { fail++; console.log("  ✗", "no-reach episode still tracked"); } }
 
 // ── trailing balance + $NaN fix + /history + /bankroll display + /refresh (chat 3) ────────────────
 sent.length = 0;

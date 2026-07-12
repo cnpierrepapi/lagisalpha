@@ -163,6 +163,27 @@ async function tg(method, body) {
   } catch (e) { console.error("tg", method, e?.message); return { ok: false }; }
 }
 const send = (chatId, text) => tg("sendMessage", { chat_id: chatId, text, disable_web_page_preview: true });
+// Durable send for EXIT fires: an exit message lost to a Telegram hiccup would leave an entry that
+// never closes (the exact failure this bot is being fixed for), so failures queue in the chat's outbox
+// and are re-flushed at the start of every live tick. Capped so state cannot grow without bound.
+const OUTBOX_CAP = 20;
+async function sendDurable(chatId, text) {
+  const r = await send(chatId, text);
+  if (!r?.ok) {
+    const c = chat(chatId);
+    (c.outbox ||= []).push(text);
+    if (c.outbox.length > OUTBOX_CAP) c.outbox = c.outbox.slice(-OUTBOX_CAP);
+    saveState();
+  }
+  return r;
+}
+async function flushOutbox(chatId) {
+  const c = chat(chatId);
+  if (!c.outbox?.length) return;
+  const pending = c.outbox; c.outbox = [];
+  for (const text of pending) await sendDurable(chatId, text);
+  saveState();
+}
 
 // The slash-command menu Telegram clients pop up when the user types "/". Registered once at startup
 // via setMyCommands (BotFather does the same thing under the hood). Names are lowercase, no slash.
@@ -197,10 +218,13 @@ let state = { offset: 0, chats: {} };
 function loadState() { try { state = { ...state, ...JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) }; } catch { /* fresh */ } }
 function saveState() { try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); } catch (e) { console.error("save", e?.message); } }
 function chat(id) {
-  const c = (state.chats[id] ||= { apiKey: null, bankroll: null, balance: null, mode: "alerts", live: false, seen: {}, history: [] });
+  const c = (state.chats[id] ||= { apiKey: null, bankroll: null, balance: null, mode: "alerts", live: false, seen: {}, eps: {}, history: [] });
   // migrate older records: seed the trailing balance from a previously-set bankroll, ensure history exists
   if (c.balance == null && c.bankroll != null) c.balance = c.bankroll;
   if (!Array.isArray(c.history)) c.history = [];
+  // eps = announced live episodes awaiting their exit fire (alerts mode has no paper position to settle,
+  // but an entry fire MUST still be followed by its close — the Norway v England alerts never closed)
+  if (!c.eps || typeof c.eps !== "object") c.eps = {};
   return c;
 }
 // keep only the most recent N replays so the state file cannot grow without bound
@@ -320,13 +344,18 @@ async function handleCommand(chatId, text) {
         lines.push(`open positions (${open.length}):`);
         for (const p of open) lines.push(`  ${teamOf(p)} @ ${p.entry.toFixed(3)} -> ${p.tpTarget.toFixed(3)} · stake ${money(p.stake)} (${p.teams})`);
       }
+      const eps = Object.values(c.eps || {});
+      if (eps.length) {
+        lines.push(`watching episodes (${eps.length}):`);
+        for (const e of eps) lines.push(`  ${e.team} @ ${e.entry.toFixed(3)} -> ${e.tp.toFixed(3)} (${e.teams})`);
+      }
       await send(chatId, lines.join("\n")); break;
     }
     case "/refresh": {
       // wipe the paper session so the user starts clean — they must set a bankroll again. Keeps the
       // linked key, the live toggle, and the replay history (that record is the point of /history).
       const hadOpen = c.session?.trades?.some((t) => t.status === "open");
-      c.bankroll = null; c.balance = null; c.session = null; c.seen = {}; c.mode = "alerts";
+      c.bankroll = null; c.balance = null; c.session = null; c.seen = {}; c.eps = {}; c.mode = "alerts";
       saveState();
       await send(chatId, `session refreshed${hadOpen ? " · open positions cleared" : ""} · set a bankroll to begin again: /bankroll 10000`); break;
     }
@@ -344,6 +373,13 @@ async function handleCommand(chatId, text) {
 }
 
 // ── live push loop ───────────────────────────────────────────────────────────────────────────────
+// Remember an announced live episode that has NO paper position behind it (alerts mode, or bankroll
+// fully committed): the entry fire must still be followed by an exit fire when the ≥fair fill prints.
+function trackEpisode(c, id, sig) {
+  (c.eps ||= {})[id] = { fid: String(sig.fid), teams: sig.teams, side: sig.side, team: teamOf(sig),
+    entry: sig.entry, tp: sig.tpTarget ?? sig.fair, ts: sig.ts, misses: 0 };
+}
+
 async function pushLiveTo(chatId) {
   const c = chat(chatId);
   if (!c.live || !c.apiKey) return;
@@ -361,20 +397,32 @@ async function pushLiveTo(chatId) {
     if (/^[^:]+:(yes|no)$/.test(k)) { if (!active.has(k)) delete c.seen[k]; }
     else if (/^\d+:\d+$/.test(k)) delete c.seen[k];
   }
+  // goal-watch/winner-hint keys ("gw:", "wh:") have no natural expiry — cap total seen size so the
+  // state file cannot grow without bound across months of matches (insertion order = oldest first)
+  const seenKeys = Object.keys(c.seen);
+  if (seenKeys.length > 300) for (const k of seenKeys.slice(0, seenKeys.length - 300)) delete c.seen[k];
   // live session starts from the TRAILING balance (carried over from replays), not the original bankroll
   c.session ||= c.mode === "paper" && (c.balance ?? c.bankroll) > 0 ? newSession(c.balance ?? c.bankroll) : null;
   for (const sig of sigs) {
+    // fill-backed only: an entry fire is a REAL fill below fair. The feed gates this server-side too,
+    // but never alert on a quote — a quote has no fill to enter on and no exit fill to ever close it.
+    if (!sig.entryFill?.tx) continue;
     const id = `${sig.fid}:${sig.side}`;
     if (c.seen[id]) continue;
     c.seen[id] = 1;
     // the real on-chain fill that set the cheap-side entry (fill-based detector) — verifiable proof
-    const entryProof = sig.entryFill?.tx ? `\n  entry fill @ ${sig.entry.toFixed(3)} · verify ${EXPLORER(sig.entryFill.tx)}` : "";
+    const entryProof = `\n  entry fill @ ${sig.entry.toFixed(3)} · verify ${EXPLORER(sig.entryFill.tx)}`;
     if (c.mode === "paper" && c.session) {
       const pos = openPosition(c.session, sig);
       if (pos.stake > 0) await send(chatId, `${signalLine(sig)}\n${fillLine(pos)}${entryProof}\n  watching for convergence to fair…`);
-      else { c.session.trades.pop(); c.session.seq -= 1; await send(chatId, `${signalLine(sig)}${entryProof}\n  (no paper fill — bankroll fully committed to open positions)`); }
+      else {
+        c.session.trades.pop(); c.session.seq -= 1;
+        trackEpisode(c, id, sig); // no position to settle, but the entry fire still gets its exit fire
+        await send(chatId, `${signalLine(sig)}${entryProof}\n  (no paper fill — bankroll fully committed to open positions)`);
+      }
     } else {
-      await send(chatId, `${signalLine(sig)}${entryProof}`);
+      trackEpisode(c, id, sig); // alerts mode: remember the episode so the exit fire follows
+      await send(chatId, `${signalLine(sig)}${entryProof}\n  watching for the exit fill at fair…`);
     }
   }
   // goal-watch on live fixtures (present once live_edge publishes goalWatch)
@@ -415,7 +463,7 @@ async function settleOpenFor(chatId, edge) {
         settlePosition(s, pos, pos.tpTarget, "converged");
         pos._bankAfter = s.bankroll; c.balance = s.bankroll;
         const past = Number.isFinite(lv.exitFill.gapPp) ? ` (+${lv.exitFill.gapPp}pp past fair)` : "";
-        await send(chatId, `${pos.teams} — ${teamOf(pos)}\n${exitLine(pos)}\n  exit fill @ ${Number(lv.exitFill.price).toFixed(3)}${past} · verify ${EXPLORER(lv.exitFill.tx)}`);
+        await sendDurable(chatId, `${pos.teams} — ${teamOf(pos)}\n${exitLine(pos)}\n  exit fill @ ${Number(lv.exitFill.price).toFixed(3)}${past} · verify ${EXPLORER(lv.exitFill.tx)}`);
         continue;
       }
       const px = pos.side === "yes" ? lv.pm : 1 - lv.pm;
@@ -425,7 +473,7 @@ async function settleOpenFor(chatId, edge) {
         settlePosition(s, pos, pos.tpTarget, "converged");
         pos._bankAfter = s.bankroll;
         c.balance = s.bankroll; // keep the trailing balance in step with realized live PnL
-        await send(chatId, `${pos.teams} — ${teamOf(pos)}\n${exitLine(pos)}`);
+        await sendDurable(chatId, `${pos.teams} — ${teamOf(pos)}\n${exitLine(pos)}`);
       }
     } else {
       pos.misses = (pos.misses ?? 0) + 1;
@@ -433,7 +481,39 @@ async function settleOpenFor(chatId, edge) {
         settlePosition(s, pos, pos.lastPx ?? pos.entry, "marked_out");
         pos._bankAfter = s.bankroll;
         c.balance = s.bankroll; // keep the trailing balance in step with realized live PnL
-        await send(chatId, `${pos.teams} — ${teamOf(pos)}\n${exitLine(pos)}`);
+        await sendDurable(chatId, `${pos.teams} — ${teamOf(pos)}\n${exitLine(pos)}`);
+      }
+    }
+  }
+  saveState();
+}
+
+// Exit fires for tracked episodes (no paper position behind them). Mirrors settleOpenFor's rules:
+// a REAL exit fill at/through the entry-time fair closes the episode (the fill is the proof, tx
+// attached); a fixture gone from the live feed for MARKOUT_MISSES polls closes it honestly as no-reach.
+async function settleEpisodesFor(chatId, edge) {
+  const c = chat(chatId);
+  const keys = Object.keys(c.eps || {});
+  if (!keys.length) return;
+  const byFid = new Map((edge.signals ?? []).map((x) => [String(x.fid), x]));
+  for (const k of keys) {
+    const ep = c.eps[k];
+    const lv = byFid.get(String(ep.fid));
+    if (lv && lv.side === ep.side) {
+      // exitFill.t is unix SECONDS; ep.ts is the entry's ms timestamp — only accept an exit that
+      // printed after our entry (a later episode's fill must not close an older record silently)
+      if (lv.exitFill?.tx && lv.exitFill.t * 1000 >= ep.ts - 60000) {
+        const past = Number.isFinite(lv.exitFill.gapPp) ? ` (+${lv.exitFill.gapPp}pp past fair)` : "";
+        await sendDurable(chatId, `✅ ${ep.teams} — ${ep.team} converged, exit @ fair ${ep.tp.toFixed(3)}\n  exit fill @ ${Number(lv.exitFill.price).toFixed(3)}${past} · verify ${EXPLORER(lv.exitFill.tx)}`);
+        delete c.eps[k];
+        continue;
+      }
+      ep.misses = 0; // episode still current, keep watching
+    } else {
+      ep.misses = (ep.misses ?? 0) + 1;
+      if (ep.misses >= MARKOUT_MISSES) {
+        await sendDurable(chatId, `🔻 ${ep.teams} — ${ep.team} never traded at fair ${ep.tp.toFixed(3)} — episode closed (no reach)`);
+        delete c.eps[k];
       }
     }
   }
@@ -450,9 +530,13 @@ async function liveLoop() {
   } catch (e) { console.error("edge", e?.message); }
   for (const chatId of Object.keys(state.chats)) {
     const c = state.chats[chatId];
+    // exit fires that failed to deliver on a previous tick go out first, in order
+    try { await flushOutbox(chatId); } catch (e) { console.error("outbox", e?.message); }
     if (c.live) { try { await pushLiveTo(chatId); } catch (e) { console.error("push", e?.message); } }
     // settle even when live pushes are off: an open position must still close at fair
     if (edge && c.session) { try { await settleOpenFor(chatId, edge); } catch (e) { console.error("settle", e?.message); } }
+    // exit fires for episodes announced without a position (alerts mode / fully-committed bankroll)
+    if (edge) { try { await settleEpisodesFor(chatId, edge); } catch (e) { console.error("eps", e?.message); } }
   }
   setTimeout(liveLoop, LIVE_POLL_MS);
 }
@@ -484,4 +568,4 @@ if (IS_MAIN) {
 }
 
 // exported for the mocked smoke test (scripts/telegram_test.mjs); no-op when run as the bot.
-export { handleCommand, replayFor, pushLiveTo, settleOpenFor, chat, state, newSession, openPosition, settlePosition, replayExit, summarize };
+export { handleCommand, replayFor, pushLiveTo, settleOpenFor, settleEpisodesFor, trackEpisode, chat, state, newSession, openPosition, settlePosition, replayExit, summarize };
