@@ -37,6 +37,33 @@ def tget(path):
         return None
 
 
+def fair_1x2(fid):
+    # latest demargined full-match 1X2 fair from the TxLINE snapshot (live_stream.py depends
+    # on this; it was dropped in the Jul 8 fill-based rewrite and only survived in the
+    # long-running service's memory - restored so a service restart cannot kill the stream).
+    od = tget("/api/odds/snapshot/" + str(fid))
+    recs = od if isinstance(od, list) else (od or {}).get("records", [])
+    best = None
+    for r in recs:
+        if r.get("Bookmaker") != "TXLineStablePriceDemargined":
+            continue
+        if r.get("SuperOddsType") != "1X2_PARTICIPANT_RESULT":
+            continue
+        if r.get("MarketPeriod") not in (None, "null", ""):
+            continue
+        if best is None or float(r.get("Ts", 0)) > float(best.get("Ts", 0)):
+            best = r
+    if not best:
+        return None
+    nm = best.get("PriceNames") or []
+    pr = best.get("Prices") or []
+    dd = {n: (1 / (p / 1000) if p and p > 0 else 0) for n, p in zip(nm, pr)}
+    s = sum(dd.values())
+    if s <= 0 or "part2" not in dd:
+        return None
+    return {"fair": dd["part2"] / s, "ts": float(best.get("Ts", 0))}
+
+
 def live_fixtures():
     snap = tget("/api/fixtures/snapshot")
     fx = snap if isinstance(snap, list) else (snap or {}).get("fixtures", [])
@@ -49,7 +76,9 @@ def live_fixtures():
 
 
 def fair_series(fid):
-    # freshest fair first: the archiver's live local capture (~2s cadence), else the published blob.
+    # freshest fair first: the archiver's live local capture (~2s cadence), else the on-disk
+    # archive cache, else the published blob (persisted to the cache so the */1 cron never
+    # re-downloads the same 16MB+ archive - that repeat pull was a Supabase egress leak).
     j = None
     p = os.path.join(CAP_DIR, "%s.json" % fid)
     if os.path.exists(p):
@@ -57,8 +86,19 @@ def fair_series(fid):
             j = json.load(open(p))
         except Exception:
             j = None
+    arc = os.path.expanduser("~/archive-cache/%s.json" % fid)
+    if j is None and os.path.exists(arc):
+        try:
+            j = json.load(open(arc))
+        except Exception:
+            j = None
     if j is None:
         j = P.dget("%s/storage/v1/object/public/desk-archives/live/%s.json" % (SUPA, fid))
+        if j and j.get("odds"):
+            try:
+                open(arc, "w").write(json.dumps(j))
+            except Exception:
+                pass
     if not j or "odds" not in j:
         return None
     byp = defaultdict(list)
