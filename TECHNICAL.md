@@ -34,7 +34,7 @@ Next.js site.
           ▼                                    ▼
   ┌─────────────────────── EC2 box (eu-west-1) ───────────────────────┐
   │  lagisalpha-livestream   agenthesis-worker   poly_pickoff_system  │
-  │  poly_live_collector      compute_edge.py     live_edge.py        │
+  │  poly_live_collector      compute_edge.py     live_detect.py      │
   │  lagisalpha-telegram (bot)                                        │
   └───────────────────────────────┬───────────────────────────────────┘
                                    ▼
@@ -51,12 +51,12 @@ Host `54.229.238.5` (eu-west-1, user `ec2-user`), systemd services + cron:
 
 | Component | Role |
 | --- | --- |
-| `lagisalpha-livestream` (service) | One upstream connection to TxLINE odds + scores SSE; publishes the de-vig **fair** line per fixture. |
+| `lagisalpha-livestream` (service) | **The live loop.** Every 2s it reads the TxLINE de-vig **fair** from the odds snapshot and the real Polymarket fills (durable log + Data API), timestamp-matches them, and publishes BOTH the `/live` chart (`live-stream.json`) and the in-play signal (`live-edge.json`) from one fresh in-memory source. |
+| `live_detect.py` (module) | The single divergence detector the live loop calls: from the fair series + real fills it decides the current signal - entry when a real fill trades ≥5pp below fair, exit when a later fill trades at/through that entry-time fair - with **no** midpoint quote and **no** on-disk fair rebuild. The same episode logic `compute_edge.py` uses offline, so a signal fired live reconciles with what `/proof` anchors. |
 | `agenthesis-worker` (service) | Archives each fixture's full odds/scores sequence → `live/<fixtureId>.json`. |
 | `poly_pickoff_system.py` | Decodes real Polymarket fills from Polygon (NegRisk `OrderFilled` logs, ≤50-block chunks with exact block timestamps, token-bucket rate limiting, per-match checkpoint/resume). |
-| `poly_live_collector.py` (cron `*/2`) | Tails the Polymarket Data API for live fills. |
-| `compute_edge.py` (cron `*/30`) | Joins both sides, computes reach / return / Kelly, publishes the result blob. Reads finished archives from a local cache (`~/archive-cache/`); an archive is immutable after full time, so each is downloaded once. |
-| `live_edge.py` (cron `*/1`) | Emits live in-play divergence signals when a match is running. |
+| `poly_live_collector.py` + `poly_live_chain.py` (cron `*/2`) | Tail the Polymarket Data API and the Polygon chain for live fills into the durable `~/poly-live/<cond>.jsonl` log (the chain tailer catches fills the Data API misses). |
+| `compute_edge.py` (cron `*/30`) | Joins both sides, computes reach / return / Kelly, publishes the result blob. Reads finished archives from a local cache (`~/archive-cache/`) **validated against the published blob's `Content-Length`**, so a finished archive downloads once but a mid-match partial can never shadow it. |
 | `lagisalpha-telegram` (service) | Node long-poll bot ([@lagisalphabot](https://t.me/lagisalphabot)); pushes signals, paper fills, goal-watch and the winner overlay, alerts-only or paper. Self-contained, mirrors the `npx lagisalpha` engine. |
 
 The `*/30` batch also runs `git pull origin master` before harvesting, so the box

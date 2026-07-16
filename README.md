@@ -89,14 +89,17 @@ we do not lean on it. In-sample on 12 matches; a promising pilot, not a settled 
 
 ## Architecture (short version)
 
-TxLINE SSE (fair) + Polymarket fills (Polygon) → EC2 pipeline → Supabase blob →
-Next.js site. A Python pipeline on an EC2 box streams the de-vig fair line,
-decodes real Polymarket fills from Polygon, joins them, computes reach / return /
-Kelly every 30 min, and publishes `desk-archives/pickoffs.json` plus a replay
-index and one replay blob per match to Supabase storage. The Next.js app reads
-those blobs and renders the site - every headline number is dynamic, never
-hard-coded, and per-match replay data is served through CDN-cached routes (a
-finished match never changes). Full detail in [`TECHNICAL.md`](./TECHNICAL.md).
+TxLINE fair + Polymarket fills (Polygon) → EC2 pipeline → Supabase blob →
+Next.js site. On an EC2 box, a persistent service runs the **live loop**: every
+2s it timestamp-matches the TxLINE de-vig fair (odds snapshot) to the real
+Polymarket fills and publishes the in-play signal to `desk-archives/live-edge.json`,
+computed off the same fresh data it charts. A separate **30-min batch** decodes the
+full Polygon fill history, recomputes reach / return / Kelly over every settled
+match, and publishes `desk-archives/pickoffs.json` plus a replay index and one
+replay blob per match. The Next.js app reads those blobs and renders the site -
+every headline number is dynamic, never hard-coded, and per-match replay data is
+served through CDN-cached routes (a finished match never changes). Full detail in
+[`TECHNICAL.md`](./TECHNICAL.md).
 
 ## Verifiability
 
@@ -143,7 +146,7 @@ transaction → `apiToken`), sent as `Authorization: Bearer <jwt>` +
 - `GET /api/fixtures/snapshot` - live fixtures, team names, kickoff times.
 - `GET /api/odds/stream` - live **de-margined (no-vig)** odds (SSE) - the core signal input.
 - `GET /api/scores/stream` - live scores + match events (goals / red cards, SSE).
-- `GET /api/odds/snapshot/{fixtureId}` - current de-margined book, polled for the real-time frames panel.
+- `GET /api/odds/snapshot/{fixtureId}` - current de-margined book, polled every 2s for the live signal loop's fair and the real-time frames panel.
 - `GET /api/scores/updates/{fixtureId}` - full kickoff-to-FT score sequence, used to capture matches for the bundled replays.
 
 > Odds history is gated (`/api/odds/updates` is empty on the free tier), so the
