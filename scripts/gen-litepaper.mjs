@@ -24,20 +24,60 @@ function winnerTally(matches) {
   return { whFired, whGraded, whCorrect, whPending: whFired - whGraded };
 }
 
+// MIRROR of lib/signals/policy.ts (KELLY_CAP, dedupeDivs, kmultTp, kmultRes, pooledStats) so the PDF
+// computes the SAME deduped, Kelly-capped headline as lib/site-stats.ts renders on the page. The raw
+// blob `pooled` field is NOT deduped, so reading it directly made the PDF disagree with the site. Keep
+// this in sync with policy.ts.
+const KELLY_CAP = 0.3;
+function dedupeDivs(divs, kick, mode = "side") {
+  if (!kick || !divs || divs.length < 2) return divs || [];
+  const best = new Map(); const order = [];
+  for (const e of divs) {
+    const min = Math.max(0, Math.floor((e.t * 1000 - kick) / 60000));
+    const key = mode === "side" ? `${min}:${e.side}` : String(min);
+    const cur = best.get(key);
+    if (!cur) { best.set(key, e); order.push(key); }
+    else if (e.entry < cur.entry || (e.entry === cur.entry && e.t < cur.t)) best.set(key, e);
+  }
+  return order.map((k) => best.get(k));
+}
+function kmultTp(e) {
+  const d = 1 - e.entry;
+  const f = d > 0 ? Math.max(0, Math.min(KELLY_CAP, Math.abs(e.gap) / d)) : 0;
+  const r = e.entry > 0 ? (e.reached ? Math.abs(e.gap) : e.clv ?? 0) / e.entry : 0;
+  return 1 + f * r;
+}
+function kmultRes(e) {
+  const d = 1 - e.entry;
+  const f = d > 0 ? Math.max(0, Math.min(KELLY_CAP, Math.abs(e.gap) / d)) : 0;
+  const r = e.win ? (1 - e.entry) / e.entry : -1;
+  return 1 + f * r;
+}
+function pooledStats(matchDivs) {
+  let n = 0, reach = 0, size = 0, kTp = 1, kRes = 1;
+  for (const { divs } of matchDivs)
+    for (const e of divs) { n++; reach += e.reached ? 1 : 0; size += e.usd ?? 0; kTp *= kmultTp(e); kRes *= kmultRes(e); }
+  return { n, reachRate: n ? reach / n : 0, kellyRoi: n ? kTp - 1 : 0, kellyRoiRes: n ? kRes - 1 : 0, usd: size };
+}
+
 async function getStats() {
-  const fb = { reachPct: 78, roiPct: 427, roi10Pct: 567, resPct: -98, res10Pct: -54, matchCount: 18, matchWord: "eighteen",
+  const fb = { reachPct: 79, roiPct: 427, roi10Pct: 567, resPct: -98, res10Pct: -54, matchCount: 19, matchWord: "nineteen",
     whFired: 7, whGraded: 5, whCorrect: 5, whPending: 2 };
   try {
     const d = await (await fetch(BLOB)).json();
-    const p5 = d?.pooled?.["5"], p10 = d?.pooled?.["10"], mc = d?.matchCount ?? d?.matches?.length ?? 0;
-    const wt = winnerTally(d?.matches);
-    if (!p5 || !p5.n) return { ...fb, ...wt, matchCount: mc || fb.matchCount, matchWord: numWord(mc || fb.matchCount) };
+    const matches = d?.matches ?? [];
+    const mc = d?.matchCount ?? matches.length ?? 0;
+    const wt = winnerTally(matches);
+    // recompute the SAME way lib/site-stats.ts does: same-minute-per-side dedupe, then pooled Kelly.
+    const s5 = pooledStats(matches.map((m) => ({ divs: dedupeDivs(m.divergences?.["5"] ?? [], m.kick), kick: m.kick })));
+    const s10 = pooledStats(matches.map((m) => ({ divs: dedupeDivs(m.divergences?.["10"] ?? [], m.kick), kick: m.kick })));
+    if (!s5.n) return { ...fb, ...wt, matchCount: mc || fb.matchCount, matchWord: numWord(mc || fb.matchCount) };
     return {
-      reachPct: Math.round(p5.reachRate * 100),
-      roiPct: Math.round(p5.kellyRoi * 100),
-      roi10Pct: p10 ? Math.round(p10.kellyRoi * 100) : fb.roi10Pct,
-      resPct: Math.round(p5.kellyRoiRes * 100),
-      res10Pct: p10 ? Math.round((p10.kellyRoiRes ?? 0) * 100) : fb.res10Pct,
+      reachPct: Math.round(s5.reachRate * 100),
+      roiPct: Math.round(s5.kellyRoi * 100),
+      roi10Pct: s10.n ? Math.round(s10.kellyRoi * 100) : Math.round(s5.kellyRoi * 100),
+      resPct: Math.round(s5.kellyRoiRes * 100),
+      res10Pct: s10.n ? Math.round(s10.kellyRoiRes * 100) : Math.round(s5.kellyRoiRes * 100),
       matchCount: mc, matchWord: numWord(mc),
       ...wt,
     };
